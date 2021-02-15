@@ -14,4 +14,4 @@ There have been efforts by projects like Hashgraph to translate the concepts of 
 
 IOTA was one of the first projects that tried to translate the longest chain wins consensus of blockchains into the world of DAGs maintaining all of its benefits but trying to solve blockchains drawbacks (slow confirmations, hard to shard and relying on a 2-class society where users have to pay miners to get their transactions included in the ledger state). It failed to fulfill this promise due to a badly designed and broken first version. 
 
-This repository implements a simulator for a new consensus mechanism that gets rid of all the original drawbacks of IOTA but that similarly to blockchain does not rely on nodes querying each other for their opinion.
+This repository implements a simulator for a new consensus mechanism that gets rid of all the original drawbacks of IOTA and that similarly to blockchain does not rely on nodes querying each other for their opinion.

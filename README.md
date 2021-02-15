@@ -12,8 +12,6 @@ This level of freedom and flexibility is the reason why 99% of all DLTs still us
 
 There have been efforts by projects like Hashgraph to translate the concepts of virtual voting into the world of DAGs but they have failed to maintain the same properties as blockchain and are limited to a relatively small network of permissioned nodes. Other DAG based DLTs are very proprietary, often make undesirable tradeoffs and only work exactly the way they were designed. It is impossible to modify even small parts of their protocol and exchange them with a different one as research progresses.
 
-IOTA was one of the first projects that tried to translate the longest chain wins consensus of blockchains into the world of DAGs maintaining all of its benefits but trying to solve blockchains drawbacks. It failed to fulfill this promise due to a badly designed and broken first version. 
+IOTA was one of the first projects that tried to translate the longest chain wins consensus of blockchains into the world of DAGs maintaining all of its benefits but trying to solve blockchains drawbacks (slow confirmations, hard to shard and relying on a 2-class society where users have to pay miners to get their transactions included in the ledger state). It failed to fulfill this promise due to a badly designed and broken first version. 
 
-
-This repository introduces a similator for the actual voting mechanism in the Tangle that tries to do exactly that - translate the blockchain principles into the world of DAGs that work fast and reliably and deliver a maximum of flexibility.
-
+This repository implements a simulator for a new consensus mechanism that gets rid of the drawbacks of the original ideas of IOTA and implements a scalable and fast consensus mechanism that similarly to blockchain does not rely on nodes querying each other for their opinion.

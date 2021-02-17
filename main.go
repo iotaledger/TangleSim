@@ -35,7 +35,6 @@ func main() {
 
 	attackers := testNetwork.RandomPeers(3)
 	sendMessage(attackers[0], multiverse.Red)
-	time.Sleep(20 * time.Millisecond)
 	sendMessage(attackers[1], multiverse.Blue)
 	sendMessage(attackers[2], multiverse.Green)
 
@@ -69,7 +68,7 @@ func monitorNetworkState(testNetwork *network.Network) {
 	}
 
 	go func() {
-		for range time.Tick(100 * time.Millisecond) {
+		for range time.Tick(1000 * time.Millisecond) {
 			log.Infof("Network Status: %d TPS :: Consensus[ %d Undefined / %d Blue / %d Red / %d Green ] :: %d Nodes :: %d Validators",
 				atomic.LoadUint64(&tpsCounter),
 				opinions[multiverse.UndefinedColor],

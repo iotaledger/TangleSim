@@ -47,6 +47,21 @@ func (m *MessageMetadata) Solid() (solid bool) {
 	return m.solid
 }
 
+func (m *MessageMetadata) SetInheritedColor(color Color) (modified bool) {
+	if color == m.inheritedColor {
+		return
+	}
+
+	m.inheritedColor = color
+	modified = true
+
+	return
+}
+
+func (m *MessageMetadata) InheritedColor() (color Color) {
+	return m.inheritedColor
+}
+
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // region MessageRequest ///////////////////////////////////////////////////////////////////////////////////////////////

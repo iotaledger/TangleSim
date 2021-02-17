@@ -37,8 +37,8 @@ func (s *Storage) Store(message *Message) {
 
 	s.messageDB[message.ID] = message
 	s.messageMetadataDB[message.ID] = &MessageMetadata{id: message.ID}
-	s.strongChildrenDB[message.ID] = message.StrongParents
-	s.weakChildrenDB[message.ID] = message.WeakParents
+	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
+	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
 
 	s.Events.MessageStored.Trigger(message.ID)
 }
@@ -59,6 +59,16 @@ func (s *Storage) StrongChildren(messageID MessageID) (strongChildren MessageIDs
 
 func (s *Storage) WeakChildren(messageID MessageID) (weakChildren MessageIDs) {
 	return s.weakChildrenDB[messageID]
+}
+
+func (s *Storage) storeChildReferences(messageID MessageID, childReferenceDB map[MessageID]MessageIDs, parents MessageIDs) {
+	for parent := range parents {
+		if _, exists := childReferenceDB[parent]; !exists {
+			childReferenceDB[parent] = NewMessageIDs()
+		}
+
+		childReferenceDB[parent].Add(messageID)
+	}
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

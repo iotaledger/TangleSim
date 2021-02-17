@@ -24,7 +24,7 @@ type Requester struct {
 func NewRequester(tangle *Tangle) (requester *Requester) {
 	requester = &Requester{
 		Events: &RequesterEvents{
-			Request: events.NewEvent(),
+			Request: events.NewEvent(messageIDEventCaller),
 		},
 
 		tangle:         tangle,
@@ -36,8 +36,8 @@ func NewRequester(tangle *Tangle) (requester *Requester) {
 }
 
 func (r *Requester) Setup() {
-	r.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(r.StopRequest))
 	r.tangle.Solidifier.Events.MessageMissing.Attach(events.NewClosure(r.StartRequest))
+	r.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(r.StopRequest))
 }
 
 func (r *Requester) StartRequest(messageID MessageID) {

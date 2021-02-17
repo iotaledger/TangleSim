@@ -22,7 +22,7 @@ func NewNode() network.Node {
 }
 
 func (n *Node) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution) {
-	defer log.Debugf("%s, Setting up Multiverse ... [DONE]", peer)
+	defer log.Debugf("%s: Setting up Multiverse ... [DONE]", peer)
 
 	n.Peer = peer
 	n.Tangle.Setup(peer, weightDistribution)
@@ -34,16 +34,20 @@ func (n *Node) Setup(peer *network.Peer, weightDistribution *network.ConsensusWe
 	}))
 }
 
+func (n *Node) IssuePayload(payload Color) {
+	n.Peer.Socket <- payload
+}
+
 func (n *Node) HandleNetworkMessage(networkMessage interface{}) {
-	switch receivedNetworkMessaged := networkMessage.(type) {
+	switch receivedNetworkMessage := networkMessage.(type) {
 	case *MessageRequest:
-		if requestedMessage := n.Tangle.Storage.Message(receivedNetworkMessaged.MessageID); requestedMessage != nil {
-			n.Peer.Neighbors[receivedNetworkMessaged.Issuer].Send(requestedMessage)
+		if requestedMessage := n.Tangle.Storage.Message(receivedNetworkMessage.MessageID); requestedMessage != nil {
+			n.Peer.Neighbors[receivedNetworkMessage.Issuer].Send(requestedMessage)
 		}
 	case *Message:
-		n.Tangle.ProcessMessage(receivedNetworkMessaged)
+		n.Tangle.ProcessMessage(receivedNetworkMessage)
 	case Color:
-		n.Tangle.ProcessMessage(n.Tangle.MessageFactory.CreateMessage(receivedNetworkMessaged))
+		n.Tangle.ProcessMessage(n.Tangle.MessageFactory.CreateMessage(receivedNetworkMessage))
 	}
 }
 

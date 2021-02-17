@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/crypto"
+	"github.com/iotaledger/hive.go/datastructure/set"
 	"github.com/iotaledger/hive.go/logger"
 )
 
@@ -12,7 +13,8 @@ var log = logger.NewLogger("Network")
 // region Network //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Network struct {
-	Peers []*Peer
+	Peers              []*Peer
+	WeightDistribution *ConsensusWeightDistribution
 }
 
 func New(option ...Option) (network *Network) {
@@ -28,6 +30,29 @@ func New(option ...Option) (network *Network) {
 	config.ConnectPeers(network)
 
 	return
+}
+
+func (n *Network) RandomPeers(count int) (randomPeers []*Peer) {
+	selectedPeers := set.New()
+	for len(randomPeers) < count {
+		if randomIndex := crypto.Randomness.Intn(len(n.Peers)); selectedPeers.Add(randomIndex) {
+			randomPeers = append(randomPeers, n.Peers[randomIndex])
+		}
+	}
+
+	return
+}
+
+func (n *Network) Start() {
+	for _, peer := range n.Peers {
+		peer.Start()
+	}
+}
+
+func (n *Network) Shutdown() {
+	for _, peer := range n.Peers {
+		peer.Shutdown()
+	}
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -64,7 +89,7 @@ func (c *Configuration) CreatePeers(network *Network) {
 	log.Debugf("Creating peers ...")
 	defer log.Info("Creating peers ... [DONE]")
 
-	weightDistribution := NewConsensusWeightDistribution()
+	network.WeightDistribution = NewConsensusWeightDistribution()
 	for _, nodesSpecification := range c.nodes {
 		nodeWeights := nodesSpecification.weightGenerator(nodesSpecification.nodeCount)
 
@@ -73,8 +98,8 @@ func (c *Configuration) CreatePeers(network *Network) {
 			network.Peers = append(network.Peers, peer)
 			log.Debugf("Created %s ... [DONE]", peer)
 
-			weightDistribution.SetWeight(peer.ID, nodeWeights[i])
-			peer.SetupNode(weightDistribution)
+			network.WeightDistribution.SetWeight(peer.ID, nodeWeights[i])
+			peer.SetupNode(network.WeightDistribution)
 		}
 	}
 }

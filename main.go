@@ -13,7 +13,7 @@ import (
 
 var log = logger.New("Simulation")
 
-const nodesCount = 1000
+const nodesCount = 10000
 
 func main() {
 	log.Info("Starting simulation ... [DONE]")

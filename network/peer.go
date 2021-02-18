@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/crypto"
+	"github.com/iotaledger/hive.go/timedexecutor"
 )
 
 // region Peer /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,21 +94,38 @@ func NewPeerID() PeerID {
 // region Connection ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Connection struct {
-	Socket       chan<- interface{}
-	NetworkDelay time.Duration
-	PacketLoss   float64
+	socket        chan<- interface{}
+	networkDelay  time.Duration
+	packetLoss    float64
+	timedExecutor *timedexecutor.TimedExecutor
+	shutdownOnce  sync.Once
+}
+
+func NewConnection(socket chan<- interface{}, networkDelay time.Duration, packetLoss float64) (connection *Connection) {
+	connection = &Connection{
+		socket:        socket,
+		networkDelay:  networkDelay,
+		packetLoss:    packetLoss,
+		timedExecutor: timedexecutor.New(1),
+	}
+
+	return
 }
 
 func (c *Connection) Send(message interface{}) {
-	if crypto.Randomness.Float64() <= c.PacketLoss {
+	if crypto.Randomness.Float64() <= c.packetLoss {
 		return
 	}
 
-	go func() {
-		time.Sleep(c.NetworkDelay)
+	c.timedExecutor.ExecuteAfter(func() {
+		c.socket <- message
+	}, c.networkDelay)
+}
 
-		c.Socket <- message
-	}()
+func (c *Connection) Shutdown() {
+	c.shutdownOnce.Do(func() {
+		c.timedExecutor.Shutdown(timedexecutor.CancelPendingTasks)
+	})
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -191,17 +191,17 @@ func WattsStrogatz(meanDegree int, randomness float64) PeeringStrategy {
 				randomNetworkDelay := configuration.RandomNetworkDelay()
 				randomPacketLoss := configuration.RandomPacketLoss()
 
-				network.Peers[sourceNodeID].Neighbors[PeerID(targetNodeID)] = &Connection{
-					Socket:       network.Peers[targetNodeID].Socket,
-					NetworkDelay: randomNetworkDelay,
-					PacketLoss:   randomPacketLoss,
-				}
+				network.Peers[sourceNodeID].Neighbors[PeerID(targetNodeID)] = NewConnection(
+					network.Peers[targetNodeID].Socket,
+					randomNetworkDelay,
+					randomPacketLoss,
+				)
 
-				network.Peers[targetNodeID].Neighbors[PeerID(sourceNodeID)] = &Connection{
-					Socket:       network.Peers[sourceNodeID].Socket,
-					NetworkDelay: randomNetworkDelay,
-					PacketLoss:   randomPacketLoss,
-				}
+				network.Peers[targetNodeID].Neighbors[PeerID(sourceNodeID)] = NewConnection(
+					network.Peers[sourceNodeID].Socket,
+					randomNetworkDelay,
+					randomPacketLoss,
+				)
 
 				log.Debugf("Connecting %s <-> %s [network delay (%s), packet loss (%0.4f%%)] ... [DONE]", network.Peers[sourceNodeID], network.Peers[targetNodeID], randomNetworkDelay, randomPacketLoss*100)
 			}

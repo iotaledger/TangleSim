@@ -2,6 +2,7 @@ package multiverse
 
 import (
 	"sync/atomic"
+	"time"
 
 	"github.com/iotaledger/hive.go/types"
 	"github.com/iotaledger/multivers-simulation/network"
@@ -10,12 +11,15 @@ import (
 // region Message //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Message struct {
-	ID             MessageID
-	StrongParents  MessageIDs
-	WeakParents    MessageIDs
-	SequenceNumber uint64
-	Issuer         network.PeerID
-	Payload        Color
+	ID               MessageID
+	StrongParents    MessageIDs
+	WeakParents      MessageIDs
+	SequenceNumber   uint64
+	Issuer           network.PeerID
+	Payload          Color
+	WeightSlice      []byte
+	IssuanceTime     time.Time
+	confirmationTime time.Time
 }
 
 // endregion Message ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
+	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
 	"github.com/iotaledger/multivers-simulation/multiverse"
 	"github.com/iotaledger/multivers-simulation/network"
@@ -13,14 +14,12 @@ import (
 
 var log = logger.New("Simulation")
 
-const nodesCount = 10000
-
 func main() {
 	log.Info("Starting simulation ... [DONE]")
 	defer log.Info("Shutting down simulation ... [DONE]")
 
 	testNetwork := network.New(
-		network.Nodes(nodesCount, multiverse.NewNode, network.ZIPFDistribution(0.9, 100000000)),
+		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(0.9, 100000000)),
 		network.Delay(30*time.Millisecond, 250*time.Millisecond),
 		network.PacketLoss(0, 0.05),
 		network.Topology(network.WattsStrogatz(4, 1)),
@@ -52,7 +51,7 @@ var (
 )
 
 func monitorNetworkState(testNetwork *network.Network) {
-	opinions[multiverse.UndefinedColor] = nodesCount
+	opinions[multiverse.UndefinedColor] = config.NodesCount
 	opinions[multiverse.Blue] = 0
 	opinions[multiverse.Red] = 0
 	opinions[multiverse.Green] = 0
@@ -75,7 +74,7 @@ func monitorNetworkState(testNetwork *network.Network) {
 				opinions[multiverse.Blue],
 				opinions[multiverse.Red],
 				opinions[multiverse.Green],
-				nodesCount,
+				config.NodesCount,
 				relevantValidators,
 			)
 

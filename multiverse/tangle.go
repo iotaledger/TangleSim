@@ -1,6 +1,7 @@
 package multiverse
 
 import (
+	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
@@ -26,7 +27,7 @@ func NewTangle() (tangle *Tangle) {
 	tangle.Booker = NewBooker(tangle)
 	tangle.OpinionManager = NewOpinionManager(tangle)
 	tangle.TipManager = NewTipManager(tangle)
-	tangle.MessageFactory = NewMessageFactory(tangle)
+	tangle.MessageFactory = NewMessageFactory(tangle, config.NodesCount)
 	tangle.Utils = NewUtils(tangle)
 
 	return

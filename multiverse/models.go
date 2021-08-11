@@ -19,7 +19,8 @@ type Message struct {
 	Payload          Color
 	WeightSlice      []byte
 	IssuanceTime     time.Time
-	confirmationTime time.Time
+	ConfirmationTime time.Time
+	Weight           uint64
 }
 
 // endregion Message ///////////////////////////////////////////////////////////////////////////////////////////////////

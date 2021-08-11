@@ -19,7 +19,7 @@ func main() {
 	defer log.Info("Shutting down simulation ... [DONE]")
 
 	testNetwork := network.New(
-		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(0.9, 100000000)),
+		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(config.ZipfParameter, config.NodesTotalWeight)),
 		network.Delay(30*time.Millisecond, 250*time.Millisecond),
 		network.PacketLoss(0, 0.05),
 		network.Topology(network.WattsStrogatz(4, 1)),

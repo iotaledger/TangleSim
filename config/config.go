@@ -5,4 +5,5 @@ const (
 	NodesTotalWeight       = 100000000
 	ZipfParameter          = 0.9
 	MessageWeightThreshold = 0.5
+	TPS                    = 1000
 )

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/csv"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -45,6 +47,8 @@ var (
 
 	opinions = make(map[multiverse.Color]int)
 
+	confirmedMessageCounter = int64(0)
+
 	opinionMutex sync.Mutex
 
 	relevantValidators int
@@ -63,6 +67,24 @@ func monitorNetworkState(testNetwork *network.Network) {
 
 			opinions[oldOpinion]--
 			opinions[newOpinion]++
+		}))
+
+		peer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(events.NewClosure(func(nodeID network.PeerID, issuerID network.PeerID, messageID multiverse.MessageID, IssuanceTime time.Time, confirmationTime time.Time, weight uint64) {
+			confirmedMessageCounter = atomic.AddInt64(&confirmedMessageCounter, 1)
+
+			record := []string{string(nodeID), string(issuerID), string(messageID), IssuanceTime.String(), confirmationTime.String(), string(weight), string(confirmedMessageCounter)}
+			w := csv.NewWriter(os.Stdout)
+
+			if err := w.Write(record); err != nil {
+				log.Fatal("error writing record to csv:", err)
+			}
+
+			// Write any buffered data to the underlying writer (standard output).
+			w.Flush()
+
+			if err := w.Error(); err != nil {
+				log.Fatal(err)
+			}
 		}))
 	}
 

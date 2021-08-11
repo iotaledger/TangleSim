@@ -7,20 +7,22 @@ import (
 	"github.com/iotaledger/hive.go/datastructure/walker"
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
-	"github.com/iotaledger/multivers-simulation/network"
 )
 
 // region ApprovalManager ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 type ApprovalManager struct {
-	tangle                      *Tangle
-	consensusWeightDistribution *network.ConsensusWeightDistribution
+	tangle *Tangle
+	Events *ApprovalWeightEvents
 }
 
-func NewApprovalManager(tangle *Tangle, cwd *network.ConsensusWeightDistribution) *ApprovalManager {
+func NewApprovalManager(tangle *Tangle) *ApprovalManager {
 	return &ApprovalManager{
-		tangle:                      tangle,
-		consensusWeightDistribution: cwd,
+		tangle: tangle,
+		Events: &ApprovalWeightEvents{
+			MessageConfirmed:     events.NewEvent(messageIDEventCaller),
+			MessageWeightUpdated: events.NewEvent(messageIDEventCaller),
+		},
 	}
 }
 
@@ -33,17 +35,17 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 	issuingMessage := a.tangle.Storage.messageDB[messageID]
 	byteIndex := math.Floor(float64(issuingMessage.Issuer / 8))
 	mod := issuingMessage.Issuer % 8
-	weight := a.consensusWeightDistribution.Weight(issuingMessage.Issuer)
-
+	weight := a.tangle.WeightDistribution.Weight(issuingMessage.Issuer)
 	a.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
 
 		weightByte := message.WeightSlice[int(byteIndex)]
 		if weightByte&(1<<mod) != 0 {
 			weightByte |= 1 << mod
 			message.Weight += weight
-
-			if float64(message.Weight) >= config.MessageWeightThreshold*float64(a.consensusWeightDistribution.TotalWeight()) {
+			a.Events.MessageWeightUpdated.Trigger(message.ID)
+			if float64(message.Weight) >= config.MessageWeightThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) {
 				message.ConfirmationTime = time.Now()
+				a.Events.MessageConfirmed.Trigger(a.tangle.Peer.ID, message.Issuer, message.ID, message.IssuanceTime, message.ConfirmationTime, message.Weight)
 			}
 
 			for strongParentID := range message.StrongParents {
@@ -59,4 +61,11 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 	}, NewMessageIDs(messageID), true)
 }
 
-// 1 (Node 3) <- 5 (Node 2) <- 6 (Node 1)
+// region SolidifierEvents /////////////////////////////////////////////////////////////////////////////////////////////
+
+type ApprovalWeightEvents struct {
+	MessageConfirmed     *events.Event
+	MessageWeightUpdated *events.Event
+}
+
+// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

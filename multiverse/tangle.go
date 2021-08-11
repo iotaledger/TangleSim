@@ -10,6 +10,7 @@ type Tangle struct {
 	WeightDistribution *network.ConsensusWeightDistribution
 	Storage            *Storage
 	Solidifier         *Solidifier
+	ApprovalManager    *ApprovalManager
 	Requester          *Requester
 	Booker             *Booker
 	OpinionManager     *OpinionManager
@@ -28,6 +29,7 @@ func NewTangle() (tangle *Tangle) {
 	tangle.OpinionManager = NewOpinionManager(tangle)
 	tangle.TipManager = NewTipManager(tangle)
 	tangle.MessageFactory = NewMessageFactory(tangle, config.NodesCount)
+	tangle.ApprovalManager = NewApprovalManager(tangle)
 	tangle.Utils = NewUtils(tangle)
 
 	return
@@ -42,6 +44,7 @@ func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.Consensus
 	t.Booker.Setup()
 	t.OpinionManager.Setup()
 	t.TipManager.Setup()
+	t.ApprovalManager.Setup()
 }
 
 func (t *Tangle) ProcessMessage(message *Message) {

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/csv"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -70,9 +71,16 @@ func monitorNetworkState(testNetwork *network.Network) {
 		}))
 
 		peer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(events.NewClosure(func(nodeID network.PeerID, issuerID network.PeerID, messageID multiverse.MessageID, IssuanceTime time.Time, confirmationTime time.Time, weight uint64) {
-			confirmedMessageCounter = atomic.AddInt64(&confirmedMessageCounter, 1)
+			atomic.AddInt64(&confirmedMessageCounter, 1)
 
-			record := []string{string(nodeID), string(issuerID), string(messageID), IssuanceTime.String(), confirmationTime.String(), string(weight), string(confirmedMessageCounter)}
+			record := []string{strconv.FormatInt(int64(nodeID), 10),
+				strconv.FormatInt(int64(nodeID), 10),
+				strconv.FormatInt(int64(messageID), 10),
+				IssuanceTime.String(),
+				confirmationTime.String(),
+				strconv.FormatUint(weight, 10),
+				strconv.FormatInt(confirmedMessageCounter, 10),
+			}
 			w := csv.NewWriter(os.Stdout)
 
 			if err := w.Write(record); err != nil {

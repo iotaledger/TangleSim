@@ -88,8 +88,8 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
-	strongTips = tipSet.StrongTips(TipsCount)
-	weakTips = tipSet.WeakTips(TipsCount - 1)
+	strongTips = tipSet.StrongTips(TipsCount, t.tsa)
+	weakTips = tipSet.WeakTips(TipsCount-1, t.tsa)
 
 	if len(weakTips) == 0 {
 		return
@@ -166,27 +166,27 @@ func (t *TipSet) AddWeakTip(message *Message) {
 	t.weakTips.Set(message.ID, message)
 }
 
-func (t *TipSet) StrongTips(maxAmount int) (strongTips MessageIDs) {
+func (t *TipSet) StrongTips(maxAmount int, tsa TipSelector) (strongTips MessageIDs) {
 	if t.strongTips.Size() == 0 {
 		strongTips = NewMessageIDs(Genesis)
 		return
 	}
 
 	strongTips = make(MessageIDs)
-	for _, strongTip := range t.strongTips.RandomUniqueEntries(maxAmount) {
+	for _, strongTip := range tsa.TipSelect(t.strongTips, maxAmount) {
 		strongTips.Add(strongTip.(*Message).ID)
 	}
 
 	return
 }
 
-func (t *TipSet) WeakTips(maxAmount int) (weakTips MessageIDs) {
+func (t *TipSet) WeakTips(maxAmount int, tsa TipSelector) (weakTips MessageIDs) {
 	if t.weakTips.Size() == 0 {
 		return
 	}
 
 	weakTips = make(MessageIDs)
-	for _, weakTip := range t.weakTips.RandomUniqueEntries(maxAmount) {
+	for _, weakTip := range tsa.TipSelect(t.weakTips, maxAmount) {
 		weakTips.Add(weakTip.(*Message).ID)
 	}
 

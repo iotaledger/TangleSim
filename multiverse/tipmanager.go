@@ -214,14 +214,15 @@ type RURTS struct {
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TipSelect selects k tips
+// TipSelect selects maxAmount tips
 func (URTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 	return tips.RandomUniqueEntries(maxAmount)
 
 }
 
-// TipSelect selects k tips
+// TipSelect selects maxAmount tips
 // TODO: Modify this tip selection algorithm
+// RURTS: URTS with max parent age restriction
 func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 	return tips.RandomUniqueEntries(maxAmount)
 

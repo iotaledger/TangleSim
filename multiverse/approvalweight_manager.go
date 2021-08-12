@@ -39,7 +39,7 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 	a.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
 
 		weightByte := message.WeightSlice[int(byteIndex)]
-		if weightByte&(1<<mod) != 0 {
+		if weightByte&(1<<mod) == 0 {
 			weightByte |= 1 << mod
 			message.Weight += weight
 			a.Events.MessageWeightUpdated.Trigger(message.ID)

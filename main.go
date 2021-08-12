@@ -105,7 +105,7 @@ func monitorNetworkState(testNetwork *network.Network) {
 	}()
 }
 
-func secureNetwork(testNetwork *network.Network, decelerationFactor int) {
+func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 	largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
 
 	for _, peer := range testNetwork.Peers {
@@ -126,7 +126,7 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor int) {
 		// A node with a x% of mana will issue 1000*x% messages per second
 		issuingPeriod := config.NodesTotalWeight / config.TPS / weightOfPeer
 
-		go startSecurityWorker(peer, time.Duration(issuingPeriod*float64(decelerationFactor))*time.Second)
+		go startSecurityWorker(peer, time.Duration(issuingPeriod*decelerationFactor)*time.Second)
 	}
 }
 

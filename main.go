@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
+	"github.com/iotaledger/hive.go/typeutils"
 	"os"
 	"strconv"
 	"sync"
@@ -30,8 +32,8 @@ func main() {
 	testNetwork.Start()
 	defer testNetwork.Shutdown()
 
-	awResultsWriter := monitorNetworkState(testNetwork)
-	defer flushWriter(awResultsWriter)
+	awResultsWriters := monitorNetworkState(testNetwork)
+	defer flushWriters(awResultsWriters)
 	secureNetwork(testNetwork, 500*time.Millisecond)
 
 	time.Sleep(2 * time.Second)
@@ -44,11 +46,13 @@ func main() {
 	time.Sleep(30 * time.Second)
 }
 
-func flushWriter(awResultsWriter *csv.Writer) {
-	awResultsWriter.Flush()
-	err := awResultsWriter.Error()
-	if err != nil {
-		log.Error(err)
+func flushWriters(awResultsWriters []*csv.Writer) {
+	for _, awResultsWriter := range awResultsWriters {
+		awResultsWriter.Flush()
+		err := awResultsWriter.Error()
+		if err != nil {
+			log.Error(err)
+		}
 	}
 }
 
@@ -64,39 +68,45 @@ var (
 	relevantValidators int
 )
 
-func monitorNetworkState(testNetwork *network.Network) (awResultsWriter *csv.Writer) {
+func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.Writer) {
 	opinions[multiverse.UndefinedColor] = config.NodesCount
 	opinions[multiverse.Blue] = 0
 	opinions[multiverse.Red] = 0
 	opinions[multiverse.Green] = 0
 
-	file, err := os.Create("aw.csv")
-	if err != nil {
-		panic(err)
+	for _, id := range config.MonitoredAWPeers {
+		awPeer := testNetwork.Peers[id]
+		if typeutils.IsInterfaceNil(awPeer) {
+			panic(fmt.Sprintf("unknowm peer with id %d", id))
+		}
+		file, err := os.Create("aw" + strconv.Itoa(id) + ".csv")
+		if err != nil {
+			panic(err)
+		}
+		awResultsWriter := csv.NewWriter(file)
+		awResultsWriters = append(awResultsWriters, awResultsWriter)
+		awPeer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(
+			events.NewClosure(func(message *multiverse.Message, weight uint64) {
+				atomic.AddInt64(&confirmedMessageCounter, 1)
+
+				record := []string{
+					strconv.FormatInt(int64(awPeer.ID), 10),
+					strconv.FormatInt(int64(message.ID), 10),
+					message.IssuanceTime.String(),
+					message.ConfirmationTime.String(),
+					strconv.FormatUint(weight, 10),
+					strconv.FormatInt(confirmedMessageCounter, 10),
+				}
+
+				if err := awResultsWriter.Write(record); err != nil {
+					log.Fatal("error writing record to csv:", err)
+				}
+
+				if err := awResultsWriter.Error(); err != nil {
+					log.Fatal(err)
+				}
+			}))
 	}
-
-	awPeer := testNetwork.Peers[0]
-	awResultsWriter = csv.NewWriter(file)
-	awPeer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(events.NewClosure(func(nodeID network.PeerID, issuerID network.PeerID, messageID multiverse.MessageID, IssuanceTime time.Time, confirmationTime time.Time, weight uint64) {
-		atomic.AddInt64(&confirmedMessageCounter, 1)
-
-		record := []string{strconv.FormatInt(int64(nodeID), 10),
-			strconv.FormatInt(int64(nodeID), 10),
-			strconv.FormatInt(int64(messageID), 10),
-			IssuanceTime.String(),
-			confirmationTime.String(),
-			strconv.FormatUint(weight, 10),
-			strconv.FormatInt(confirmedMessageCounter, 10),
-		}
-
-		if err := awResultsWriter.Write(record); err != nil {
-			log.Fatal("error writing record to csv:", err)
-		}
-
-		if err := awResultsWriter.Error(); err != nil {
-			log.Fatal(err)
-		}
-	}))
 
 	for _, peer := range testNetwork.Peers {
 		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color) {

@@ -6,3 +6,7 @@ const (
 	ZipfParameter          = 0.9
 	MessageWeightThreshold = 0.5
 )
+
+var (
+	MonitoredAWPeers = [...]int{0}
+)

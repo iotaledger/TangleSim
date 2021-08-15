@@ -20,10 +20,14 @@ func NewApprovalManager(tangle *Tangle) *ApprovalManager {
 	return &ApprovalManager{
 		tangle: tangle,
 		Events: &ApprovalWeightEvents{
-			MessageConfirmed:     events.NewEvent(messageIDEventCaller),
-			MessageWeightUpdated: events.NewEvent(messageIDEventCaller),
+			MessageConfirmed:     events.NewEvent(approvalEventCaller),
+			MessageWeightUpdated: events.NewEvent(approvalEventCaller),
 		},
 	}
+}
+
+func approvalEventCaller(handler interface{}, params ...interface{}) {
+	handler.(func(*Message, uint64))(params[0].(*Message), params[1].(uint64))
 }
 
 func (a *ApprovalManager) Setup() {
@@ -42,10 +46,10 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 		if weightByte&(1<<mod) == 0 {
 			weightByte |= 1 << mod
 			message.Weight += weight
-			a.Events.MessageWeightUpdated.Trigger(message.ID)
+			a.Events.MessageWeightUpdated.Trigger(message)
 			if float64(message.Weight) >= config.MessageWeightThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) {
 				message.ConfirmationTime = time.Now()
-				a.Events.MessageConfirmed.Trigger(a.tangle.Peer.ID, message.Issuer, message.ID, message.IssuanceTime, message.ConfirmationTime, message.Weight)
+				a.Events.MessageConfirmed.Trigger(message, message.Weight)
 			}
 
 			for strongParentID := range message.StrongParents {

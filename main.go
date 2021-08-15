@@ -86,14 +86,14 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 		awResultsWriter := csv.NewWriter(file)
 		awResultsWriters = append(awResultsWriters, awResultsWriter)
 		awPeer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(
-			events.NewClosure(func(message *multiverse.Message, weight uint64) {
+			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64) {
 				atomic.AddInt64(&confirmedMessageCounter, 1)
 
 				record := []string{
 					strconv.FormatInt(int64(awPeer.ID), 10),
 					strconv.FormatInt(int64(message.ID), 10),
 					message.IssuanceTime.String(),
-					message.ConfirmationTime.String(),
+					messageMetadata.ConfirmationTime().String(),
 					strconv.FormatUint(weight, 10),
 					strconv.FormatInt(confirmedMessageCounter, 10),
 				}

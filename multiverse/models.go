@@ -33,6 +33,30 @@ type MessageMetadata struct {
 	confirmationTime time.Time
 }
 
+func (m *MessageMetadata) WeightSlice() []byte {
+	return m.weightSlice
+}
+
+func (m *MessageMetadata) SetWeightSlice(weightSlice []byte) {
+	m.weightSlice = weightSlice
+}
+
+func (m *MessageMetadata) Weight() uint64 {
+	return m.weight
+}
+
+func (m *MessageMetadata) SetWeight(weight uint64) {
+	m.weight = weight
+}
+
+func (m *MessageMetadata) ConfirmationTime() time.Time {
+	return m.confirmationTime
+}
+
+func (m *MessageMetadata) SetConfirmationTime(confirmationTime time.Time) {
+	m.confirmationTime = confirmationTime
+}
+
 func (m *MessageMetadata) ID() (messageID MessageID) {
 	return m.id
 }

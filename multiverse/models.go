@@ -11,16 +11,13 @@ import (
 // region Message //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Message struct {
-	ID               MessageID
-	StrongParents    MessageIDs
-	WeakParents      MessageIDs
-	SequenceNumber   uint64
-	Issuer           network.PeerID
-	Payload          Color
-	WeightSlice      []byte
-	IssuanceTime     time.Time
-	ConfirmationTime time.Time
-	Weight           uint64
+	ID             MessageID
+	StrongParents  MessageIDs
+	WeakParents    MessageIDs
+	SequenceNumber uint64
+	Issuer         network.PeerID
+	Payload        Color
+	IssuanceTime   time.Time
 }
 
 // endregion Message ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -28,9 +25,12 @@ type Message struct {
 // region MessageMetadata //////////////////////////////////////////////////////////////////////////////////////////////
 
 type MessageMetadata struct {
-	id             MessageID
-	solid          bool
-	inheritedColor Color
+	id               MessageID
+	solid            bool
+	inheritedColor   Color
+	weightSlice      []byte
+	weight           uint64
+	confirmationTime time.Time
 }
 
 func (m *MessageMetadata) ID() (messageID MessageID) {

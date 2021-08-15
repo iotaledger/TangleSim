@@ -27,7 +27,7 @@ func NewApprovalManager(tangle *Tangle) *ApprovalManager {
 }
 
 func approvalEventCaller(handler interface{}, params ...interface{}) {
-	handler.(func(*Message, uint64))(params[0].(*Message), params[1].(uint64))
+	handler.(func(*Message, *MessageMetadata, uint64))(params[0].(*Message), params[1].(*MessageMetadata), params[2].(uint64))
 }
 
 func (a *ApprovalManager) Setup() {
@@ -42,14 +42,14 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 	weight := a.tangle.WeightDistribution.Weight(issuingMessage.Issuer)
 	a.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
 
-		weightByte := message.WeightSlice[int(byteIndex)]
+		weightByte := messageMetadata.weightSlice[int(byteIndex)]
 		if weightByte&(1<<mod) == 0 {
 			weightByte |= 1 << mod
-			message.Weight += weight
-			a.Events.MessageWeightUpdated.Trigger(message)
-			if float64(message.Weight) >= config.MessageWeightThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) {
-				message.ConfirmationTime = time.Now()
-				a.Events.MessageConfirmed.Trigger(message, message.Weight)
+			messageMetadata.weight += weight
+			a.Events.MessageWeightUpdated.Trigger(message, messageMetadata, messageMetadata.weight)
+			if float64(messageMetadata.weight) >= config.MessageWeightThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) {
+				messageMetadata.confirmationTime = time.Now()
+				a.Events.MessageConfirmed.Trigger(message, messageMetadata, messageMetadata.weight)
 			}
 
 			for strongParentID := range message.StrongParents {

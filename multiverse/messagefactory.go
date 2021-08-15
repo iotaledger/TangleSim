@@ -1,7 +1,6 @@
 package multiverse
 
 import (
-	"math"
 	"sync/atomic"
 	"time"
 )
@@ -31,7 +30,6 @@ func (m *MessageFactory) CreateMessage(payload Color) (message *Message) {
 		SequenceNumber: atomic.AddUint64(&m.sequenceNumber, 1),
 		Issuer:         m.tangle.Peer.ID,
 		Payload:        payload,
-		WeightSlice:    make([]byte, int(math.Ceil(float64(m.numberOfNodes/8)))),
 		IssuanceTime:   time.Now(),
 	}
 }

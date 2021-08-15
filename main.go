@@ -30,7 +30,7 @@ func main() {
 	defer testNetwork.Shutdown()
 
 	monitorNetworkState(testNetwork)
-	secureNetwork(testNetwork, 500*time.Millisecond)
+	secureNetwork(testNetwork, config.DecelerationFactor)
 
 	time.Sleep(2 * time.Second)
 
@@ -105,18 +105,28 @@ func monitorNetworkState(testNetwork *network.Network) {
 	}()
 }
 
-func secureNetwork(testNetwork *network.Network, pace time.Duration) {
+func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 	largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
 
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
+
 		if 1000*weightOfPeer <= largestWeight {
 			continue
 		}
 
 		relevantValidators++
 
-		go startSecurityWorker(peer, time.Duration(largestWeight/weightOfPeer*float64(pace/time.Millisecond))*time.Millisecond)
+		// Weight: 100, 20, 1
+		// TPS: 1000
+		// Sleep time: 121/100000, 121/20000, 121/1000
+		// Issuing message count per second: 100000/121 + 20000/121 + 1000/121 = 1000
+
+		// Each peer should send messages according to their mana: Fix TPS for example 1000;
+		// A node with a x% of mana will issue 1000*x% messages per second
+		issuingPeriod := config.NodesTotalWeight / config.TPS / weightOfPeer
+
+		go startSecurityWorker(peer, time.Duration(issuingPeriod*decelerationFactor)*time.Second)
 	}
 }
 

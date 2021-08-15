@@ -61,8 +61,7 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 			}
 		}
 
-		//TODO ask Hans about revisit elements, why do we need it?
-	}, NewMessageIDs(messageID), true)
+	}, NewMessageIDs(messageID), false)
 }
 
 // region SolidifierEvents /////////////////////////////////////////////////////////////////////////////////////////////

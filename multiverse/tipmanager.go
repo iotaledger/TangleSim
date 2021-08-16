@@ -1,6 +1,8 @@
 package multiverse
 
 import (
+	"strings"
+
 	"github.com/iotaledger/hive.go/datastructure/randommap"
 	"github.com/iotaledger/hive.go/events"
 )
@@ -16,12 +18,24 @@ const (
 
 type TipManager struct {
 	tangle  *Tangle
+	tsa     TipSelector
 	tipSets map[Color]*TipSet
 }
 
-func NewTipManager(tangle *Tangle) (tipManager *TipManager) {
+func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
+	tsaString = strings.ToUpper(tsaString) // make sure string is upper case
+	var tsa TipSelector
+	switch tsaString {
+	case "URTS":
+		tsa = URTS{}
+	case "RURTS":
+		tsa = RURTS{}
+	default:
+		tsa = URTS{}
+	}
 	return &TipManager{
 		tangle:  tangle,
+		tsa:     tsa,
 		tipSets: make(map[Color]*TipSet),
 	}
 }
@@ -74,8 +88,8 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
-	strongTips = tipSet.StrongTips(TipsCount)
-	weakTips = tipSet.WeakTips(TipsCount - 1)
+	strongTips = tipSet.StrongTips(TipsCount, t.tsa)
+	weakTips = tipSet.WeakTips(TipsCount-1, t.tsa)
 
 	if len(weakTips) == 0 {
 		return
@@ -152,27 +166,27 @@ func (t *TipSet) AddWeakTip(message *Message) {
 	t.weakTips.Set(message.ID, message)
 }
 
-func (t *TipSet) StrongTips(maxAmount int) (strongTips MessageIDs) {
+func (t *TipSet) StrongTips(maxAmount int, tsa TipSelector) (strongTips MessageIDs) {
 	if t.strongTips.Size() == 0 {
 		strongTips = NewMessageIDs(Genesis)
 		return
 	}
 
 	strongTips = make(MessageIDs)
-	for _, strongTip := range t.strongTips.RandomUniqueEntries(maxAmount) {
+	for _, strongTip := range tsa.TipSelect(t.strongTips, maxAmount) {
 		strongTips.Add(strongTip.(*Message).ID)
 	}
 
 	return
 }
 
-func (t *TipSet) WeakTips(maxAmount int) (weakTips MessageIDs) {
+func (t *TipSet) WeakTips(maxAmount int, tsa TipSelector) (weakTips MessageIDs) {
 	if t.weakTips.Size() == 0 {
 		return
 	}
 
 	weakTips = make(MessageIDs)
-	for _, weakTip := range t.weakTips.RandomUniqueEntries(maxAmount) {
+	for _, weakTip := range tsa.TipSelect(t.weakTips, maxAmount) {
 		weakTips.Add(weakTip.(*Message).ID)
 	}
 
@@ -180,3 +194,36 @@ func (t *TipSet) WeakTips(maxAmount int) (weakTips MessageIDs) {
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// region TipSelector //////////////////////////////////////////////////////////////////////////////////////////////////
+
+// TipSelector defines the interface for a TSA
+type TipSelector interface {
+	TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{}
+}
+
+// URTS implements the uniform random tip selection algorithm
+type URTS struct {
+	TipSelector
+}
+
+// RURTS implements the restricted uniform random tip selection algorithm, where txs are only valid tips up to some age D
+type RURTS struct {
+	TipSelector
+}
+
+// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// TipSelect selects maxAmount tips
+func (URTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
+	return tips.RandomUniqueEntries(maxAmount)
+
+}
+
+// TipSelect selects maxAmount tips
+// TODO: Modify this tip selection algorithm
+// RURTS: URTS with max parent age restriction
+func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
+	return tips.RandomUniqueEntries(maxAmount)
+
+}

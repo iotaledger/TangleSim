@@ -18,6 +18,7 @@ import (
 )
 
 var log = logger.New("Simulation")
+var awHeader = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
 
 func main() {
 	log.Info("Starting simulation ... [DONE]")
@@ -79,18 +80,20 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 		if typeutils.IsInterfaceNil(awPeer) {
 			panic(fmt.Sprintf("unknowm peer with id %d", id))
 		}
-		file, err := os.Create("aw" + strconv.Itoa(id) + ".csv")
+		file, err := os.Create(fmt.Sprint("aw", id, "-", time.Now().UTC().Format(time.RFC3339)))
 		if err != nil {
 			panic(err)
 		}
 		awResultsWriter := csv.NewWriter(file)
+		if err = awResultsWriter.Write(awHeader); err != nil {
+			panic(err)
+		}
 		awResultsWriters = append(awResultsWriters, awResultsWriter)
 		awPeer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(
 			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64) {
 				atomic.AddInt64(&confirmedMessageCounter, 1)
 
 				record := []string{
-					strconv.FormatInt(int64(awPeer.ID), 10),
 					strconv.FormatInt(int64(message.ID), 10),
 					message.IssuanceTime.String(),
 					messageMetadata.ConfirmationTime().String(),

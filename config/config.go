@@ -6,4 +6,6 @@ const (
 	ZipfParameter          = 0.9
 	MessageWeightThreshold = 0.5
 	TSA                    = "URTS"
+	TPS                    = 1000
+	DecelerationFactor     = 5.0 // The factor to control the speed in the simulation.
 )

@@ -31,7 +31,7 @@ func approvalEventCaller(handler interface{}, params ...interface{}) {
 }
 
 func (a *ApprovalManager) Setup() {
-	a.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(a.ApproveMessages))
+	a.tangle.Solidifier.Events.MessageSolid.Attach(events.NewClosure(a.ApproveMessages))
 }
 
 func (a *ApprovalManager) ApproveMessages(messageID MessageID) {

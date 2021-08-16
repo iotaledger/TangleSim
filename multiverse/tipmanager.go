@@ -2,6 +2,7 @@ package multiverse
 
 import (
 	"strings"
+	"time"
 
 	"github.com/iotaledger/hive.go/datastructure/randommap"
 	"github.com/iotaledger/hive.go/events"
@@ -223,9 +224,36 @@ func (URTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 }
 
 // TipSelect selects maxAmount tips
-// TODO: Modify this tip selection algorithm
 // RURTS: URTS with max parent age restriction
 func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
-	return tips.RandomUniqueEntries(maxAmount)
+
+	var tipsToReturn []interface{}
+	// Prune the old tips
+	for {
+		tipsToReturn = tips.RandomUniqueEntries(maxAmount)
+
+		// If no tips, return empty list directly
+		if len(tipsToReturn) == 0 {
+			break
+		}
+
+		// Get the current time
+		currentTime := time.Now()
+		pruned := false
+		for _, tip := range tipsToReturn {
+			// If the time difference is greater than DeltaURTS, delete it from tips
+			if currentTime.Sub(tip.(*Message).IssuanceTime).Seconds() > config.DeltaURTS {
+				tips.Delete(tip)
+				pruned = true
+			}
+		}
+
+		// If some tips are pruned, we select again, else we return the selected tips
+		if pruned == false {
+			break
+		}
+	}
+
+	return tipsToReturn
 
 }

@@ -38,7 +38,7 @@ func (s *Storage) Store(message *Message) {
 	}
 
 	s.messageDB[message.ID] = message
-	s.messageMetadataDB[message.ID] = &MessageMetadata{id: message.ID, weightSlice: make([]byte, int(math.Ceil(float64(config.NodesCount/8))))}
+	s.messageMetadataDB[message.ID] = &MessageMetadata{id: message.ID, weightSlice: make([]byte, int(math.Ceil(config.NodesCount/8.0)))}
 	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
 	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
 

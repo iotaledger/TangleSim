@@ -35,7 +35,6 @@ func main() {
 
 	awResultsWriters := monitorNetworkState(testNetwork)
 	defer flushWriters(awResultsWriters)
-	monitorNetworkState(testNetwork)
 	secureNetwork(testNetwork, config.DecelerationFactor)
 
 	time.Sleep(2 * time.Second)

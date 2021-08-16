@@ -1,7 +1,6 @@
 package multiverse
 
 import (
-	"math"
 	"time"
 
 	"github.com/iotaledger/hive.go/datastructure/walker"
@@ -37,7 +36,7 @@ func (a *ApprovalManager) Setup() {
 func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 
 	issuingMessage := a.tangle.Storage.messageDB[messageID]
-	byteIndex := math.Floor(float64(issuingMessage.Issuer / 8))
+	byteIndex := issuingMessage.Issuer / 8
 	mod := issuingMessage.Issuer % 8
 	weight := a.tangle.WeightDistribution.Weight(issuingMessage.Issuer)
 	a.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
@@ -45,6 +44,7 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 		weightByte := messageMetadata.weightSlice[int(byteIndex)]
 		if weightByte&(1<<mod) == 0 {
 			weightByte |= 1 << mod
+			messageMetadata.weightSlice[int(byteIndex)] = weightByte
 			messageMetadata.weight += weight
 			a.Events.MessageWeightUpdated.Trigger(message, messageMetadata, messageMetadata.weight)
 			if float64(messageMetadata.weight) >= config.MessageWeightThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) {
@@ -64,7 +64,7 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 	}, NewMessageIDs(messageID), false)
 }
 
-// region SolidifierEvents /////////////////////////////////////////////////////////////////////////////////////////////
+// region ApprovalWeightEvents /////////////////////////////////////////////////////////////////////////////////////////////
 
 type ApprovalWeightEvents struct {
 	MessageConfirmed     *events.Event

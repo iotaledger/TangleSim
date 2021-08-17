@@ -17,8 +17,11 @@ import (
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
-var log = logger.New("Simulation")
-var awHeader = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
+var (
+	log      = logger.New("Simulation")
+	awHeader = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
+	csvMutex sync.Mutex
+)
 
 func main() {
 	log.Info("Starting simulation ... [DONE]")
@@ -101,6 +104,7 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 					strconv.FormatInt(confirmedMessageCounter, 10),
 				}
 
+				csvMutex.Lock()
 				if err := awResultsWriter.Write(record); err != nil {
 					log.Fatal("error writing record to csv:", err)
 				}
@@ -108,6 +112,7 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 				if err := awResultsWriter.Error(); err != nil {
 					log.Fatal(err)
 				}
+				csvMutex.Unlock()
 			}))
 	}
 

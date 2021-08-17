@@ -11,16 +11,13 @@ import (
 // region Message //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Message struct {
-	ID               MessageID
-	StrongParents    MessageIDs
-	WeakParents      MessageIDs
-	SequenceNumber   uint64
-	Issuer           network.PeerID
-	Payload          Color
-	WeightSlice      []byte
-	IssuanceTime     time.Time
-	ConfirmationTime time.Time
-	Weight           uint64
+	ID             MessageID
+	StrongParents  MessageIDs
+	WeakParents    MessageIDs
+	SequenceNumber uint64
+	Issuer         network.PeerID
+	Payload        Color
+	IssuanceTime   time.Time
 }
 
 // endregion Message ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -28,9 +25,36 @@ type Message struct {
 // region MessageMetadata //////////////////////////////////////////////////////////////////////////////////////////////
 
 type MessageMetadata struct {
-	id             MessageID
-	solid          bool
-	inheritedColor Color
+	id               MessageID
+	solid            bool
+	inheritedColor   Color
+	weightSlice      []byte
+	weight           uint64
+	confirmationTime time.Time
+}
+
+func (m *MessageMetadata) WeightSlice() []byte {
+	return m.weightSlice
+}
+
+func (m *MessageMetadata) SetWeightSlice(weightSlice []byte) {
+	m.weightSlice = weightSlice
+}
+
+func (m *MessageMetadata) Weight() uint64 {
+	return m.weight
+}
+
+func (m *MessageMetadata) SetWeight(weight uint64) {
+	m.weight = weight
+}
+
+func (m *MessageMetadata) ConfirmationTime() time.Time {
+	return m.confirmationTime
+}
+
+func (m *MessageMetadata) SetConfirmationTime(confirmationTime time.Time) {
+	m.confirmationTime = confirmationTime
 }
 
 func (m *MessageMetadata) ID() (messageID MessageID) {

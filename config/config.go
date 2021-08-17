@@ -9,3 +9,7 @@ const (
 	TPS                    = 1000
 	DecelerationFactor     = 5.0 // The factor to control the speed in the simulation.
 )
+
+var (
+	MonitoredAWPeers = [...]int{0}
+)

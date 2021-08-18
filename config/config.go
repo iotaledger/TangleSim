@@ -1,13 +1,13 @@
 package config
 
 const (
-	NodesCount             = 10
+	NodesCount             = 10_000
 	NodesTotalWeight       = 100_000_000
 	ZipfParameter          = 0.9
 	MessageWeightThreshold = 0.5
 	TSA                    = "URTS"
 	TPS                    = 1000
-	DecelerationFactor     = 5000.0 // The factor to control the speed in the simulation.
+	DecelerationFactor     = 5.0 // The factor to control the speed in the simulation.
 )
 
 var (

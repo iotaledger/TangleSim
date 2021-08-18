@@ -166,7 +166,7 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 		// A node with a x% of mana will issue 1000*x% messages per second
 		issuingPeriod := config.NodesTotalWeight / config.TPS / weightOfPeer
 		log.Debug(peer.ID, " issuing period is ", issuingPeriod)
-		pace := time.Duration(issuingPeriod * decelerationFactor * float64(time.Millisecond))
+		pace := time.Duration(issuingPeriod * decelerationFactor * float64(time.Second))
 		log.Debug(peer.ID, " peer sent a meesage at ", pace, ". weight of peer is ", weightOfPeer)
 		go startSecurityWorker(peer, pace)
 	}

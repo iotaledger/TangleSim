@@ -17,8 +17,11 @@ import (
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
-var log = logger.New("Simulation")
-var awHeader = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
+var (
+	log      = logger.New("Simulation")
+	awHeader = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
+	csvMutex sync.Mutex
+)
 
 func main() {
 	log.Info("Starting simulation ... [DONE]")
@@ -101,6 +104,7 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 					strconv.FormatInt(confirmedMessageCounter, 10),
 				}
 
+				csvMutex.Lock()
 				if err := awResultsWriter.Write(record); err != nil {
 					log.Fatal("error writing record to csv:", err)
 				}
@@ -108,6 +112,7 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 				if err := awResultsWriter.Error(); err != nil {
 					log.Fatal(err)
 				}
+				csvMutex.Unlock()
 			}))
 	}
 
@@ -160,8 +165,10 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 		// Each peer should send messages according to their mana: Fix TPS for example 1000;
 		// A node with a x% of mana will issue 1000*x% messages per second
 		issuingPeriod := config.NodesTotalWeight / config.TPS / weightOfPeer
-
-		go startSecurityWorker(peer, time.Duration(issuingPeriod*decelerationFactor)*time.Second)
+		log.Debug(peer.ID, " issuing period is ", issuingPeriod)
+		pace := time.Duration(issuingPeriod * decelerationFactor * float64(time.Second))
+		log.Debug(peer.ID, " peer sent a meesage at ", pace, ". weight of peer is ", weightOfPeer)
+		go startSecurityWorker(peer, pace)
 	}
 }
 

@@ -227,29 +227,35 @@ func (URTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 // RURTS: URTS with max parent age restriction
 func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 
+	var tipsNew []interface{}
 	var tipsToReturn []interface{}
-	// Prune the old tips
-	for {
-		tipsToReturn = tips.RandomUniqueEntries(maxAmount)
+	amountLeft := maxAmount
 
-		// If no tips, return empty list directly
-		if len(tipsToReturn) == 0 {
+	for {
+		// Get amountLeft tips
+		tipsNew = tips.RandomUniqueEntries(amountLeft)
+
+		// If there are no tips, return the tipsToReturn
+		if len(tipsNew) == 0 {
 			break
 		}
 
 		// Get the current time
 		currentTime := time.Now()
-		pruned := false
-		for _, tip := range tipsToReturn {
+		for _, tip := range tipsNew {
+
 			// If the time difference is greater than DeltaURTS, delete it from tips
 			if currentTime.Sub(tip.(*Message).IssuanceTime).Seconds() > config.DeltaURTS {
 				tips.Delete(tip)
-				pruned = true
+			} else {
+				// Append the valid tip to tipsToReturn and decrease the amountLeft
+				tipsToReturn = append(tipsToReturn, tip)
+				amountLeft--
 			}
 		}
 
-		// If some tips are pruned, we select again, else we return the selected tips
-		if pruned == false {
+		// If maxAmount tips are appended to tipsToReturn already, return the tipsToReturn
+		if amountLeft == 0 {
 			break
 		}
 	}

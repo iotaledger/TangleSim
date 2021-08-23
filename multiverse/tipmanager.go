@@ -86,6 +86,7 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 }
 
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
+	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
 	strongTips = tipSet.StrongTips(TipsCount, t.tsa)

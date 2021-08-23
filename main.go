@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
-	"github.com/iotaledger/hive.go/typeutils"
 	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/iotaledger/hive.go/typeutils"
 
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
@@ -42,6 +43,7 @@ func main() {
 
 	time.Sleep(2 * time.Second)
 
+	// Here three peers are randomly selected with defined Colors
 	attackers := testNetwork.RandomPeers(3)
 	sendMessage(attackers[0], multiverse.Red)
 	sendMessage(attackers[1], multiverse.Blue)

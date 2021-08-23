@@ -34,6 +34,7 @@ func (n *Node) Setup(peer *network.Peer, weightDistribution *network.ConsensusWe
 	}))
 }
 
+// The Color is send to the socket for creating a new Message
 func (n *Node) IssuePayload(payload Color) {
 	n.Peer.Socket <- payload
 }

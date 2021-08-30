@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
-	"github.com/iotaledger/hive.go/typeutils"
 	"os"
 	"strconv"
 	"sync"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
+	"github.com/iotaledger/hive.go/typeutils"
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
 	"github.com/iotaledger/multivers-simulation/multiverse"
@@ -137,7 +137,10 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 				config.NodesCount,
 				relevantValidators,
 			)
-
+			if Max(Max(opinions[multiverse.Blue], opinions[multiverse.Red]), opinions[multiverse.Green]) > config.SimulationStopThreshold*config.NodesCount {
+				log.Info("Shutting down simulation (consensue reached) ... [DONE]")
+				os.Exit(0)
+			}
 			atomic.StoreUint64(&tpsCounter, 0)
 		}
 	}()
@@ -186,4 +189,12 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 	}
 
 	peer.Node.(*multiverse.Node).IssuePayload(multiverse.UndefinedColor)
+}
+
+// Max returns the larger of x or y.
+func Max(x, y int) int {
+	if x < y {
+		return y
+	}
+	return x
 }

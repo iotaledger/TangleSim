@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/csv"
+	"flag"
 	"fmt"
-	"github.com/iotaledger/hive.go/typeutils"
 	"os"
 	"strconv"
 	"sync"
@@ -11,21 +11,83 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
+	"github.com/iotaledger/hive.go/typeutils"
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
 	"github.com/iotaledger/multivers-simulation/multiverse"
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
-var log = logger.New("Simulation")
-var awHeader = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
+var (
+	log      = logger.New("Simulation")
+	awHeader = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
+	csvMutex sync.Mutex
+)
+
+// Parse the flags and update the configuration
+func parseFlags() {
+
+	// Define the configuration flags
+	nodesCountPtr :=
+		flag.Int("nodesCount", config.NodesCount, "The number of nodes")
+	nodesTotalWeightPtr :=
+		flag.Int("nodesTotalWeight", config.NodesTotalWeight, "The total weight of nodes")
+	zipfParameterPtr :=
+		flag.Float64("zipfParameter", config.ZipfParameter, "The zipf's parameter")
+	messageWeightThresholdPtr :=
+		flag.Float64("messageWeightThreshold", config.MessageWeightThreshold, "The messageWeightThreshold of confirmed messages")
+	tipsCountPtr :=
+		flag.Int("tipsCount", config.TipsCount, "The tips count for a message")
+	weakTipsRatioPtr :=
+		flag.Float64("weakTipsRatio", config.WeakTipsRatio, "The ratio of weak tips")
+	tsaPtr :=
+		flag.String("tsa", config.TSA, "The tip selection algorithm")
+	tpsPtr :=
+		flag.Int("tps", config.TPS, "the tips per seconds")
+	decelerationFactorPtr :=
+		flag.Float64("decelerationFactor", config.DecelerationFactor, "The factor to control the speed in the simulation")
+	consensusMonitorTickPtr :=
+		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
+	releventValidatorWeightPtr :=
+		flag.Int("releventValidatorWeight", config.ReleventValidatorWeight, "The node whose weight * ReleventValidatorWeight <= largestWeight will not issue messages")
+
+	// Parse the flags
+	flag.Parse()
+
+	// Update the configuration parameters
+	config.NodesCount = *nodesCountPtr
+	config.NodesTotalWeight = *nodesTotalWeightPtr
+	config.ZipfParameter = *zipfParameterPtr
+	config.MessageWeightThreshold = *messageWeightThresholdPtr
+	config.TipsCount = *tipsCountPtr
+	config.WeakTipsRatio = *weakTipsRatioPtr
+	config.TSA = *tsaPtr
+	config.TPS = *tpsPtr
+	config.DecelerationFactor = *decelerationFactorPtr
+	config.ConsensusMonitorTick = *consensusMonitorTickPtr
+	config.ReleventValidatorWeight = *releventValidatorWeightPtr
+
+	log.Info("Current configuration:")
+	log.Info("NodesCount: ", config.NodesCount)
+	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
+	log.Info("ZipfParameter: ", config.ZipfParameter)
+	log.Info("MessageWeightThreshold: ", config.MessageWeightThreshold)
+	log.Info("TipsCount: ", config.TipsCount)
+	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
+	log.Info("TSA: ", config.TSA)
+	log.Info("TPS: ", config.TPS)
+	log.Info("DecelerationFactor: ", config.DecelerationFactor)
+	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
+	log.Info("ReleventValidatorWeight: ", config.ReleventValidatorWeight)
+}
 
 func main() {
 	log.Info("Starting simulation ... [DONE]")
 	defer log.Info("Shutting down simulation ... [DONE]")
 
+	parseFlags()
 	testNetwork := network.New(
-		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(config.ZipfParameter, config.NodesTotalWeight)),
+		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(config.ZipfParameter, float64(config.NodesTotalWeight))),
 		network.Delay(30*time.Millisecond, 250*time.Millisecond),
 		network.PacketLoss(0, 0.05),
 		network.Topology(network.WattsStrogatz(4, 1)),
@@ -101,6 +163,7 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 					strconv.FormatInt(confirmedMessageCounter, 10),
 				}
 
+				csvMutex.Lock()
 				if err := awResultsWriter.Write(record); err != nil {
 					log.Fatal("error writing record to csv:", err)
 				}
@@ -108,6 +171,7 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 				if err := awResultsWriter.Error(); err != nil {
 					log.Fatal(err)
 				}
+				csvMutex.Unlock()
 			}))
 	}
 
@@ -122,7 +186,7 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 	}
 
 	go func() {
-		for range time.Tick(1000 * time.Millisecond) {
+		for range time.Tick(time.Duration(config.ConsensusMonitorTick) * time.Millisecond) {
 			log.Infof("Network Status: %d TPS :: Consensus[ %d Undefined / %d Blue / %d Red / %d Green ] :: %d Nodes :: %d Validators",
 				atomic.LoadUint64(&tpsCounter),
 				opinions[multiverse.UndefinedColor],
@@ -146,7 +210,7 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
 
-		if 1000*weightOfPeer <= largestWeight {
+		if float64(config.ReleventValidatorWeight)*weightOfPeer <= largestWeight {
 			continue
 		}
 
@@ -159,9 +223,11 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 
 		// Each peer should send messages according to their mana: Fix TPS for example 1000;
 		// A node with a x% of mana will issue 1000*x% messages per second
-		issuingPeriod := config.NodesTotalWeight / config.TPS / weightOfPeer
-
-		go startSecurityWorker(peer, time.Duration(issuingPeriod*decelerationFactor)*time.Second)
+		issuingPeriod := float64(config.NodesTotalWeight) / float64(config.TPS) / weightOfPeer
+		log.Debug(peer.ID, " issuing period is ", issuingPeriod)
+		pace := time.Duration(issuingPeriod * decelerationFactor * float64(time.Second))
+		log.Debug(peer.ID, " peer sent a meesage at ", pace, ". weight of peer is ", weightOfPeer)
+		go startSecurityWorker(peer, pace)
 	}
 }
 

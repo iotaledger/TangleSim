@@ -135,11 +135,13 @@ func (m MessageIDs) Add(messageID MessageID) {
 	m[messageID] = types.Void
 }
 
+// Trim the MessageIDs to only retain `length` size
 func (m MessageIDs) Trim(length int) {
 	counter := 0
 	for messageID := range m {
 		if counter == length {
 			delete(m, messageID)
+			continue
 		}
 		counter++
 	}

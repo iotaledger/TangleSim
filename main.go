@@ -153,8 +153,13 @@ func dumpConfig(fileName string) {
 		ReleventValidatorWeight: config.ReleventValidatorWeight,
 	}
 
-	file, _ := json.MarshalIndent(data, "", " ")
-	_ = ioutil.WriteFile(fileName, file, 0644)
+	file, err := json.MarshalIndent(data, "", " ")
+	if err != nil {
+		log.Error(err)
+	}
+	if ioutil.WriteFile(fileName, file, 0644) != nil {
+		log.Error(err)
+	}
 }
 
 func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.Writer) {

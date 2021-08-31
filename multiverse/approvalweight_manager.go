@@ -26,7 +26,7 @@ func NewApprovalManager(tangle *Tangle) *ApprovalManager {
 }
 
 func approvalEventCaller(handler interface{}, params ...interface{}) {
-	handler.(func(*Message, *MessageMetadata, uint64))(params[0].(*Message), params[1].(*MessageMetadata), params[2].(uint64))
+	handler.(func(*Message, *MessageMetadata, uint64, int64))(params[0].(*Message), params[1].(*MessageMetadata), params[2].(uint64), params[3].(int64))
 }
 
 func (a *ApprovalManager) Setup() {
@@ -50,7 +50,7 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 			if float64(messageMetadata.weight) >= config.MessageWeightThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) &&
 				messageMetadata.confirmationTime.IsZero() {
 				messageMetadata.confirmationTime = time.Now()
-				a.Events.MessageConfirmed.Trigger(message, messageMetadata, messageMetadata.weight)
+				a.Events.MessageConfirmed.Trigger(message, messageMetadata, messageMetadata.weight, messageIDCounter)
 			}
 
 			for strongParentID := range message.StrongParents {

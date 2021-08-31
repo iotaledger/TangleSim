@@ -22,7 +22,7 @@ import (
 
 var (
 	log      = logger.New("Simulation")
-	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages"}
+	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages", "# of Issued Messages"}
 	dsHeader = []string{"Red", "Blue"}
 	csvMutex sync.Mutex
 )
@@ -205,7 +205,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 		}
 		resultsWriters = append(resultsWriters, awResultsWriter)
 		awPeer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(
-			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64) {
+			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64, messageIDCounter int64) {
 				atomic.AddInt64(&confirmedMessageCounter, 1)
 
 				record := []string{
@@ -214,6 +214,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 					strconv.FormatInt(int64(messageMetadata.ConfirmationTime().Sub(message.IssuanceTime)), 10),
 					strconv.FormatUint(weight, 10),
 					strconv.FormatInt(confirmedMessageCounter, 10),
+					strconv.FormatInt(messageIDCounter, 10),
 				}
 
 				csvMutex.Lock()

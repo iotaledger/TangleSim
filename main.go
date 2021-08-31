@@ -22,7 +22,8 @@ import (
 
 var (
 	log      = logger.New("Simulation")
-	awHeader = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
+	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages"}
+	dsHeader = []string{"Red", "Blue"}
 	csvMutex sync.Mutex
 )
 
@@ -90,31 +91,29 @@ func main() {
 	parseFlags()
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(config.ZipfParameter, float64(config.NodesTotalWeight))),
-		network.Delay(30*time.Millisecond, 250*time.Millisecond),
+		network.Delay(time.Duration(config.DecelerationFactor)*30*time.Microsecond, time.Duration(config.DecelerationFactor)*250*time.Microsecond),
 		network.PacketLoss(0, 0.05),
 		network.Topology(network.WattsStrogatz(4, 1)),
 	)
 	testNetwork.Start()
 	defer testNetwork.Shutdown()
 
-	awResultsWriters := monitorNetworkState(testNetwork)
-	defer flushWriters(awResultsWriters)
+	resultsWriters := monitorNetworkState(testNetwork)
+	defer flushWriters(resultsWriters)
 	secureNetwork(testNetwork, config.DecelerationFactor)
 
 	time.Sleep(2 * time.Second)
 
-	attackers := testNetwork.RandomPeers(3)
-	sendMessage(attackers[0], multiverse.Red)
-	sendMessage(attackers[1], multiverse.Blue)
-	sendMessage(attackers[2], multiverse.Green)
+	sendMessage(testNetwork.Peers[0], multiverse.Blue)
+	sendMessage(testNetwork.Peers[0], multiverse.Red)
 
 	time.Sleep(30 * time.Second)
 }
 
-func flushWriters(awResultsWriters []*csv.Writer) {
-	for _, awResultsWriter := range awResultsWriters {
-		awResultsWriter.Flush()
-		err := awResultsWriter.Error()
+func flushWriters(writers []*csv.Writer) {
+	for _, writer := range writers {
+		writer.Flush()
+		err := writer.Error()
 		if err != nil {
 			log.Error(err)
 		}
@@ -162,7 +161,7 @@ func dumpConfig(fileName string) {
 	}
 }
 
-func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.Writer) {
+func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Writer) {
 	opinions[multiverse.UndefinedColor] = config.NodesCount
 	opinions[multiverse.Blue] = 0
 	opinions[multiverse.Red] = 0
@@ -174,13 +173,27 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 	// Dump the configuration of this simulation
 	dumpConfig(fmt.Sprint("aw-", simulationStartTime, ".config"))
 
+	// Dump the double spending result
+
+	// Define the file name of the aw results
+	fileName := fmt.Sprint("ds-", simulationStartTime, ".result")
+	file, err := os.Create(fileName)
+	if err != nil {
+		panic(err)
+	}
+	dsResultsWriter := csv.NewWriter(file)
+	resultsWriters = append(resultsWriters, dsResultsWriter)
+	if err = dsResultsWriter.Write(dsHeader); err != nil {
+		panic(err)
+	}
+
 	for _, id := range config.MonitoredAWPeers {
 		awPeer := testNetwork.Peers[id]
 		if typeutils.IsInterfaceNil(awPeer) {
 			panic(fmt.Sprintf("unknowm peer with id %d", id))
 		}
 		// Define the file name of the aw results
-		fileName := fmt.Sprint("aw", id, "-", simulationStartTime)
+		fileName := fmt.Sprint("aw", id, "-", simulationStartTime, ".result")
 
 		file, err := os.Create(fileName)
 		if err != nil {
@@ -190,15 +203,15 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 		if err = awResultsWriter.Write(awHeader); err != nil {
 			panic(err)
 		}
-		awResultsWriters = append(awResultsWriters, awResultsWriter)
+		resultsWriters = append(resultsWriters, awResultsWriter)
 		awPeer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(
 			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64) {
 				atomic.AddInt64(&confirmedMessageCounter, 1)
 
 				record := []string{
 					strconv.FormatInt(int64(message.ID), 10),
-					message.IssuanceTime.String(),
-					messageMetadata.ConfirmationTime().String(),
+					strconv.FormatInt(message.IssuanceTime.Unix(), 10),
+					strconv.FormatInt(int64(messageMetadata.ConfirmationTime().Sub(message.IssuanceTime)), 10),
 					strconv.FormatUint(weight, 10),
 					strconv.FormatInt(confirmedMessageCounter, 10),
 				}
@@ -236,6 +249,19 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 				config.NodesCount,
 				relevantValidators,
 			)
+
+			record := []string{
+				strconv.FormatInt(int64(opinions[multiverse.Blue]), 10),
+				strconv.FormatInt(int64(opinions[multiverse.Red]), 10),
+			}
+
+			if err := dsResultsWriter.Write(record); err != nil {
+				log.Fatal("error writing record to csv:", err)
+			}
+
+			if err := dsResultsWriter.Error(); err != nil {
+				log.Fatal(err)
+			}
 
 			atomic.StoreUint64(&tpsCounter, 0)
 		}

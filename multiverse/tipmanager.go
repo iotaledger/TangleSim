@@ -88,36 +88,37 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
 	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa)
-	weakTips = tipSet.WeakTips(config.TipsCount-1, t.tsa)
+	// In the paper we consider all strong tips
+	// weakTips = tipSet.WeakTips(config.TipsCount-1, t.tsa)
 
-	if len(weakTips) == 0 {
-		return
-	}
+	// if len(weakTips) == 0 {
+	// 	return
+	// }
 
-	if strongTipsCount := len(strongTips); strongTipsCount < OptimalStrongTipsCount {
-		fillUpCount := config.TipsCount - strongTipsCount
+	// if strongTipsCount := len(strongTips); strongTipsCount < OptimalStrongTipsCount {
+	// 	fillUpCount := config.TipsCount - strongTipsCount
 
-		if fillUpCount >= len(weakTips) {
-			return
-		}
+	// 	if fillUpCount >= len(weakTips) {
+	// 		return
+	// 	}
 
-		weakTips.Trim(fillUpCount)
-		return
-	}
+	// 	weakTips.Trim(fillUpCount)
+	// 	return
+	// }
 
-	if weakTipsCount := len(weakTips); weakTipsCount < OptimalWeakTipsCount {
-		fillUpCount := config.TipsCount - weakTipsCount
+	// if weakTipsCount := len(weakTips); weakTipsCount < OptimalWeakTipsCount {
+	// 	fillUpCount := config.TipsCount - weakTipsCount
 
-		if fillUpCount >= len(strongTips) {
-			return
-		}
+	// 	if fillUpCount >= len(strongTips) {
+	// 		return
+	// 	}
 
-		strongTips.Trim(fillUpCount)
-		return
-	}
+	// 	strongTips.Trim(fillUpCount)
+	// 	return
+	// }
 
-	strongTips.Trim(OptimalStrongTipsCount)
-	weakTips.Trim(OptimalWeakTipsCount)
+	// strongTips.Trim(OptimalStrongTipsCount)
+	// weakTips.Trim(OptimalWeakTipsCount)
 
 	return
 }

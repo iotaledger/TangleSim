@@ -135,6 +135,7 @@ func (m MessageIDs) Add(messageID MessageID) {
 	m[messageID] = types.Void
 }
 
+// Trim the MessageIDs to only retain `length` size
 func (m MessageIDs) Trim(length int) {
 	counter := 0
 	for messageID := range m {
@@ -150,6 +151,17 @@ func (m MessageIDs) Trim(length int) {
 
 // region Color ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// The Color is used to ease of observation of Peer opinions and the ownOpinion based on the approvalWeights
+// The maxOpinion is the Opinion with the highest Color value and the maxApprovalWeight
+//
+// The approvalWeights stores the accumulated weights of each Color for messages
+//    - The message will have an associated Color inherited from its parents
+//    - The Color of a message is assigned from `IssuePayload`
+//    - The strongTips/weakTips will be selected from the TipSet[ownOpinion]
+//
+// The different color values are used as a tie breaker, i.e., when 2 colors have the same weight, the larger color value
+// opinion will be regarded as the ownOpinion. Each color simply represents a perception of a certain state of a tangle
+// where different conflicts are approved.
 type Color int64
 
 func (c Color) String() string {

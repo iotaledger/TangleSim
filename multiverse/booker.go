@@ -44,9 +44,10 @@ func (b *Booker) Book(messageID MessageID) {
 	b.Events.MessageBooked.Trigger(messageID)
 }
 
+// The booked message will inherit the color from its parent
 func (b *Booker) inheritColor(message *Message) (inheritedColor Color, err error) {
 	inheritedColor = message.Payload
-	for _, colorToInherit := range append(append(make([]Color, 0), b.colorsOfStrongParents(message)...), b.colorsOfWeakParents(message)...) {
+	for _, colorToInherit := range append(make([]Color, 0), b.colorsOfStrongParents(message)...) {
 		if colorToInherit == UndefinedColor {
 			continue
 		}

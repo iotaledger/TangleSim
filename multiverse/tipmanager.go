@@ -2,6 +2,7 @@ package multiverse
 
 import (
 	"strings"
+	"time"
 
 	"github.com/iotaledger/hive.go/datastructure/randommap"
 	"github.com/iotaledger/hive.go/events"
@@ -110,12 +111,14 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 }
 
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
+	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
 	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa)
 	// In the paper we consider all strong tips
 	// weakTips = tipSet.WeakTips(config.TipsCount-1, t.tsa)
 
+	// Remove the weakTips-related codes
 	// if len(weakTips) == 0 {
 	// 	return
 	// }
@@ -177,7 +180,6 @@ func NewTipSet(tipsToInherit *TipSet) (tipSet *TipSet) {
 
 func (t *TipSet) AddStrongTip(message *Message) {
 	t.strongTips.Set(message.ID, message)
-
 	for strongParent := range message.StrongParents {
 		t.strongTips.Delete(strongParent)
 	}
@@ -247,10 +249,43 @@ func (URTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 
 // region TipSelect Algorithm /////////////////////////////////////////////////////////////////////////////////////////
 // TipSelect selects maxAmount tips
-// TODO: Modify this tip selection algorithm
 // RURTS: URTS with max parent age restriction
 func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
-	return tips.RandomUniqueEntries(maxAmount)
+
+	var tipsNew []interface{}
+	var tipsToReturn []interface{}
+	amountLeft := maxAmount
+
+	for {
+		// Get amountLeft tips
+		tipsNew = tips.RandomUniqueEntries(amountLeft)
+
+		// If there are no tips, return the tipsToReturn
+		if len(tipsNew) == 0 {
+			break
+		}
+
+		// Get the current time
+		currentTime := time.Now()
+		for _, tip := range tipsNew {
+
+			// If the time difference is greater than DeltaURTS, delete it from tips
+			if currentTime.Sub(tip.(*Message).IssuanceTime).Seconds() > config.DeltaURTS {
+				tips.Delete(tip)
+			} else {
+				// Append the valid tip to tipsToReturn and decrease the amountLeft
+				tipsToReturn = append(tipsToReturn, tip)
+				amountLeft--
+			}
+		}
+
+		// If maxAmount tips are appended to tipsToReturn already, return the tipsToReturn
+		if amountLeft == 0 {
+			break
+		}
+	}
+
+	return tipsToReturn
 
 }
 

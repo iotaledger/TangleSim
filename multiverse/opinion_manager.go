@@ -34,6 +34,8 @@ func (o *OpinionManager) Setup() {
 	o.tangle.Booker.Events.MessageBooked.Attach(events.NewClosure(o.FormOpinion))
 }
 
+// Form the opinion of the current tangle.
+// The opinion is determined by the color with the most approvalWeight.
 func (o *OpinionManager) FormOpinion(messageID MessageID) {
 	defer o.Events.OpinionFormed.Trigger(messageID)
 
@@ -77,6 +79,8 @@ func (o *OpinionManager) Opinion() Color {
 	return o.ownOpinion
 }
 
+// Update the opinions counter and ownOpinion based on the highest peer color value and maxApprovalWeight
+// Each Color has approvalWeight. The Color with maxApprovalWeight determines the ownOpinion
 func (o *OpinionManager) weightsUpdated() {
 	maxApprovalWeight := uint64(0)
 	maxOpinion := UndefinedColor

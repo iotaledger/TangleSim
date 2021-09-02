@@ -59,6 +59,7 @@ func parseFlags() {
 	payloadLoss := flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
 	minDelay := flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
 	maxDelay := flag.Int("maxDelay", config.MaxDelay, "The maximum network delay in ms")
+	deltaURTS := flag.Float64("DeltaURTS", config.DeltaURTS, "in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199")
 
 	// Parse the flags
 	flag.Parse()
@@ -76,8 +77,9 @@ func parseFlags() {
 	config.ConsensusMonitorTick = *consensusMonitorTickPtr
 	config.ReleventValidatorWeight = *releventValidatorWeightPtr
 	config.PayloadLoss = *payloadLoss
-	config.MinDelay *= *minDelay
-	config.MaxDelay *= *maxDelay
+	config.MinDelay = *minDelay
+	config.MaxDelay = *maxDelay
+	config.DeltaURTS = *deltaURTS
 
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
@@ -94,6 +96,7 @@ func parseFlags() {
 	log.Info("PayloadLoss: ", config.PayloadLoss)
 	log.Info("MinDelay: ", config.MinDelay)
 	log.Info("MaxDelay: ", config.MaxDelay)
+	log.Info("DeltaURTS:", config.DeltaURTS)
 }
 
 func main() {
@@ -118,8 +121,17 @@ func main() {
 
 	// time.Sleep(2 * time.Second)
 
+	// To simulate the confirmation time w/o any double spendings, the colored msgs are not to be sent
+
+	// Here we simulate the double spending
 	// sendMessage(testNetwork.Peers[0], multiverse.Blue)
 	// sendMessage(testNetwork.Peers[0], multiverse.Red)
+
+	// Here three peers are randomly selected with defined Colors
+	// attackers := testNetwork.RandomPeers(3)
+	// sendMessage(attackers[0], multiverse.Red)
+	// sendMessage(attackers[1], multiverse.Blue)
+	// sendMessage(attackers[2], multiverse.Green)
 
 	time.Sleep(30 * time.Second)
 }
@@ -161,7 +173,7 @@ var (
 func dumpConfig(fileName string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay int
-		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, DecelerationFactor, PayloadLoss                           float64
+		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, DecelerationFactor, PayloadLoss, DeltaURTS                float64
 		TSA                                                                                                             string
 	}
 	data := Configuration{
@@ -179,6 +191,7 @@ func dumpConfig(fileName string) {
 		PayloadLoss:             config.PayloadLoss,
 		MinDelay:                config.MinDelay,
 		MaxDelay:                config.MaxDelay,
+		DeltaURTS:               config.DeltaURTS,
 	}
 
 	file, err := json.MarshalIndent(data, "", " ")

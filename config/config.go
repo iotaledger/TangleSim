@@ -15,6 +15,7 @@ var (
 	PayloadLoss             = 0.0 // The payload loss in the network.
 	MinDelay                = 100 // The minimum network delay in ms.
 	MaxDelay                = 100 // The maximum network delay in ms.
+	DeltaURTS               = 5.0 // in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199
 )
 
 var (

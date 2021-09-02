@@ -5,13 +5,12 @@ import (
 
 	"github.com/iotaledger/hive.go/datastructure/randommap"
 	"github.com/iotaledger/hive.go/events"
+	"github.com/iotaledger/multivers-simulation/config"
 )
 
-const (
-	TipsCount              = 4
-	WeakTipsRatio          = 0.25
-	OptimalStrongTipsCount = int(float64(TipsCount) * (1 - WeakTipsRatio))
-	OptimalWeakTipsCount   = int(float64(TipsCount) * WeakTipsRatio)
+var (
+	OptimalStrongTipsCount = int(float64(config.TipsCount) * (1 - config.WeakTipsRatio))
+	OptimalWeakTipsCount   = int(float64(config.TipsCount) * config.WeakTipsRatio)
 )
 
 // region TipManager ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,15 +87,15 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
-	strongTips = tipSet.StrongTips(TipsCount, t.tsa)
-	weakTips = tipSet.WeakTips(TipsCount-1, t.tsa)
+	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa)
+	weakTips = tipSet.WeakTips(config.TipsCount-1, t.tsa)
 
 	if len(weakTips) == 0 {
 		return
 	}
 
 	if strongTipsCount := len(strongTips); strongTipsCount < OptimalStrongTipsCount {
-		fillUpCount := TipsCount - strongTipsCount
+		fillUpCount := config.TipsCount - strongTipsCount
 
 		if fillUpCount >= len(weakTips) {
 			return
@@ -107,7 +106,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	}
 
 	if weakTipsCount := len(weakTips); weakTipsCount < OptimalWeakTipsCount {
-		fillUpCount := TipsCount - weakTipsCount
+		fillUpCount := config.TipsCount - weakTipsCount
 
 		if fillUpCount >= len(strongTips) {
 			return

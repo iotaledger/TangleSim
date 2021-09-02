@@ -18,9 +18,10 @@ var (
 type TipManager struct {
 	Events *TipManagerEvents
 
-	tangle  *Tangle
-	tsa     TipSelector
-	tipSets map[Color]*TipSet
+	tangle              *Tangle
+	tsa                 TipSelector
+	tipSets             map[Color]*TipSet
+	msgProcessedCounter map[Color]uint64
 }
 
 func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
@@ -34,14 +35,22 @@ func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
 	default:
 		tsa = URTS{}
 	}
+
+	// Initialize the counters
+	msgProcessedCounter := make(map[Color]uint64)
+	msgProcessedCounter[UndefinedColor] = 0
+	msgProcessedCounter[Red] = 0
+	msgProcessedCounter[Green] = 0
+
 	return &TipManager{
 		Events: &TipManagerEvents{
-			TipFetched: events.NewEvent(tipFetchedEventHandler),
+			MessageProcessed: events.NewEvent(messageProcessedHandler),
 		},
 
-		tangle:  tangle,
-		tsa:     tsa,
-		tipSets: make(map[Color]*TipSet),
+		tangle:              tangle,
+		tsa:                 tsa,
+		tipSets:             make(map[Color]*TipSet),
+		msgProcessedCounter: msgProcessedCounter,
 	}
 }
 
@@ -52,12 +61,20 @@ func (t *TipManager) Setup() {
 func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	message := t.tangle.Storage.Message(messageID)
 	messageMetadata := t.tangle.Storage.MessageMetadata(messageID)
+	inheritedColor := messageMetadata.InheritedColor()
+	tipSet := t.TipSet(inheritedColor)
+	current_tip_pool_size := tipSet.strongTips.Size()
 
 	addedAsStrongTip := make(map[Color]bool)
 	for color, tipSet := range t.TipSets(messageMetadata.InheritedColor()) {
 		addedAsStrongTip[color] = true
 		tipSet.AddStrongTip(message)
+		t.msgProcessedCounter[color] += 1
 	}
+
+	// Color, tips pool count, processed messages issued messages
+	t.Events.MessageProcessed.Trigger(inheritedColor, current_tip_pool_size,
+		t.msgProcessedCounter[inheritedColor], messageIDCounter)
 
 	for color, tipSet := range t.TipSets(messageMetadata.InheritedColor()) {
 		if !addedAsStrongTip[color] {
@@ -92,7 +109,6 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
-	t.Events.TipFetched.Trigger(t.tangle.OpinionManager.Opinion(), tipSet.strongTips.Size())
 
 	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa)
 	// In the paper we consider all strong tips
@@ -241,11 +257,11 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 // region TipManagerEvents /////////////////////////////////////////////////////////////////////////////////////////
 
 type TipManagerEvents struct {
-	TipFetched *events.Event
+	MessageProcessed *events.Event
 }
 
-func tipFetchedEventHandler(handler interface{}, params ...interface{}) {
-	handler.(func(Color, int))(params[0].(Color), params[1].(int))
+func messageProcessedHandler(handler interface{}, params ...interface{}) {
+	handler.(func(Color, int, uint64, int64))(params[0].(Color), params[1].(int), params[2].(uint64), params[3].(int64))
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

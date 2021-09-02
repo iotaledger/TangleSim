@@ -24,7 +24,8 @@ var (
 	log      = logger.New("Simulation")
 	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages", "# of Issued Messages"}
 	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green"}
-	tpHeader = []string{"UndefinedColor", "Blue", "Red", "Green"}
+	tpHeader = []string{"UndefinedColor (Tip Pool Size)", "Blue (Tip Pool Size)", "Red (Tip Pool Size)", "Green (Tip Pool Size)",
+		"UndefinedColor (Processed)", "Blue (Processed)", "Red (Processed)", "Green (Processed)", "# of Issued Messages"}
 	csvMutex sync.Mutex
 )
 
@@ -132,13 +133,17 @@ var (
 
 	tipPoolSizes = make(map[multiverse.Color]int)
 
+	processedMessageCounts = make(map[multiverse.Color]uint64)
+
+	issuedMessageCounter = int64(0)
+
 	confirmedMessageCounter = int64(0)
 
 	opinionMutex sync.Mutex
 
 	opinionWeightMutex sync.Mutex
 
-	tipPoolSizeMutex sync.Mutex
+	processedMessageMutex sync.Mutex
 
 	relevantValidators int
 )
@@ -197,8 +202,8 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	}
 	dsResultsWriter := csv.NewWriter(file)
 
-	// Dump the tip pool results
-	// Define the file name of the aw results
+	// Dump the tip pool and processed message (throughput) results
+	// Define the file name of the throughput results
 	tpFileName := fmt.Sprint("tp-", simulationStartTime, ".result")
 	file, err = os.Create(tpFileName)
 	if err != nil {
@@ -281,12 +286,15 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	// Here we only monitor the tip pool size of node w/ the highest weight
 	peer := testNetwork.Peers[0]
-	peer.Node.(*multiverse.Node).Tangle.TipManager.Events.TipFetched.Attach(events.NewClosure(func(opinion multiverse.Color, size int) {
-		tipPoolSizeMutex.Lock()
-		defer tipPoolSizeMutex.Unlock()
+	peer.Node.(*multiverse.Node).Tangle.TipManager.Events.MessageProcessed.Attach(events.NewClosure(
+		func(opinion multiverse.Color, tipPoolSize int, processedMessages uint64, issuedMessages int64) {
+			processedMessageMutex.Lock()
+			defer processedMessageMutex.Unlock()
 
-		tipPoolSizes[opinion] = size
-	}))
+			tipPoolSizes[opinion] = tipPoolSize
+			processedMessageCounts[opinion] = processedMessages
+			issuedMessageCounter = issuedMessages
+		}))
 
 	go func() {
 		for range time.Tick(time.Duration(config.ConsensusMonitorTick) * time.Millisecond) {
@@ -322,6 +330,11 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				strconv.FormatInt(int64(tipPoolSizes[multiverse.Blue]), 10),
 				strconv.FormatInt(int64(tipPoolSizes[multiverse.Red]), 10),
 				strconv.FormatInt(int64(tipPoolSizes[multiverse.Green]), 10),
+				strconv.FormatInt(int64(processedMessageCounts[multiverse.UndefinedColor]), 10),
+				strconv.FormatInt(int64(processedMessageCounts[multiverse.Blue]), 10),
+				strconv.FormatInt(int64(processedMessageCounts[multiverse.Red]), 10),
+				strconv.FormatInt(int64(processedMessageCounts[multiverse.Green]), 10),
+				strconv.FormatInt(int64(issuedMessageCounter), 10),
 			}
 
 			if err := tpResultsWriter.Write(record); err != nil {

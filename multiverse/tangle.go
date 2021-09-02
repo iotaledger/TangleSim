@@ -28,7 +28,7 @@ func NewTangle() (tangle *Tangle) {
 	tangle.Booker = NewBooker(tangle)
 	tangle.OpinionManager = NewOpinionManager(tangle)
 	tangle.TipManager = NewTipManager(tangle, config.TSA)
-	tangle.MessageFactory = NewMessageFactory(tangle, config.NodesCount)
+	tangle.MessageFactory = NewMessageFactory(tangle, uint64(config.NodesCount))
 	tangle.ApprovalManager = NewApprovalManager(tangle)
 	tangle.Utils = NewUtils(tangle)
 

@@ -140,6 +140,7 @@ func (m MessageIDs) Trim(length int) {
 	for messageID := range m {
 		if counter == length {
 			delete(m, messageID)
+			continue
 		}
 		counter++
 	}

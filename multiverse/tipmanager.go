@@ -2,16 +2,16 @@ package multiverse
 
 import (
 	"strings"
+	"time"
 
 	"github.com/iotaledger/hive.go/datastructure/randommap"
 	"github.com/iotaledger/hive.go/events"
+	"github.com/iotaledger/multivers-simulation/config"
 )
 
-const (
-	TipsCount              = 4
-	WeakTipsRatio          = 0.25
-	OptimalStrongTipsCount = int(float64(TipsCount) * (1 - WeakTipsRatio))
-	OptimalWeakTipsCount   = int(float64(TipsCount) * WeakTipsRatio)
+var (
+	OptimalStrongTipsCount = int(float64(config.TipsCount) * (1 - config.WeakTipsRatio))
+	OptimalWeakTipsCount   = int(float64(config.TipsCount) * config.WeakTipsRatio)
 )
 
 // region TipManager ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -53,12 +53,12 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 		addedAsStrongTip[color] = true
 		tipSet.AddStrongTip(message)
 	}
-
-	for color, tipSet := range t.TipSets(messageMetadata.InheritedColor()) {
-		if !addedAsStrongTip[color] {
-			tipSet.AddWeakTip(message)
-		}
-	}
+	// Remove the unused code
+	// for color, tipSet := range t.TipSets(messageMetadata.InheritedColor()) {
+	// 	if !addedAsStrongTip[color] {
+	// 		tipSet.AddWeakTip(message)
+	// 	}
+	// }
 }
 
 func (t *TipManager) TipSets(color Color) map[Color]*TipSet {
@@ -86,17 +86,19 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 }
 
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
+	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
-	strongTips = tipSet.StrongTips(TipsCount, t.tsa)
-	weakTips = tipSet.WeakTips(TipsCount-1, t.tsa)
+	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa)
+	weakTips = tipSet.WeakTips(config.TipsCount-1, t.tsa)
 
+	// if no weak tips is available, then return whatever number of strong tips
 	if len(weakTips) == 0 {
 		return
 	}
 
 	if strongTipsCount := len(strongTips); strongTipsCount < OptimalStrongTipsCount {
-		fillUpCount := TipsCount - strongTipsCount
+		fillUpCount := config.TipsCount - strongTipsCount
 
 		if fillUpCount >= len(weakTips) {
 			return
@@ -107,7 +109,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	}
 
 	if weakTipsCount := len(weakTips); weakTipsCount < OptimalWeakTipsCount {
-		fillUpCount := TipsCount - weakTipsCount
+		fillUpCount := config.TipsCount - weakTipsCount
 
 		if fillUpCount >= len(strongTips) {
 			return
@@ -152,12 +154,11 @@ func NewTipSet(tipsToInherit *TipSet) (tipSet *TipSet) {
 
 func (t *TipSet) AddStrongTip(message *Message) {
 	t.strongTips.Set(message.ID, message)
-
-	for _, strongParent := range message.StrongParents {
+	for strongParent := range message.StrongParents {
 		t.strongTips.Delete(strongParent)
 	}
 
-	for _, weakParent := range message.WeakParents {
+	for weakParent := range message.WeakParents {
 		t.weakTips.Delete(weakParent)
 	}
 }
@@ -221,9 +222,42 @@ func (URTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 }
 
 // TipSelect selects maxAmount tips
-// TODO: Modify this tip selection algorithm
 // RURTS: URTS with max parent age restriction
 func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
-	return tips.RandomUniqueEntries(maxAmount)
+
+	var tipsNew []interface{}
+	var tipsToReturn []interface{}
+	amountLeft := maxAmount
+
+	for {
+		// Get amountLeft tips
+		tipsNew = tips.RandomUniqueEntries(amountLeft)
+
+		// If there are no tips, return the tipsToReturn
+		if len(tipsNew) == 0 {
+			break
+		}
+
+		// Get the current time
+		currentTime := time.Now()
+		for _, tip := range tipsNew {
+
+			// If the time difference is greater than DeltaURTS, delete it from tips
+			if currentTime.Sub(tip.(*Message).IssuanceTime).Seconds() > config.DeltaURTS {
+				tips.Delete(tip)
+			} else {
+				// Append the valid tip to tipsToReturn and decrease the amountLeft
+				tipsToReturn = append(tipsToReturn, tip)
+				amountLeft--
+			}
+		}
+
+		// If maxAmount tips are appended to tipsToReturn already, return the tipsToReturn
+		if amountLeft == 0 {
+			break
+		}
+	}
+
+	return tipsToReturn
 
 }

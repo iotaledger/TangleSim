@@ -23,7 +23,7 @@ import (
 var (
 	log      = logger.New("Simulation")
 	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages", "# of Issued Messages"}
-	dsHeader = []string{"Red", "Blue"}
+	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green"}
 	csvMutex sync.Mutex
 )
 
@@ -104,10 +104,10 @@ func main() {
 	defer flushWriters(resultsWriters)
 	secureNetwork(testNetwork, config.DecelerationFactor)
 
-	// time.Sleep(2 * time.Second)
+	time.Sleep(2 * time.Second)
 
-	// sendMessage(testNetwork.Peers[0], multiverse.Blue)
-	// sendMessage(testNetwork.Peers[0], multiverse.Red)
+	sendMessage(testNetwork.Peers[0], multiverse.Blue)
+	sendMessage(testNetwork.Peers[0], multiverse.Red)
 
 	time.Sleep(30 * time.Second)
 }
@@ -127,9 +127,13 @@ var (
 
 	opinions = make(map[multiverse.Color]int)
 
+	opinionsWeights = make(map[multiverse.Color]int64)
+
 	confirmedMessageCounter = int64(0)
 
 	opinionMutex sync.Mutex
+
+	opinionWeightMutex sync.Mutex
 
 	relevantValidators int
 )
@@ -168,6 +172,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	opinions[multiverse.Blue] = 0
 	opinions[multiverse.Red] = 0
 	opinions[multiverse.Green] = 0
+	opinionsWeights[multiverse.UndefinedColor] = 0
+	opinionsWeights[multiverse.Blue] = 0
+	opinionsWeights[multiverse.Red] = 0
+	opinionsWeights[multiverse.Green] = 0
 
 	// The simulation start time
 	simulationStartTime := time.Now().UTC().Format(time.RFC3339)
@@ -241,6 +249,15 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 		}))
 	}
 
+	// Here we only monitor the opinion weight of node w/ the highest weight
+	dsPeer := testNetwork.Peers[0]
+	dsPeer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ApprovalWeightUpdated.Attach(events.NewClosure(func(opinion multiverse.Color, delta_weight int64) {
+		opinionWeightMutex.Lock()
+		defer opinionWeightMutex.Unlock()
+
+		opinionsWeights[opinion] += delta_weight
+	}))
+
 	go func() {
 		for range time.Tick(time.Duration(config.ConsensusMonitorTick) * time.Millisecond) {
 			log.Infof("Network Status: %d TPS :: Consensus[ %d Undefined / %d Blue / %d Red / %d Green ] :: %d Nodes :: %d Validators",
@@ -254,8 +271,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			)
 
 			record := []string{
-				strconv.FormatInt(int64(opinions[multiverse.Blue]), 10),
-				strconv.FormatInt(int64(opinions[multiverse.Red]), 10),
+				strconv.FormatInt(int64(opinionsWeights[multiverse.UndefinedColor]), 10),
+				strconv.FormatInt(int64(opinionsWeights[multiverse.Blue]), 10),
+				strconv.FormatInt(int64(opinionsWeights[multiverse.Red]), 10),
+				strconv.FormatInt(int64(opinionsWeights[multiverse.Green]), 10),
 			}
 
 			if err := dsResultsWriter.Write(record); err != nil {

@@ -19,8 +19,9 @@ type OpinionManager struct {
 func NewOpinionManager(tangle *Tangle) (opinionManager *OpinionManager) {
 	return &OpinionManager{
 		Events: &OpinionManagerEvents{
-			OpinionFormed:  events.NewEvent(messageIDEventCaller),
-			OpinionChanged: events.NewEvent(opinionChangedEventHandler),
+			OpinionFormed:         events.NewEvent(messageIDEventCaller),
+			OpinionChanged:        events.NewEvent(opinionChangedEventHandler),
+			ApprovalWeightUpdated: events.NewEvent(approvalWeightUpdatedHandler),
 		},
 
 		tangle:          tangle,
@@ -62,10 +63,12 @@ func (o *OpinionManager) FormOpinion(messageID MessageID) {
 
 	if exist {
 		o.approvalWeights[lastOpinion.Color] -= o.tangle.WeightDistribution.Weight(message.Issuer)
+		o.Events.ApprovalWeightUpdated.Trigger(lastOpinion.Color, int64(-o.tangle.WeightDistribution.Weight(message.Issuer)))
 	}
 	lastOpinion.Color = messageMetadata.InheritedColor()
 
 	o.approvalWeights[messageMetadata.InheritedColor()] += o.tangle.WeightDistribution.Weight(message.Issuer)
+	o.Events.ApprovalWeightUpdated.Trigger(messageMetadata.InheritedColor(), int64(o.tangle.WeightDistribution.Weight(message.Issuer)))
 
 	o.weightsUpdated()
 }
@@ -105,12 +108,17 @@ type Opinion struct {
 // region OpinionManagerEvents /////////////////////////////////////////////////////////////////////////////////////////
 
 type OpinionManagerEvents struct {
-	OpinionFormed  *events.Event
-	OpinionChanged *events.Event
+	OpinionFormed         *events.Event
+	OpinionChanged        *events.Event
+	ApprovalWeightUpdated *events.Event
 }
 
 func opinionChangedEventHandler(handler interface{}, params ...interface{}) {
 	handler.(func(Color, Color))(params[0].(Color), params[1].(Color))
+}
+
+func approvalWeightUpdatedHandler(handler interface{}, params ...interface{}) {
+	handler.(func(Color, int64))(params[0].(Color), params[1].(int64))
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

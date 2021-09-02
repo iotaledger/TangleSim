@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"sync"
@@ -131,18 +133,56 @@ var (
 	relevantValidators int
 )
 
+func dumpConfig(fileName string) {
+	type Configuration struct {
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight int
+		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, DecelerationFactor                    float64
+		TSA                                                                                         string
+	}
+	data := Configuration{
+		NodesCount:              config.NodesCount,
+		NodesTotalWeight:        config.NodesTotalWeight,
+		ZipfParameter:           config.ZipfParameter,
+		MessageWeightThreshold:  config.MessageWeightThreshold,
+		TipsCount:               config.TipsCount,
+		WeakTipsRatio:           config.WeakTipsRatio,
+		TSA:                     config.TSA,
+		TPS:                     config.TPS,
+		DecelerationFactor:      config.DecelerationFactor,
+		ConsensusMonitorTick:    config.ConsensusMonitorTick,
+		ReleventValidatorWeight: config.ReleventValidatorWeight,
+	}
+
+	file, err := json.MarshalIndent(data, "", " ")
+	if err != nil {
+		log.Error(err)
+	}
+	if ioutil.WriteFile(fileName, file, 0644) != nil {
+		log.Error(err)
+	}
+}
+
 func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.Writer) {
 	opinions[multiverse.UndefinedColor] = config.NodesCount
 	opinions[multiverse.Blue] = 0
 	opinions[multiverse.Red] = 0
 	opinions[multiverse.Green] = 0
 
+	// The simulation start time
+	simulationStartTime := time.Now().UTC().Format(time.RFC3339)
+
+	// Dump the configuration of this simulation
+	dumpConfig(fmt.Sprint("aw-", simulationStartTime, ".config"))
+
 	for _, id := range config.MonitoredAWPeers {
 		awPeer := testNetwork.Peers[id]
 		if typeutils.IsInterfaceNil(awPeer) {
 			panic(fmt.Sprintf("unknowm peer with id %d", id))
 		}
-		file, err := os.Create(fmt.Sprint("aw", id, "-", time.Now().UTC().Format(time.RFC3339)))
+		// Define the file name of the aw results
+		fileName := fmt.Sprint("aw", id, "-", simulationStartTime)
+
+		file, err := os.Create(fileName)
 		if err != nil {
 			panic(err)
 		}

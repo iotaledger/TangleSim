@@ -94,8 +94,8 @@ func main() {
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(
 			config.ZipfParameter, float64(config.NodesTotalWeight))),
-		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Microsecond,
-			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Microsecond),
+		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
+			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
 		network.PacketLoss(0, config.PayloadLoss),
 		network.Topology(network.WattsStrogatz(4, 1)),
 	)

@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
-	"github.com/iotaledger/hive.go/typeutils"
 	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/iotaledger/hive.go/typeutils"
 
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"

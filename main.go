@@ -56,6 +56,10 @@ func parseFlags() {
 	releventValidatorWeightPtr :=
 		flag.Int("releventValidatorWeight", config.ReleventValidatorWeight, "The node whose weight * ReleventValidatorWeight <= largestWeight will not issue messages")
 
+	payloadLoss := flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
+	minDelay := flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
+	maxDelay := flag.Int("maxDelay", config.MaxDelay, "The maximum network delay in ms")
+
 	// Parse the flags
 	flag.Parse()
 
@@ -71,6 +75,9 @@ func parseFlags() {
 	config.DecelerationFactor = *decelerationFactorPtr
 	config.ConsensusMonitorTick = *consensusMonitorTickPtr
 	config.ReleventValidatorWeight = *releventValidatorWeightPtr
+	config.PayloadLoss = *payloadLoss
+	config.MinDelay *= *minDelay
+	config.MaxDelay *= *maxDelay
 
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
@@ -84,6 +91,9 @@ func parseFlags() {
 	log.Info("DecelerationFactor: ", config.DecelerationFactor)
 	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
 	log.Info("ReleventValidatorWeight: ", config.ReleventValidatorWeight)
+	log.Info("PayloadLoss: ", config.PayloadLoss)
+	log.Info("MinDelay: ", config.MinDelay)
+	log.Info("MaxDelay: ", config.MaxDelay)
 }
 
 func main() {
@@ -150,9 +160,9 @@ var (
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight int
-		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, DecelerationFactor                    float64
-		TSA                                                                                         string
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay int
+		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, DecelerationFactor, PayloadLoss                           float64
+		TSA                                                                                                             string
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -166,6 +176,9 @@ func dumpConfig(fileName string) {
 		DecelerationFactor:      config.DecelerationFactor,
 		ConsensusMonitorTick:    config.ConsensusMonitorTick,
 		ReleventValidatorWeight: config.ReleventValidatorWeight,
+		PayloadLoss:             config.PayloadLoss,
+		MinDelay:                config.MinDelay,
+		MaxDelay:                config.MaxDelay,
 	}
 
 	file, err := json.MarshalIndent(data, "", " ")

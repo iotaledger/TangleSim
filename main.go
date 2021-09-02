@@ -90,9 +90,11 @@ func main() {
 
 	parseFlags()
 	testNetwork := network.New(
-		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(config.ZipfParameter, float64(config.NodesTotalWeight))),
-		network.Delay(time.Duration(config.DecelerationFactor)*30*time.Microsecond, time.Duration(config.DecelerationFactor)*250*time.Microsecond),
-		network.PacketLoss(0, 0.05),
+		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(
+			config.ZipfParameter, float64(config.NodesTotalWeight))),
+		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Microsecond,
+			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Microsecond),
+		network.PacketLoss(0, config.PayloadLoss),
 		network.Topology(network.WattsStrogatz(4, 1)),
 	)
 	testNetwork.Start()
@@ -102,10 +104,10 @@ func main() {
 	defer flushWriters(resultsWriters)
 	secureNetwork(testNetwork, config.DecelerationFactor)
 
-	time.Sleep(2 * time.Second)
+	// time.Sleep(2 * time.Second)
 
-	sendMessage(testNetwork.Peers[0], multiverse.Blue)
-	sendMessage(testNetwork.Peers[0], multiverse.Red)
+	// sendMessage(testNetwork.Peers[0], multiverse.Blue)
+	// sendMessage(testNetwork.Peers[0], multiverse.Red)
 
 	time.Sleep(30 * time.Second)
 }
@@ -272,14 +274,15 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 }
 
 func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
-	largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
+	// In the simulation we let all nodes can send messages.
+	// largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
 
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
 
-		if float64(config.ReleventValidatorWeight)*weightOfPeer <= largestWeight {
-			continue
-		}
+		// if float64(config.ReleventValidatorWeight)*weightOfPeer <= largestWeight {
+		// 	continue
+		// }
 
 		relevantValidators++
 

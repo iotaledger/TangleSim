@@ -2,6 +2,8 @@ package multiverse
 
 import (
 	"github.com/iotaledger/hive.go/events"
+	"github.com/iotaledger/multivers-simulation/config"
+	"math"
 )
 
 // region Storage //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,7 +38,7 @@ func (s *Storage) Store(message *Message) {
 	}
 
 	s.messageDB[message.ID] = message
-	s.messageMetadataDB[message.ID] = &MessageMetadata{id: message.ID}
+	s.messageMetadataDB[message.ID] = &MessageMetadata{id: message.ID, weightSlice: make([]byte, int(math.Ceil(config.NodesCount/8.0)))}
 	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
 	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
 

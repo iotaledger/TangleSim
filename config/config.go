@@ -1,8 +1,8 @@
 package config
 
 const (
-	NodesCount             = 10000
-	NodesTotalWeight       = 100000000
+	NodesCount             = 10_000
+	NodesTotalWeight       = 100_000_000
 	ZipfParameter          = 0.9
 	MessageWeightThreshold = 0.5
 	TSA                    = "RURTS"
@@ -11,4 +11,8 @@ const (
 	TipsCount              = 4    // The TipsCount for a message
 	WeakTipsRatio          = 0.25 // The ratio of weak tips
 	DeltaURTS              = 5.0  // in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199
+)
+
+var (
+	MonitoredAWPeers = [...]int{0}
 )

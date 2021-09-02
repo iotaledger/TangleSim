@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
+	"github.com/iotaledger/hive.go/typeutils"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,7 +17,11 @@ import (
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
-var log = logger.New("Simulation")
+var (
+	log      = logger.New("Simulation")
+	awHeader = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
+	csvMutex sync.Mutex
+)
 
 func main() {
 	log.Info("Starting simulation ... [DONE]")
@@ -29,7 +36,8 @@ func main() {
 	testNetwork.Start()
 	defer testNetwork.Shutdown()
 
-	monitorNetworkState(testNetwork)
+	awResultsWriters := monitorNetworkState(testNetwork)
+	defer flushWriters(awResultsWriters)
 	secureNetwork(testNetwork, config.DecelerationFactor)
 
 	time.Sleep(2 * time.Second)
@@ -40,6 +48,16 @@ func main() {
 	sendMessage(attackers[2], multiverse.Green)
 
 	time.Sleep(30 * time.Second)
+}
+
+func flushWriters(awResultsWriters []*csv.Writer) {
+	for _, awResultsWriter := range awResultsWriters {
+		awResultsWriter.Flush()
+		err := awResultsWriter.Error()
+		if err != nil {
+			log.Error(err)
+		}
+	}
 }
 
 var (
@@ -54,11 +72,49 @@ var (
 	relevantValidators int
 )
 
-func monitorNetworkState(testNetwork *network.Network) {
+func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.Writer) {
 	opinions[multiverse.UndefinedColor] = config.NodesCount
 	opinions[multiverse.Blue] = 0
 	opinions[multiverse.Red] = 0
 	opinions[multiverse.Green] = 0
+
+	for _, id := range config.MonitoredAWPeers {
+		awPeer := testNetwork.Peers[id]
+		if typeutils.IsInterfaceNil(awPeer) {
+			panic(fmt.Sprintf("unknowm peer with id %d", id))
+		}
+		file, err := os.Create(fmt.Sprint("aw", id, "-", time.Now().UTC().Format(time.RFC3339)))
+		if err != nil {
+			panic(err)
+		}
+		awResultsWriter := csv.NewWriter(file)
+		if err = awResultsWriter.Write(awHeader); err != nil {
+			panic(err)
+		}
+		awResultsWriters = append(awResultsWriters, awResultsWriter)
+		awPeer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(
+			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64) {
+				atomic.AddInt64(&confirmedMessageCounter, 1)
+
+				record := []string{
+					strconv.FormatInt(int64(message.ID), 10),
+					message.IssuanceTime.String(),
+					messageMetadata.ConfirmationTime().String(),
+					strconv.FormatUint(weight, 10),
+					strconv.FormatInt(confirmedMessageCounter, 10),
+				}
+
+				csvMutex.Lock()
+				if err := awResultsWriter.Write(record); err != nil {
+					log.Fatal("error writing record to csv:", err)
+				}
+
+				if err := awResultsWriter.Error(); err != nil {
+					log.Fatal(err)
+				}
+				csvMutex.Unlock()
+			}))
+	}
 
 	for _, peer := range testNetwork.Peers {
 		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color) {
@@ -67,24 +123,6 @@ func monitorNetworkState(testNetwork *network.Network) {
 
 			opinions[oldOpinion]--
 			opinions[newOpinion]++
-		}))
-
-		peer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(events.NewClosure(func(nodeID network.PeerID, issuerID network.PeerID, messageID multiverse.MessageID, IssuanceTime time.Time, confirmationTime time.Time, weight uint64) {
-			confirmedMessageCounter = atomic.AddInt64(&confirmedMessageCounter, 1)
-
-			record := []string{string(nodeID), string(issuerID), string(messageID), IssuanceTime.String(), confirmationTime.String(), string(weight), string(confirmedMessageCounter)}
-			w := csv.NewWriter(os.Stdout)
-
-			if err := w.Write(record); err != nil {
-				log.Fatal("error writing record to csv:", err)
-			}
-
-			// Write any buffered data to the underlying writer (standard output).
-			w.Flush()
-
-			if err := w.Error(); err != nil {
-				log.Fatal(err)
-			}
 		}))
 	}
 
@@ -103,6 +141,8 @@ func monitorNetworkState(testNetwork *network.Network) {
 			atomic.StoreUint64(&tpsCounter, 0)
 		}
 	}()
+
+	return
 }
 
 func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
@@ -125,8 +165,10 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 		// Each peer should send messages according to their mana: Fix TPS for example 1000;
 		// A node with a x% of mana will issue 1000*x% messages per second
 		issuingPeriod := config.NodesTotalWeight / config.TPS / weightOfPeer
-
-		go startSecurityWorker(peer, time.Duration(issuingPeriod*decelerationFactor)*time.Second)
+		log.Debug(peer.ID, " issuing period is ", issuingPeriod)
+		pace := time.Duration(issuingPeriod * decelerationFactor * float64(time.Second))
+		log.Debug(peer.ID, " peer sent a meesage at ", pace, ". weight of peer is ", weightOfPeer)
+		go startSecurityWorker(peer, pace)
 	}
 }
 

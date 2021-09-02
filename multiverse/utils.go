@@ -27,7 +27,10 @@ func (u *Utils) WalkMessageIDs(callback func(messageID MessageID, walker *walker
 	}
 
 	for messageWalker.HasNext() {
-		callback(messageWalker.Next().(MessageID), messageWalker)
+		messageID := messageWalker.Next().(MessageID)
+		if messageID != Genesis {
+			callback(messageID, messageWalker)
+		}
 	}
 }
 

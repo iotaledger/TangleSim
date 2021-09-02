@@ -1,7 +1,6 @@
 package multiverse
 
 import (
-	"math"
 	"time"
 
 	"github.com/iotaledger/hive.go/datastructure/walker"
@@ -20,32 +19,38 @@ func NewApprovalManager(tangle *Tangle) *ApprovalManager {
 	return &ApprovalManager{
 		tangle: tangle,
 		Events: &ApprovalWeightEvents{
-			MessageConfirmed:     events.NewEvent(messageIDEventCaller),
-			MessageWeightUpdated: events.NewEvent(messageIDEventCaller),
+			MessageConfirmed:     events.NewEvent(approvalEventCaller),
+			MessageWeightUpdated: events.NewEvent(approvalEventCaller),
 		},
 	}
 }
 
+func approvalEventCaller(handler interface{}, params ...interface{}) {
+	handler.(func(*Message, *MessageMetadata, uint64))(params[0].(*Message), params[1].(*MessageMetadata), params[2].(uint64))
+}
+
 func (a *ApprovalManager) Setup() {
-	a.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(a.ApproveMessages))
+	a.tangle.Solidifier.Events.MessageSolid.Attach(events.NewClosure(a.ApproveMessages))
 }
 
 func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 
 	issuingMessage := a.tangle.Storage.messageDB[messageID]
-	byteIndex := math.Floor(float64(issuingMessage.Issuer / 8))
+	byteIndex := issuingMessage.Issuer / 8
 	mod := issuingMessage.Issuer % 8
 	weight := a.tangle.WeightDistribution.Weight(issuingMessage.Issuer)
 	a.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
 
-		weightByte := message.WeightSlice[int(byteIndex)]
-		if weightByte&(1<<mod) != 0 {
+		weightByte := messageMetadata.weightSlice[int(byteIndex)]
+		if weightByte&(1<<mod) == 0 {
 			weightByte |= 1 << mod
-			message.Weight += weight
-			a.Events.MessageWeightUpdated.Trigger(message.ID)
-			if float64(message.Weight) >= config.MessageWeightThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) {
-				message.ConfirmationTime = time.Now()
-				a.Events.MessageConfirmed.Trigger(a.tangle.Peer.ID, message.Issuer, message.ID, message.IssuanceTime, message.ConfirmationTime, message.Weight)
+			messageMetadata.weightSlice[int(byteIndex)] = weightByte
+			messageMetadata.weight += weight
+			a.Events.MessageWeightUpdated.Trigger(message, messageMetadata, messageMetadata.weight)
+			if float64(messageMetadata.weight) >= config.MessageWeightThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) &&
+				messageMetadata.confirmationTime.IsZero() {
+				messageMetadata.confirmationTime = time.Now()
+				a.Events.MessageConfirmed.Trigger(message, messageMetadata, messageMetadata.weight)
 			}
 
 			for strongParentID := range message.StrongParents {
@@ -57,11 +62,10 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 			}
 		}
 
-		//TODO ask Hans about revisit elements, why do we need it?
-	}, NewMessageIDs(messageID), true)
+	}, NewMessageIDs(messageID), false)
 }
 
-// region SolidifierEvents /////////////////////////////////////////////////////////////////////////////////////////////
+// region ApprovalWeightEvents /////////////////////////////////////////////////////////////////////////////////////////////
 
 type ApprovalWeightEvents struct {
 	MessageConfirmed     *events.Event

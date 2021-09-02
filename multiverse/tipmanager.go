@@ -63,10 +63,11 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	messageMetadata := t.tangle.Storage.MessageMetadata(messageID)
 	inheritedColor := messageMetadata.InheritedColor()
 	tipSet := t.TipSet(inheritedColor)
+	// Calculate the current tip pool size before calling AddStrongTip
 	current_tip_pool_size := tipSet.strongTips.Size()
 
 	addedAsStrongTip := make(map[Color]bool)
-	for color, tipSet := range t.TipSets(messageMetadata.InheritedColor()) {
+	for color, tipSet := range t.TipSets(inheritedColor) {
 		addedAsStrongTip[color] = true
 		tipSet.AddStrongTip(message)
 		t.msgProcessedCounter[color] += 1
@@ -76,11 +77,12 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	t.Events.MessageProcessed.Trigger(inheritedColor, current_tip_pool_size,
 		t.msgProcessedCounter[inheritedColor], messageIDCounter)
 
-	for color, tipSet := range t.TipSets(messageMetadata.InheritedColor()) {
-		if !addedAsStrongTip[color] {
-			tipSet.AddWeakTip(message)
-		}
-	}
+	// Remove the weak tip codes
+	// for color, tipSet := range t.TipSets(inheritedColor) {
+	// 	if !addedAsStrongTip[color] {
+	// 		tipSet.AddWeakTip(message)
+	// 	}
+	// }
 }
 
 func (t *TipManager) TipSets(color Color) map[Color]*TipSet {

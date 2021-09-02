@@ -12,9 +12,9 @@ var (
 	DecelerationFactor      = 1.0  // The factor to control the speed in the simulation.
 	ConsensusMonitorTick    = 1000 // Tick to monitor the consensus, in milliseconds.
 	ReleventValidatorWeight = 1000 // The node whose weight * ReleventValidatorWeight <= largestWeight will not issue messages
-	PayloadLoss             = 0.0  // The payload loss in the network
-	MinDelay                = 0    // The minimum network delay in ms
-	MaxDelay                = 0    // The maximum network delay in ms
+	PayloadLoss             = 0.0  // The payload loss in the network. TODO: support args
+	MinDelay                = 0    // The minimum network delay in ms. TODO: support args
+	MaxDelay                = 0    // The maximum network delay in ms. TODO: support args
 )
 
 var (

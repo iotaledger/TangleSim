@@ -135,12 +135,13 @@ func (m MessageIDs) Add(messageID MessageID) {
 	m[messageID] = types.Void
 }
 
-// TODO: The Trim function is wield. It will only delete the message in the `length` location.
+// Trim the MessageIDs to only retain `length` size
 func (m MessageIDs) Trim(length int) {
 	counter := 0
 	for messageID := range m {
 		if counter == length {
 			delete(m, messageID)
+			continue
 		}
 		counter++
 	}

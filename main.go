@@ -2,15 +2,20 @@ package main
 
 import (
 	"encoding/csv"
+	"encoding/json"
+	"flag"
 	"fmt"
-	"github.com/iotaledger/hive.go/typeutils"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/iotaledger/hive.go/typeutils"
+
 	"github.com/iotaledger/hive.go/events"
+	"github.com/iotaledger/hive.go/typeutils"
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
 	"github.com/iotaledger/multivers-simulation/multiverse"
@@ -23,12 +28,70 @@ var (
 	csvMutex sync.Mutex
 )
 
+// Parse the flags and update the configuration
+func parseFlags() {
+
+	// Define the configuration flags
+	nodesCountPtr :=
+		flag.Int("nodesCount", config.NodesCount, "The number of nodes")
+	nodesTotalWeightPtr :=
+		flag.Int("nodesTotalWeight", config.NodesTotalWeight, "The total weight of nodes")
+	zipfParameterPtr :=
+		flag.Float64("zipfParameter", config.ZipfParameter, "The zipf's parameter")
+	messageWeightThresholdPtr :=
+		flag.Float64("messageWeightThreshold", config.MessageWeightThreshold, "The messageWeightThreshold of confirmed messages")
+	tipsCountPtr :=
+		flag.Int("tipsCount", config.TipsCount, "The tips count for a message")
+	weakTipsRatioPtr :=
+		flag.Float64("weakTipsRatio", config.WeakTipsRatio, "The ratio of weak tips")
+	tsaPtr :=
+		flag.String("tsa", config.TSA, "The tip selection algorithm")
+	tpsPtr :=
+		flag.Int("tps", config.TPS, "the tips per seconds")
+	decelerationFactorPtr :=
+		flag.Float64("decelerationFactor", config.DecelerationFactor, "The factor to control the speed in the simulation")
+	consensusMonitorTickPtr :=
+		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
+	releventValidatorWeightPtr :=
+		flag.Int("releventValidatorWeight", config.ReleventValidatorWeight, "The node whose weight * ReleventValidatorWeight <= largestWeight will not issue messages")
+
+	// Parse the flags
+	flag.Parse()
+
+	// Update the configuration parameters
+	config.NodesCount = *nodesCountPtr
+	config.NodesTotalWeight = *nodesTotalWeightPtr
+	config.ZipfParameter = *zipfParameterPtr
+	config.MessageWeightThreshold = *messageWeightThresholdPtr
+	config.TipsCount = *tipsCountPtr
+	config.WeakTipsRatio = *weakTipsRatioPtr
+	config.TSA = *tsaPtr
+	config.TPS = *tpsPtr
+	config.DecelerationFactor = *decelerationFactorPtr
+	config.ConsensusMonitorTick = *consensusMonitorTickPtr
+	config.ReleventValidatorWeight = *releventValidatorWeightPtr
+
+	log.Info("Current configuration:")
+	log.Info("NodesCount: ", config.NodesCount)
+	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
+	log.Info("ZipfParameter: ", config.ZipfParameter)
+	log.Info("MessageWeightThreshold: ", config.MessageWeightThreshold)
+	log.Info("TipsCount: ", config.TipsCount)
+	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
+	log.Info("TSA: ", config.TSA)
+	log.Info("TPS: ", config.TPS)
+	log.Info("DecelerationFactor: ", config.DecelerationFactor)
+	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
+	log.Info("ReleventValidatorWeight: ", config.ReleventValidatorWeight)
+}
+
 func main() {
 	log.Info("Starting simulation ... [DONE]")
 	defer log.Info("Shutting down simulation ... [DONE]")
 
+	parseFlags()
 	testNetwork := network.New(
-		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(config.ZipfParameter, config.NodesTotalWeight)),
+		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(config.ZipfParameter, float64(config.NodesTotalWeight))),
 		network.Delay(30*time.Millisecond, 250*time.Millisecond),
 		network.PacketLoss(0, 0.05),
 		network.Topology(network.WattsStrogatz(4, 1)),
@@ -72,18 +135,56 @@ var (
 	relevantValidators int
 )
 
+func dumpConfig(fileName string) {
+	type Configuration struct {
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight int
+		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, DecelerationFactor                    float64
+		TSA                                                                                         string
+	}
+	data := Configuration{
+		NodesCount:              config.NodesCount,
+		NodesTotalWeight:        config.NodesTotalWeight,
+		ZipfParameter:           config.ZipfParameter,
+		MessageWeightThreshold:  config.MessageWeightThreshold,
+		TipsCount:               config.TipsCount,
+		WeakTipsRatio:           config.WeakTipsRatio,
+		TSA:                     config.TSA,
+		TPS:                     config.TPS,
+		DecelerationFactor:      config.DecelerationFactor,
+		ConsensusMonitorTick:    config.ConsensusMonitorTick,
+		ReleventValidatorWeight: config.ReleventValidatorWeight,
+	}
+
+	file, err := json.MarshalIndent(data, "", " ")
+	if err != nil {
+		log.Error(err)
+	}
+	if ioutil.WriteFile(fileName, file, 0644) != nil {
+		log.Error(err)
+	}
+}
+
 func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.Writer) {
 	opinions[multiverse.UndefinedColor] = config.NodesCount
 	opinions[multiverse.Blue] = 0
 	opinions[multiverse.Red] = 0
 	opinions[multiverse.Green] = 0
 
+	// The simulation start time
+	simulationStartTime := time.Now().UTC().Format(time.RFC3339)
+
+	// Dump the configuration of this simulation
+	dumpConfig(fmt.Sprint("aw-", simulationStartTime, ".config"))
+
 	for _, id := range config.MonitoredAWPeers {
 		awPeer := testNetwork.Peers[id]
 		if typeutils.IsInterfaceNil(awPeer) {
 			panic(fmt.Sprintf("unknowm peer with id %d", id))
 		}
-		file, err := os.Create(fmt.Sprint("aw", id, "-", time.Now().UTC().Format(time.RFC3339)))
+		// Define the file name of the aw results
+		fileName := fmt.Sprint("aw", id, "-", simulationStartTime)
+
+		file, err := os.Create(fileName)
 		if err != nil {
 			panic(err)
 		}
@@ -127,7 +228,7 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 	}
 
 	go func() {
-		for range time.Tick(1000 * time.Millisecond) {
+		for range time.Tick(time.Duration(config.ConsensusMonitorTick) * time.Millisecond) {
 			log.Infof("Network Status: %d TPS :: Consensus[ %d Undefined / %d Blue / %d Red / %d Green ] :: %d Nodes :: %d Validators",
 				atomic.LoadUint64(&tpsCounter),
 				opinions[multiverse.UndefinedColor],
@@ -151,7 +252,7 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
 
-		if 1000*weightOfPeer <= largestWeight {
+		if float64(config.ReleventValidatorWeight)*weightOfPeer <= largestWeight {
 			continue
 		}
 
@@ -164,7 +265,7 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 
 		// Each peer should send messages according to their mana: Fix TPS for example 1000;
 		// A node with a x% of mana will issue 1000*x% messages per second
-		issuingPeriod := config.NodesTotalWeight / config.TPS / weightOfPeer
+		issuingPeriod := float64(config.NodesTotalWeight) / float64(config.TPS) / weightOfPeer
 		log.Debug(peer.ID, " issuing period is ", issuingPeriod)
 		pace := time.Duration(issuingPeriod * decelerationFactor * float64(time.Second))
 		log.Debug(peer.ID, " peer sent a meesage at ", pace, ". weight of peer is ", weightOfPeer)

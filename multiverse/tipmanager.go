@@ -9,7 +9,7 @@ import (
 	"github.com/iotaledger/multivers-simulation/config"
 )
 
-const (
+var (
 	OptimalStrongTipsCount = int(float64(config.TipsCount) * (1 - config.WeakTipsRatio))
 	OptimalWeakTipsCount   = int(float64(config.TipsCount) * config.WeakTipsRatio)
 )
@@ -53,12 +53,12 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 		addedAsStrongTip[color] = true
 		tipSet.AddStrongTip(message)
 	}
-
-	for color, tipSet := range t.TipSets(messageMetadata.InheritedColor()) {
-		if !addedAsStrongTip[color] {
-			tipSet.AddWeakTip(message)
-		}
-	}
+	// Remove the unused code
+	// for color, tipSet := range t.TipSets(messageMetadata.InheritedColor()) {
+	// 	if !addedAsStrongTip[color] {
+	// 		tipSet.AddWeakTip(message)
+	// 	}
+	// }
 }
 
 func (t *TipManager) TipSets(color Color) map[Color]*TipSet {
@@ -102,6 +102,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 		if fillUpCount >= len(weakTips) {
 			return
 		}
+
 		weakTips.Trim(fillUpCount)
 		return
 	}
@@ -152,12 +153,11 @@ func NewTipSet(tipsToInherit *TipSet) (tipSet *TipSet) {
 
 func (t *TipSet) AddStrongTip(message *Message) {
 	t.strongTips.Set(message.ID, message)
-
-	for _, strongParent := range message.StrongParents {
+	for strongParent := range message.StrongParents {
 		t.strongTips.Delete(strongParent)
 	}
 
-	for _, weakParent := range message.WeakParents {
+	for weakParent := range message.WeakParents {
 		t.weakTips.Delete(weakParent)
 	}
 }

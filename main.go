@@ -24,6 +24,7 @@ var (
 	log      = logger.New("Simulation")
 	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages", "# of Issued Messages"}
 	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green"}
+	tpHeader = []string{"UndefinedColor", "Blue", "Red", "Green"}
 	csvMutex sync.Mutex
 )
 
@@ -104,10 +105,10 @@ func main() {
 	defer flushWriters(resultsWriters)
 	secureNetwork(testNetwork, config.DecelerationFactor)
 
-	time.Sleep(2 * time.Second)
+	// time.Sleep(2 * time.Second)
 
-	sendMessage(testNetwork.Peers[0], multiverse.Blue)
-	sendMessage(testNetwork.Peers[0], multiverse.Red)
+	// sendMessage(testNetwork.Peers[0], multiverse.Blue)
+	// sendMessage(testNetwork.Peers[0], multiverse.Red)
 
 	time.Sleep(30 * time.Second)
 }
@@ -129,11 +130,15 @@ var (
 
 	opinionsWeights = make(map[multiverse.Color]int64)
 
+	tipPoolSizes = make(map[multiverse.Color]int)
+
 	confirmedMessageCounter = int64(0)
 
 	opinionMutex sync.Mutex
 
 	opinionWeightMutex sync.Mutex
+
+	tipPoolSizeMutex sync.Mutex
 
 	relevantValidators int
 )
@@ -184,16 +189,32 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	dumpConfig(fmt.Sprint("aw-", simulationStartTime, ".config"))
 
 	// Dump the double spending result
-
 	// Define the file name of the aw results
-	fileName := fmt.Sprint("ds-", simulationStartTime, ".result")
-	file, err := os.Create(fileName)
+	dsFileName := fmt.Sprint("ds-", simulationStartTime, ".result")
+	file, err := os.Create(dsFileName)
 	if err != nil {
 		panic(err)
 	}
 	dsResultsWriter := csv.NewWriter(file)
+
+	// Dump the tip pool results
+	// Define the file name of the aw results
+	tpFileName := fmt.Sprint("tp-", simulationStartTime, ".result")
+	file, err = os.Create(tpFileName)
+	if err != nil {
+		panic(err)
+	}
+	tpResultsWriter := csv.NewWriter(file)
+
+	// Check the result writers
 	resultsWriters = append(resultsWriters, dsResultsWriter)
+	resultsWriters = append(resultsWriters, tpResultsWriter)
+
+	// Write the headers
 	if err = dsResultsWriter.Write(dsHeader); err != nil {
+		panic(err)
+	}
+	if err = tpResultsWriter.Write(tpHeader); err != nil {
 		panic(err)
 	}
 
@@ -258,6 +279,15 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 		opinionsWeights[opinion] += delta_weight
 	}))
 
+	// Here we only monitor the tip pool size of node w/ the highest weight
+	peer := testNetwork.Peers[0]
+	peer.Node.(*multiverse.Node).Tangle.TipManager.Events.TipFetched.Attach(events.NewClosure(func(opinion multiverse.Color, size int) {
+		tipPoolSizeMutex.Lock()
+		defer tipPoolSizeMutex.Unlock()
+
+		tipPoolSizes[opinion] = size
+	}))
+
 	go func() {
 		for range time.Tick(time.Duration(config.ConsensusMonitorTick) * time.Millisecond) {
 			log.Infof("Network Status: %d TPS :: Consensus[ %d Undefined / %d Blue / %d Red / %d Green ] :: %d Nodes :: %d Validators",
@@ -270,6 +300,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				relevantValidators,
 			)
 
+			// Dump the double spending results
 			record := []string{
 				strconv.FormatInt(int64(opinionsWeights[multiverse.UndefinedColor]), 10),
 				strconv.FormatInt(int64(opinionsWeights[multiverse.Blue]), 10),
@@ -282,6 +313,22 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			}
 
 			if err := dsResultsWriter.Error(); err != nil {
+				log.Fatal(err)
+			}
+
+			// Dump the tip pool sizes
+			record = []string{
+				strconv.FormatInt(int64(tipPoolSizes[multiverse.UndefinedColor]), 10),
+				strconv.FormatInt(int64(tipPoolSizes[multiverse.Blue]), 10),
+				strconv.FormatInt(int64(tipPoolSizes[multiverse.Red]), 10),
+				strconv.FormatInt(int64(tipPoolSizes[multiverse.Green]), 10),
+			}
+
+			if err := tpResultsWriter.Write(record); err != nil {
+				log.Fatal("error writing record to csv:", err)
+			}
+
+			if err := tpResultsWriter.Error(); err != nil {
 				log.Fatal(err)
 			}
 

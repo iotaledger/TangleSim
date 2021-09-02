@@ -16,6 +16,8 @@ var (
 // region TipManager ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 type TipManager struct {
+	Events *TipManagerEvents
+
 	tangle  *Tangle
 	tsa     TipSelector
 	tipSets map[Color]*TipSet
@@ -33,6 +35,10 @@ func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
 		tsa = URTS{}
 	}
 	return &TipManager{
+		Events: &TipManagerEvents{
+			TipFetched: events.NewEvent(tipFetchedEventHandler),
+		},
+
 		tangle:  tangle,
 		tsa:     tsa,
 		tipSets: make(map[Color]*TipSet),
@@ -86,6 +92,7 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
+	t.Events.TipFetched.Trigger(t.tangle.OpinionManager.Opinion(), tipSet.strongTips.Size())
 
 	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa)
 	// In the paper we consider all strong tips
@@ -153,11 +160,11 @@ func NewTipSet(tipsToInherit *TipSet) (tipSet *TipSet) {
 func (t *TipSet) AddStrongTip(message *Message) {
 	t.strongTips.Set(message.ID, message)
 
-	for strongParent, _ := range message.StrongParents {
+	for strongParent := range message.StrongParents {
 		t.strongTips.Delete(strongParent)
 	}
 
-	for weakParent, _ := range message.WeakParents {
+	for weakParent := range message.WeakParents {
 		t.weakTips.Delete(weakParent)
 	}
 }
@@ -220,6 +227,7 @@ func (URTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 
 }
 
+// region TipSelect Algorithm /////////////////////////////////////////////////////////////////////////////////////////
 // TipSelect selects maxAmount tips
 // TODO: Modify this tip selection algorithm
 // RURTS: URTS with max parent age restriction
@@ -227,3 +235,17 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 	return tips.RandomUniqueEntries(maxAmount)
 
 }
+
+// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// region TipManagerEvents /////////////////////////////////////////////////////////////////////////////////////////
+
+type TipManagerEvents struct {
+	TipFetched *events.Event
+}
+
+func tipFetchedEventHandler(handler interface{}, params ...interface{}) {
+	handler.(func(Color, int))(params[0].(Color), params[1].(int))
+}
+
+// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

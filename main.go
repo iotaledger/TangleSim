@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
+	"github.com/iotaledger/hive.go/types"
 	"os"
 	"strconv"
 	"sync"
@@ -18,9 +19,11 @@ import (
 )
 
 var (
-	log      = logger.New("Simulation")
-	awHeader = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
-	csvMutex sync.Mutex
+	log                   = logger.New("Simulation")
+	awHeader              = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
+	csvMutex              sync.Mutex
+	shutdownSignal        = make(chan types.Empty)
+	maxSimulationDuration = time.Minute
 )
 
 func main() {
@@ -47,7 +50,12 @@ func main() {
 	sendMessage(attackers[1], multiverse.Blue)
 	sendMessage(attackers[2], multiverse.Green)
 
-	time.Sleep(30 * time.Second)
+	select {
+	case <-shutdownSignal:
+		log.Info("Shutting down simulation (consensus reached) ... [DONE]")
+	case <-time.After(maxSimulationDuration):
+		log.Info("Shutting down simulation (simulation timed out) ... [DONE]")
+	}
 }
 
 func flushWriters(awResultsWriters []*csv.Writer) {
@@ -138,8 +146,7 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 				relevantValidators,
 			)
 			if Max(Max(opinions[multiverse.Blue], opinions[multiverse.Red]), opinions[multiverse.Green]) > config.SimulationStopThreshold*config.NodesCount {
-				log.Info("Shutting down simulation (consensue reached) ... [DONE]")
-				os.Exit(0)
+				shutdownSignal <- types.Void
 			}
 			atomic.StoreUint64(&tpsCounter, 0)
 		}

@@ -88,10 +88,10 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
-	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa) // TODO: To clarify why we select this number of strongTips
-	weakTips = tipSet.WeakTips(config.TipsCount-1, t.tsa)   // TODO: To clarify why we select this number of weakTips
+	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa)
+	weakTips = tipSet.WeakTips(config.TipsCount-1, t.tsa)
 
-	// TODO: To clarify why we return when the weakTips are empty
+	// if no weak tips is available, then return whatever number of strong tips
 	if len(weakTips) == 0 {
 		return
 	}
@@ -102,8 +102,6 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 		if fillUpCount >= len(weakTips) {
 			return
 		}
-
-		// TODO: To clarify why we only delete the message in the fillUpCount location
 		weakTips.Trim(fillUpCount)
 		return
 	}
@@ -115,7 +113,6 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 			return
 		}
 
-		// TODO: To clarify why we only delete the message in the fillUpCount location
 		strongTips.Trim(fillUpCount)
 		return
 	}

@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/iotaledger/hive.go/typeutils"
+
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/typeutils"
 	"github.com/iotaledger/multivers-simulation/config"

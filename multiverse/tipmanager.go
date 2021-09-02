@@ -117,7 +117,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// 	return
 	// }
 
-	// strongTips.Trim(OptimalStrongTipsCount)
+	strongTips.Trim(OptimalStrongTipsCount)
 	// weakTips.Trim(OptimalWeakTipsCount)
 
 	return
@@ -153,11 +153,11 @@ func NewTipSet(tipsToInherit *TipSet) (tipSet *TipSet) {
 func (t *TipSet) AddStrongTip(message *Message) {
 	t.strongTips.Set(message.ID, message)
 
-	for _, strongParent := range message.StrongParents {
+	for strongParent, _ := range message.StrongParents {
 		t.strongTips.Delete(strongParent)
 	}
 
-	for _, weakParent := range message.WeakParents {
+	for weakParent, _ := range message.WeakParents {
 		t.weakTips.Delete(weakParent)
 	}
 }

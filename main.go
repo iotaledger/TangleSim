@@ -55,7 +55,6 @@ func parseFlags() {
 		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
 	releventValidatorWeightPtr :=
 		flag.Int("releventValidatorWeight", config.ReleventValidatorWeight, "The node whose weight * ReleventValidatorWeight <= largestWeight will not issue messages")
-
 	payloadLoss := flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
 	minDelay := flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
 	maxDelay := flag.Int("maxDelay", config.MaxDelay, "The maximum network delay in ms")

@@ -53,12 +53,13 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 		addedAsStrongTip[color] = true
 		tipSet.AddStrongTip(message)
 	}
-	// Remove the unused code
-	// for color, tipSet := range t.TipSets(messageMetadata.InheritedColor()) {
-	// 	if !addedAsStrongTip[color] {
-	// 		tipSet.AddWeakTip(message)
-	// 	}
-	// }
+	// maintain the tip pool in reality where nodes opinion is not color
+	for color, tipSet := range t.TipSets(UndefinedColor) {
+		// add as a weak tip to colored tip sets except message color
+		if !addedAsStrongTip[color] {
+			tipSet.AddWeakTip(message)
+		}
+	}
 }
 
 func (t *TipManager) TipSets(color Color) map[Color]*TipSet {
@@ -80,6 +81,14 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 	if !exists {
 		tipSet = NewTipSet(t.tipSets[UndefinedColor])
 		t.tipSets[color] = tipSet
+	}
+
+	return
+}
+
+func (t *TipManager) TipSetsSize() (size string) {
+	for color, tipset := range t.tipSets {
+		size += color.String() + ": " + fmt.Sprintf("%d, ", tipset.strongTips.Size())
 	}
 
 	return

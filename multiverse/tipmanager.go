@@ -86,14 +86,6 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 	return
 }
 
-func (t *TipManager) TipSetsSize() (size string) {
-	for color, tipset := range t.tipSets {
-		size += color.String() + ": " + fmt.Sprintf("%d, ", tipset.strongTips.Size())
-	}
-
-	return
-}
-
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())

@@ -16,6 +16,7 @@ var (
 	MinDelay                = 100 // The minimum network delay in ms.
 	MaxDelay                = 100 // The maximum network delay in ms.
 	DeltaURTS               = 5.0 // in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199
+	SimulationStopThreshold = 1.0 // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
 )
 
 var (

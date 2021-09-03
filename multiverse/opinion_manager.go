@@ -2,6 +2,7 @@ package multiverse
 
 import (
 	"github.com/iotaledger/hive.go/events"
+	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
@@ -14,18 +15,22 @@ type OpinionManager struct {
 	ownOpinion      Color
 	peerOpinions    map[network.PeerID]*Opinion
 	approvalWeights map[Color]uint64
+	colorConfirmed  bool
 }
 
 func NewOpinionManager(tangle *Tangle) (opinionManager *OpinionManager) {
 	return &OpinionManager{
 		Events: &OpinionManagerEvents{
-			OpinionFormed:  events.NewEvent(messageIDEventCaller),
-			OpinionChanged: events.NewEvent(opinionChangedEventHandler),
+			OpinionFormed:    events.NewEvent(messageIDEventCaller),
+			OpinionChanged:   events.NewEvent(opinionChangedEventHandler),
+			ColorConfirmed:   events.NewEvent(colorEventHandler),
+			ColorUnconfirmed: events.NewEvent(colorEventHandler),
 		},
 
 		tangle:          tangle,
 		peerOpinions:    make(map[network.PeerID]*Opinion),
 		approvalWeights: make(map[Color]uint64),
+		colorConfirmed:  false,
 	}
 }
 
@@ -63,12 +68,20 @@ func (o *OpinionManager) FormOpinion(messageID MessageID) {
 	}
 
 	if exist {
+		if o.colorConfirmed && float64(o.approvalWeights[lastOpinion.Color]) > float64(config.NodesTotalWeight)*config.MessageWeightThreshold {
+			o.colorConfirmed = false
+			o.Events.ColorUnconfirmed.Trigger(lastOpinion.Color)
+		}
+
 		o.approvalWeights[lastOpinion.Color] -= o.tangle.WeightDistribution.Weight(message.Issuer)
 	}
 	lastOpinion.Color = messageMetadata.InheritedColor()
 
 	o.approvalWeights[messageMetadata.InheritedColor()] += o.tangle.WeightDistribution.Weight(message.Issuer)
-
+	if !o.colorConfirmed && float64(o.approvalWeights[lastOpinion.Color]) > float64(config.NodesTotalWeight)*config.MessageWeightThreshold {
+		o.colorConfirmed = true
+		o.Events.ColorConfirmed.Trigger(lastOpinion.Color)
+	}
 	o.weightsUpdated()
 }
 
@@ -109,12 +122,17 @@ type Opinion struct {
 // region OpinionManagerEvents /////////////////////////////////////////////////////////////////////////////////////////
 
 type OpinionManagerEvents struct {
-	OpinionFormed  *events.Event
-	OpinionChanged *events.Event
+	OpinionFormed    *events.Event
+	OpinionChanged   *events.Event
+	ColorConfirmed   *events.Event
+	ColorUnconfirmed *events.Event
 }
 
 func opinionChangedEventHandler(handler interface{}, params ...interface{}) {
 	handler.(func(Color, Color))(params[0].(Color), params[1].(Color))
+}
+func colorEventHandler(handler interface{}, params ...interface{}) {
+	handler.(func(Color))(params[0].(Color))
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

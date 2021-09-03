@@ -21,10 +21,11 @@ type OpinionManager struct {
 func NewOpinionManager(tangle *Tangle) (opinionManager *OpinionManager) {
 	return &OpinionManager{
 		Events: &OpinionManagerEvents{
-			OpinionFormed:    events.NewEvent(messageIDEventCaller),
-			OpinionChanged:   events.NewEvent(opinionChangedEventHandler),
-			ColorConfirmed:   events.NewEvent(colorEventHandler),
-			ColorUnconfirmed: events.NewEvent(colorEventHandler),
+			OpinionFormed:         events.NewEvent(messageIDEventCaller),
+			OpinionChanged:        events.NewEvent(opinionChangedEventHandler),
+			ApprovalWeightUpdated: events.NewEvent(approvalWeightUpdatedHandler),
+			ColorConfirmed:        events.NewEvent(colorEventHandler),
+			ColorUnconfirmed:      events.NewEvent(colorEventHandler),
 		},
 
 		tangle:          tangle,
@@ -74,10 +75,13 @@ func (o *OpinionManager) FormOpinion(messageID MessageID) {
 		}
 
 		o.approvalWeights[lastOpinion.Color] -= o.tangle.WeightDistribution.Weight(message.Issuer)
+		o.Events.ApprovalWeightUpdated.Trigger(lastOpinion.Color, int64(-o.tangle.WeightDistribution.Weight(message.Issuer)))
 	}
 	lastOpinion.Color = messageMetadata.InheritedColor()
 
 	o.approvalWeights[messageMetadata.InheritedColor()] += o.tangle.WeightDistribution.Weight(message.Issuer)
+	o.Events.ApprovalWeightUpdated.Trigger(messageMetadata.InheritedColor(), int64(o.tangle.WeightDistribution.Weight(message.Issuer)))
+
 	if !o.colorConfirmed && float64(o.approvalWeights[lastOpinion.Color]) > float64(config.NodesTotalWeight)*config.MessageWeightThreshold {
 		o.colorConfirmed = true
 		o.Events.ColorConfirmed.Trigger(lastOpinion.Color)
@@ -122,10 +126,11 @@ type Opinion struct {
 // region OpinionManagerEvents /////////////////////////////////////////////////////////////////////////////////////////
 
 type OpinionManagerEvents struct {
-	OpinionFormed    *events.Event
-	OpinionChanged   *events.Event
-	ColorConfirmed   *events.Event
-	ColorUnconfirmed *events.Event
+	OpinionFormed         *events.Event
+	OpinionChanged        *events.Event
+	ApprovalWeightUpdated *events.Event
+	ColorConfirmed        *events.Event
+	ColorUnconfirmed      *events.Event
 }
 
 func opinionChangedEventHandler(handler interface{}, params ...interface{}) {
@@ -133,6 +138,10 @@ func opinionChangedEventHandler(handler interface{}, params ...interface{}) {
 }
 func colorEventHandler(handler interface{}, params ...interface{}) {
 	handler.(func(Color))(params[0].(Color))
+}
+
+func approvalWeightUpdatedHandler(handler interface{}, params ...interface{}) {
+	handler.(func(Color, int64))(params[0].(Color), params[1].(int64))
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -17,9 +17,12 @@ var (
 // region TipManager ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 type TipManager struct {
-	tangle  *Tangle
-	tsa     TipSelector
-	tipSets map[Color]*TipSet
+	Events *TipManagerEvents
+
+	tangle              *Tangle
+	tsa                 TipSelector
+	tipSets             map[Color]*TipSet
+	msgProcessedCounter map[Color]uint64
 }
 
 func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
@@ -33,10 +36,22 @@ func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
 	default:
 		tsa = URTS{}
 	}
+
+	// Initialize the counters
+	msgProcessedCounter := make(map[Color]uint64)
+	msgProcessedCounter[UndefinedColor] = 0
+	msgProcessedCounter[Red] = 0
+	msgProcessedCounter[Green] = 0
+
 	return &TipManager{
-		tangle:  tangle,
-		tsa:     tsa,
-		tipSets: make(map[Color]*TipSet),
+		Events: &TipManagerEvents{
+			MessageProcessed: events.NewEvent(messageProcessedHandler),
+		},
+
+		tangle:              tangle,
+		tsa:                 tsa,
+		tipSets:             make(map[Color]*TipSet),
+		msgProcessedCounter: msgProcessedCounter,
 	}
 }
 
@@ -47,14 +62,24 @@ func (t *TipManager) Setup() {
 func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	message := t.tangle.Storage.Message(messageID)
 	messageMetadata := t.tangle.Storage.MessageMetadata(messageID)
+	inheritedColor := messageMetadata.InheritedColor()
+	tipSet := t.TipSet(inheritedColor)
+	// Calculate the current tip pool size before calling AddStrongTip
+	current_tip_pool_size := tipSet.strongTips.Size()
 
 	addedAsStrongTip := make(map[Color]bool)
-	for color, tipSet := range t.TipSets(messageMetadata.InheritedColor()) {
+	for color, tipSet := range t.TipSets(inheritedColor) {
 		addedAsStrongTip[color] = true
 		tipSet.AddStrongTip(message)
+		t.msgProcessedCounter[color] += 1
 	}
-	// Remove the unused code
-	// for color, tipSet := range t.TipSets(messageMetadata.InheritedColor()) {
+
+	// Color, tips pool count, processed messages issued messages
+	t.Events.MessageProcessed.Trigger(inheritedColor, current_tip_pool_size,
+		t.msgProcessedCounter[inheritedColor], messageIDCounter)
+
+	// Remove the weak tip codes
+	// for color, tipSet := range t.TipSets(inheritedColor) {
 	// 	if !addedAsStrongTip[color] {
 	// 		tipSet.AddWeakTip(message)
 	// 	}
@@ -90,37 +115,38 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
 	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa)
-	weakTips = tipSet.WeakTips(config.TipsCount-1, t.tsa)
+	// In the paper we consider all strong tips
+	// weakTips = tipSet.WeakTips(config.TipsCount-1, t.tsa)
 
-	// if no weak tips is available, then return whatever number of strong tips
-	if len(weakTips) == 0 {
-		return
-	}
+	// Remove the weakTips-related codes
+	// if len(weakTips) == 0 {
+	// 	return
+	// }
 
-	if strongTipsCount := len(strongTips); strongTipsCount < OptimalStrongTipsCount {
-		fillUpCount := config.TipsCount - strongTipsCount
+	// if strongTipsCount := len(strongTips); strongTipsCount < OptimalStrongTipsCount {
+	// 	fillUpCount := config.TipsCount - strongTipsCount
 
-		if fillUpCount >= len(weakTips) {
-			return
-		}
+	// 	if fillUpCount >= len(weakTips) {
+	// 		return
+	// 	}
 
-		weakTips.Trim(fillUpCount)
-		return
-	}
+	// 	weakTips.Trim(fillUpCount)
+	// 	return
+	// }
 
-	if weakTipsCount := len(weakTips); weakTipsCount < OptimalWeakTipsCount {
-		fillUpCount := config.TipsCount - weakTipsCount
+	// if weakTipsCount := len(weakTips); weakTipsCount < OptimalWeakTipsCount {
+	// 	fillUpCount := config.TipsCount - weakTipsCount
 
-		if fillUpCount >= len(strongTips) {
-			return
-		}
+	// 	if fillUpCount >= len(strongTips) {
+	// 		return
+	// 	}
 
-		strongTips.Trim(fillUpCount)
-		return
-	}
+	// 	strongTips.Trim(fillUpCount)
+	// 	return
+	// }
 
-	strongTips.Trim(OptimalStrongTipsCount)
-	weakTips.Trim(OptimalWeakTipsCount)
+	// strongTips.Trim(OptimalStrongTipsCount)
+	// weakTips.Trim(OptimalWeakTipsCount)
 
 	return
 }
@@ -221,6 +247,7 @@ func (URTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 
 }
 
+// region TipSelect Algorithm /////////////////////////////////////////////////////////////////////////////////////////
 // TipSelect selects maxAmount tips
 // RURTS: URTS with max parent age restriction
 func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
@@ -261,3 +288,17 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 	return tipsToReturn
 
 }
+
+// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// region TipManagerEvents /////////////////////////////////////////////////////////////////////////////////////////
+
+type TipManagerEvents struct {
+	MessageProcessed *events.Event
+}
+
+func messageProcessedHandler(handler interface{}, params ...interface{}) {
+	handler.(func(Color, int, uint64, int64))(params[0].(Color), params[1].(int), params[2].(uint64), params[3].(int64))
+}
+
+// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

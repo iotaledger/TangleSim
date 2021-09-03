@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
 	"strconv"
@@ -96,6 +97,8 @@ func parseFlags() {
 	simulationStopThreshold := flag.Float64("SimulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion")
 	simulationTarget := flag.String("SimulationTarget", config.SimulationTarget, "The simulation target, CT: Confirmation Time, DS: Double Spending")
 	resultDirPtr := flag.String("resultDir", config.ResultDir, "Directory where the results will be stored")
+	imif := flag.String("IMIF", config.IMIF, "Inter Message Issuing Function for time delay between activity messages: poisson or uniform")
+
 	// Parse the flags
 	flag.Parse()
 
@@ -118,6 +121,7 @@ func parseFlags() {
 	config.SimulationStopThreshold = *simulationStopThreshold
 	config.SimulationTarget = *simulationTarget
 	config.ResultDir = *resultDirPtr
+	config.IMIF = *imif
 
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
@@ -138,6 +142,7 @@ func parseFlags() {
 	log.Info("SimulationStopThreshold:", config.SimulationStopThreshold)
 	log.Info("SimulationTarget:", config.SimulationTarget)
 	log.Info("ResultDir:", config.ResultDir)
+	log.Info("IMIF: ", config.IMIF)
 
 }
 
@@ -199,7 +204,7 @@ func dumpConfig(fileName string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay int
 		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, DecelerationFactor, PayloadLoss, DeltaURTS                float64
-		TSA, ResultDir                                                                                                  string
+		TSA, ResultDir, IMIF                                                                                            string
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -218,6 +223,7 @@ func dumpConfig(fileName string) {
 		MaxDelay:                config.MaxDelay,
 		DeltaURTS:               config.DeltaURTS,
 		ResultDir:               config.ResultDir,
+		IMIF:                    config.IMIF,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")
@@ -480,8 +486,22 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 }
 
 func startSecurityWorker(peer *network.Peer, pace time.Duration) {
-	for range time.Tick(pace) {
-		sendMessage(peer)
+	if pace == time.Duration(0) {
+		return
+	}
+	ticker := time.NewTicker(pace)
+
+	for {
+		select {
+		case <-ticker.C:
+			if config.IMIF == "poisson" {
+				pace = time.Duration(float64(time.Second) * rand.ExpFloat64() / float64(pace))
+				if pace > 0 {
+					ticker = time.NewTicker(pace)
+				}
+			}
+			sendMessage(peer)
+		}
 	}
 }
 

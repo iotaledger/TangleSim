@@ -12,6 +12,7 @@ var (
 	DecelerationFactor      = 1.0       // The factor to control the speed in the simulation.
 	ConsensusMonitorTick    = 100       // Tick to monitor the consensus, in milliseconds.
 	ReleventValidatorWeight = 0         // The node whose weight * ReleventValidatorWeight <= largestWeight will not issue messages (disabled now)
+	IMIF                    = "poisson" // Inter Message Issuing Function for time delay between activity messages: poisson or uniform
 	PayloadLoss             = 0.0       // The payload loss in the network.
 	MinDelay                = 100       // The minimum network delay in ms.
 	MaxDelay                = 100       // The maximum network delay in ms.

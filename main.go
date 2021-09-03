@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/iotaledger/hive.go/types"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -134,9 +135,12 @@ var (
 
 	opinions = make(map[multiverse.Color]int)
 
+	confirmedCounter = make(map[multiverse.Color]int)
+
 	confirmedMessageCounter = int64(0)
 
-	opinionMutex sync.Mutex
+	opinionMutex      sync.Mutex
+	confirmationMutex sync.Mutex
 
 	relevantValidators int
 )
@@ -231,20 +235,33 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 			opinions[oldOpinion]--
 			opinions[newOpinion]++
 		}))
+		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color) {
+			confirmationMutex.Lock()
+			defer confirmationMutex.Unlock()
+
+			confirmedCounter[confirmedColor]++
+		}))
+
+		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color) {
+			confirmationMutex.Lock()
+			defer confirmationMutex.Unlock()
+
+			confirmedCounter[unconfirmedColor]--
+		}))
 	}
 
 	go func() {
 		for range time.Tick(time.Duration(config.ConsensusMonitorTick) * time.Millisecond) {
 			log.Infof("Network Status: %d TPS :: Consensus[ %d Undefined / %d Blue / %d Red / %d Green ] :: %d Nodes :: %d Validators",
 				atomic.LoadUint64(&tpsCounter),
-				opinions[multiverse.UndefinedColor],
-				opinions[multiverse.Blue],
-				opinions[multiverse.Red],
-				opinions[multiverse.Green],
+				confirmedCounter[multiverse.UndefinedColor],
+				confirmedCounter[multiverse.Blue],
+				confirmedCounter[multiverse.Red],
+				confirmedCounter[multiverse.Green],
 				config.NodesCount,
 				relevantValidators,
 			)
-			if Max(Max(opinions[multiverse.Blue], opinions[multiverse.Red]), opinions[multiverse.Green]) > config.SimulationStopThreshold*config.NodesCount {
+			if Max(Max(confirmedCounter[multiverse.Blue], confirmedCounter[multiverse.Red]), confirmedCounter[multiverse.Green]) >= int(config.SimulationStopThreshold*float64(config.NodesCount)) {
 				shutdownSignal <- types.Void
 			}
 			atomic.StoreUint64(&tpsCounter, 0)

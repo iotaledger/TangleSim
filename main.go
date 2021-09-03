@@ -252,14 +252,22 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 
 	go func() {
 		for range time.Tick(time.Duration(config.ConsensusMonitorTick) * time.Millisecond) {
-			log.Infof("Network Status: %d TPS :: Consensus[ %d Undefined / %d Blue / %d Red / %d Green ] :: %d Nodes :: %d Validators",
+			log.Infof("Network Status: %d TPS :: %d Nodes :: %d Validators",
 				atomic.LoadUint64(&tpsCounter),
+				config.NodesCount,
+				relevantValidators,
+			)
+			log.Infof("Consensus[ %d Undefined / %d Blue / %d Red / %d Green ]",
 				confirmedCounter[multiverse.UndefinedColor],
 				confirmedCounter[multiverse.Blue],
 				confirmedCounter[multiverse.Red],
 				confirmedCounter[multiverse.Green],
-				config.NodesCount,
-				relevantValidators,
+			)
+			log.Infof("Opinions[ %d Undefined / %d Blue / %d Red / %d Green ]\n",
+				opinions[multiverse.UndefinedColor],
+				opinions[multiverse.Blue],
+				opinions[multiverse.Red],
+				opinions[multiverse.Green],
 			)
 			if Max(Max(confirmedCounter[multiverse.Blue], confirmedCounter[multiverse.Red]), confirmedCounter[multiverse.Green]) >= int(config.SimulationStopThreshold*float64(config.NodesCount)) {
 				shutdownSignal <- types.Void

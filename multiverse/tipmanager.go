@@ -145,7 +145,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// 	return
 	// }
 
-	strongTips.Trim(OptimalStrongTipsCount)
+	// strongTips.Trim(OptimalStrongTipsCount)
 	// weakTips.Trim(OptimalWeakTipsCount)
 
 	return

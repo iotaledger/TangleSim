@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/iotaledger/hive.go/types"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -21,9 +22,11 @@ import (
 )
 
 var (
-	log      = logger.New("Simulation")
-	awHeader = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
-	csvMutex sync.Mutex
+	log                   = logger.New("Simulation")
+	awHeader              = []string{"Message ID", "Issuance Time", "Confirmation Time", "Weight", "# of Confirmed Messages"}
+	csvMutex              sync.Mutex
+	shutdownSignal        = make(chan types.Empty)
+	maxSimulationDuration = time.Minute
 )
 
 // Parse the flags and update the configuration
@@ -109,7 +112,12 @@ func main() {
 	sendMessage(attackers[1], multiverse.Blue)
 	sendMessage(attackers[2], multiverse.Green)
 
-	time.Sleep(30 * time.Second)
+	select {
+	case <-shutdownSignal:
+		log.Info("Shutting down simulation (consensus reached) ... [DONE]")
+	case <-time.After(maxSimulationDuration):
+		log.Info("Shutting down simulation (simulation timed out) ... [DONE]")
+	}
 }
 
 func flushWriters(awResultsWriters []*csv.Writer) {
@@ -127,9 +135,12 @@ var (
 
 	opinions = make(map[multiverse.Color]int)
 
+	confirmedCounter = make(map[multiverse.Color]int)
+
 	confirmedMessageCounter = int64(0)
 
-	opinionMutex sync.Mutex
+	opinionMutex      sync.Mutex
+	confirmationMutex sync.Mutex
 
 	relevantValidators int
 )
@@ -224,20 +235,35 @@ func monitorNetworkState(testNetwork *network.Network) (awResultsWriters []*csv.
 			opinions[oldOpinion]--
 			opinions[newOpinion]++
 		}))
+		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color) {
+			confirmationMutex.Lock()
+			defer confirmationMutex.Unlock()
+
+			confirmedCounter[confirmedColor]++
+		}))
+
+		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color) {
+			confirmationMutex.Lock()
+			defer confirmationMutex.Unlock()
+
+			confirmedCounter[unconfirmedColor]--
+		}))
 	}
 
 	go func() {
 		for range time.Tick(time.Duration(config.ConsensusMonitorTick) * time.Millisecond) {
 			log.Infof("Network Status: %d TPS :: Consensus[ %d Undefined / %d Blue / %d Red / %d Green ] :: %d Nodes :: %d Validators",
 				atomic.LoadUint64(&tpsCounter),
-				opinions[multiverse.UndefinedColor],
-				opinions[multiverse.Blue],
-				opinions[multiverse.Red],
-				opinions[multiverse.Green],
+				confirmedCounter[multiverse.UndefinedColor],
+				confirmedCounter[multiverse.Blue],
+				confirmedCounter[multiverse.Red],
+				confirmedCounter[multiverse.Green],
 				config.NodesCount,
 				relevantValidators,
 			)
-
+			if Max(Max(confirmedCounter[multiverse.Blue], confirmedCounter[multiverse.Red]), confirmedCounter[multiverse.Green]) >= int(config.SimulationStopThreshold*float64(config.NodesCount)) {
+				shutdownSignal <- types.Void
+			}
 			atomic.StoreUint64(&tpsCounter, 0)
 		}
 	}()
@@ -286,4 +312,12 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 	}
 
 	peer.Node.(*multiverse.Node).IssuePayload(multiverse.UndefinedColor)
+}
+
+// Max returns the larger of x or y.
+func Max(x, y int) int {
+	if x < y {
+		return y
+	}
+	return x
 }

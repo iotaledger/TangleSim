@@ -23,7 +23,7 @@ func TestTipManager(t *testing.T) {
 	log.Info("Starting TipManager Test ... [DONE]")
 	defer log.Info("Shutting down TipManager Test ... [DONE]")
 	testNetwork := network.New(
-		network.Nodes(nodeCount, multiverse.NewNode, network.ZIPFDistribution(config.ZipfParameter, config.NodesTotalWeight)),
+		network.Nodes(nodeCount, multiverse.NewNode, network.ZIPFDistribution(config.ZipfParameter, float64(config.NodesTotalWeight))),
 		network.Delay(30*time.Millisecond, 250*time.Millisecond),
 		network.PacketLoss(0, 0.05),
 		network.Topology(network.WattsStrogatz(4, 1)),
@@ -62,7 +62,7 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 			continue
 		}
 
-		issuingPeriod := config.NodesTotalWeight / config.TPS / weightOfPeer
+		issuingPeriod := float64(config.NodesTotalWeight) / float64(config.TPS) / weightOfPeer
 		pace := time.Duration(issuingPeriod * decelerationFactor * float64(time.Second))
 		go startSecurityWorker(peer, pace)
 	}

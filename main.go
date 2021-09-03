@@ -31,6 +31,7 @@ var (
 	csvMutex              sync.Mutex
 	shutdownSignal        = make(chan types.Empty)
 	maxSimulationDuration = time.Minute
+	simulationTarget      = "CT" // "DS" (CT: confirmation time anslysis, DS: double spending analysis)
 )
 
 // Parse the flags and update the configuration
@@ -63,6 +64,8 @@ func parseFlags() {
 	minDelay := flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
 	maxDelay := flag.Int("maxDelay", config.MaxDelay, "The maximum network delay in ms")
 	deltaURTS := flag.Float64("DeltaURTS", config.DeltaURTS, "in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199")
+	simulationStopThreshold := flag.Float64("SimulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion")
+	simulationTarget := flag.String("SimulationTarget", config.SimulationTarget, "The simulation target, CT: Confirmation Time, DS: Double Spending")
 
 	// Parse the flags
 	flag.Parse()
@@ -83,6 +86,8 @@ func parseFlags() {
 	config.MinDelay = *minDelay
 	config.MaxDelay = *maxDelay
 	config.DeltaURTS = *deltaURTS
+	config.SimulationStopThreshold = *simulationStopThreshold
+	config.SimulationTarget = *simulationTarget
 
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
@@ -100,6 +105,8 @@ func parseFlags() {
 	log.Info("MinDelay: ", config.MinDelay)
 	log.Info("MaxDelay: ", config.MaxDelay)
 	log.Info("DeltaURTS:", config.DeltaURTS)
+	log.Info("SimulationStopThreshold:", config.SimulationStopThreshold)
+	log.Info("SimulationTarget:", config.SimulationTarget)
 }
 
 func main() {
@@ -122,13 +129,14 @@ func main() {
 	defer flushWriters(resultsWriters)
 	secureNetwork(testNetwork, config.DecelerationFactor)
 
-	// time.Sleep(2 * time.Second)
-
 	// To simulate the confirmation time w/o any double spendings, the colored msgs are not to be sent
 
 	// Here we simulate the double spending
-	// sendMessage(testNetwork.Peers[0], multiverse.Blue)
-	// sendMessage(testNetwork.Peers[0], multiverse.Red)
+	if config.SimulationTarget == "DS" {
+		time.Sleep(2 * time.Second)
+		sendMessage(testNetwork.Peers[0], multiverse.Blue)
+		sendMessage(testNetwork.Peers[0], multiverse.Red)
+	}
 
 	// Here three peers are randomly selected with defined Colors
 	// attackers := testNetwork.RandomPeers(3)

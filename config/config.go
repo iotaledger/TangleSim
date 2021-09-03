@@ -22,4 +22,5 @@ var (
 
 var (
 	MonitoredAWPeers = [...]int{0}
+	MonitoredTPPeer  = 0
 )

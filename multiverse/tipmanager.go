@@ -65,7 +65,7 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	inheritedColor := messageMetadata.InheritedColor()
 	tipSet := t.TipSet(inheritedColor)
 	// Calculate the current tip pool size before calling AddStrongTip
-	current_tip_pool_size := tipSet.strongTips.Size()
+	currentTipPoolSize := tipSet.strongTips.Size()
 
 	addedAsStrongTip := make(map[Color]bool)
 	for color, tipSet := range t.TipSets(inheritedColor) {
@@ -75,7 +75,7 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	}
 
 	// Color, tips pool count, processed messages issued messages
-	t.Events.MessageProcessed.Trigger(inheritedColor, current_tip_pool_size,
+	t.Events.MessageProcessed.Trigger(inheritedColor, currentTipPoolSize,
 		t.msgProcessedCounter[inheritedColor], messageIDCounter)
 
 	// Remove the weak tip codes

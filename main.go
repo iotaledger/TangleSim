@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -24,14 +25,42 @@ import (
 
 var (
 	log      = logger.New("Simulation")
-	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages", "# of Issued Messages"}
-	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green"}
+	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages", "# of Issued Messages", "ns since start"}
+	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green", "ns since start"}
 	tpHeader = []string{"UndefinedColor (Tip Pool Size)", "Blue (Tip Pool Size)", "Red (Tip Pool Size)", "Green (Tip Pool Size)",
-		"UndefinedColor (Processed)", "Blue (Processed)", "Red (Processed)", "Green (Processed)", "# of Issued Messages"}
+		"UndefinedColor (Processed)", "Blue (Processed)", "Red (Processed)", "Green (Processed)", "# of Issued Messages", "ns since start"}
+	ccHeader = []string{"Blue (Confirmed)", "Red (Confirmed)", "Green (Confirmed)", "Blue (Like)", "Red (Like)", "Green (Like)", "ns since start"}
+
 	csvMutex              sync.Mutex
 	shutdownSignal        = make(chan types.Empty)
 	maxSimulationDuration = time.Minute
-	simulationTarget      = "CT" // "DS" (CT: confirmation time anslysis, DS: double spending analysis)
+
+	tpsCounter = uint64(0)
+
+	opinions = make(map[multiverse.Color]int)
+
+	opinionsWeights = make(map[multiverse.Color]int64)
+
+	tipPoolSizes = make(map[multiverse.Color]int)
+
+	processedMessageCounts = make(map[multiverse.Color]uint64)
+
+	issuedMessageCounter = int64(0)
+
+	confirmedNodesCounter = make(map[multiverse.Color]int)
+
+	confirmedMessageCounter = make(map[network.PeerID]int64)
+	confirmedMessageMutex   sync.RWMutex
+
+	opinionMutex sync.Mutex
+
+	confirmationMutex sync.Mutex
+
+	opinionWeightMutex sync.Mutex
+
+	processedMessageMutex sync.Mutex
+
+	relevantValidators int
 )
 
 // Parse the flags and update the configuration
@@ -66,7 +95,7 @@ func parseFlags() {
 	deltaURTS := flag.Float64("DeltaURTS", config.DeltaURTS, "in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199")
 	simulationStopThreshold := flag.Float64("SimulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion")
 	simulationTarget := flag.String("SimulationTarget", config.SimulationTarget, "The simulation target, CT: Confirmation Time, DS: Double Spending")
-
+	resultDirPtr := flag.String("resultDir", config.ResultDir, "Directory where the results will be stored")
 	// Parse the flags
 	flag.Parse()
 
@@ -88,6 +117,7 @@ func parseFlags() {
 	config.DeltaURTS = *deltaURTS
 	config.SimulationStopThreshold = *simulationStopThreshold
 	config.SimulationTarget = *simulationTarget
+	config.ResultDir = *resultDirPtr
 
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
@@ -107,6 +137,8 @@ func parseFlags() {
 	log.Info("DeltaURTS:", config.DeltaURTS)
 	log.Info("SimulationStopThreshold:", config.SimulationStopThreshold)
 	log.Info("SimulationTarget:", config.SimulationTarget)
+	log.Info("ResultDir:", config.ResultDir)
+
 }
 
 func main() {
@@ -134,8 +166,9 @@ func main() {
 	// Here we simulate the double spending
 	if config.SimulationTarget == "DS" {
 		time.Sleep(2 * time.Second)
-		sendMessage(testNetwork.Peers[0], multiverse.Blue)
-		sendMessage(testNetwork.Peers[0], multiverse.Red)
+		attackers := testNetwork.RandomPeers(3)
+		sendMessage(attackers[0], multiverse.Blue)
+		sendMessage(attackers[1], multiverse.Red)
 	}
 
 	// Here three peers are randomly selected with defined Colors
@@ -162,39 +195,11 @@ func flushWriters(writers []*csv.Writer) {
 	}
 }
 
-var (
-	tpsCounter = uint64(0)
-
-	opinions = make(map[multiverse.Color]int)
-
-	opinionsWeights = make(map[multiverse.Color]int64)
-
-	tipPoolSizes = make(map[multiverse.Color]int)
-
-	processedMessageCounts = make(map[multiverse.Color]uint64)
-
-	issuedMessageCounter = int64(0)
-
-	confirmedCounter = make(map[multiverse.Color]int)
-
-	confirmedMessageCounter = int64(0)
-
-	opinionMutex sync.Mutex
-
-	confirmationMutex sync.Mutex
-
-	opinionWeightMutex sync.Mutex
-
-	processedMessageMutex sync.Mutex
-
-	relevantValidators int
-)
-
 func dumpConfig(fileName string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay int
 		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, DecelerationFactor, PayloadLoss, DeltaURTS                float64
-		TSA                                                                                                             string
+		TSA, ResultDir                                                                                                  string
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -212,13 +217,14 @@ func dumpConfig(fileName string) {
 		MinDelay:                config.MinDelay,
 		MaxDelay:                config.MaxDelay,
 		DeltaURTS:               config.DeltaURTS,
+		ResultDir:               config.ResultDir,
 	}
 
-	file, err := json.MarshalIndent(data, "", " ")
+	bytes, err := json.MarshalIndent(data, "", " ")
 	if err != nil {
 		log.Error(err)
 	}
-	if ioutil.WriteFile(fileName, file, 0644) != nil {
+	if ioutil.WriteFile(path.Join(config.ResultDir, fileName), bytes, 0644) != nil {
 		log.Error(err)
 	}
 }
@@ -234,38 +240,34 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	opinionsWeights[multiverse.Green] = 0
 
 	// The simulation start time
-	simulationStartTime := time.Now().UTC().Format(time.RFC3339)
+	simulationStartTime := time.Now()
+	simulationStartTimeStr := simulationStartTime.UTC().Format(time.RFC3339)
 
 	// Dump the configuration of this simulation
-	dumpConfig(fmt.Sprint("aw-", simulationStartTime, ".config"))
+	dumpConfig(fmt.Sprint("aw-", simulationStartTimeStr, ".config"))
 
 	// Dump the double spending result
-	// Define the file name of the aw results
-	dsFileName := fmt.Sprint("ds-", simulationStartTime, ".result")
-	file, err := os.Create(dsFileName)
-	if err != nil {
-		panic(err)
-	}
-	dsResultsWriter := csv.NewWriter(file)
+	dsResultsWriter := createWriter(fmt.Sprintf("ds-%s.csv", simulationStartTimeStr))
 
 	// Dump the tip pool and processed message (throughput) results
-	// Define the file name of the throughput results
-	tpFileName := fmt.Sprint("tp-", simulationStartTime, ".result")
-	file, err = os.Create(tpFileName)
-	if err != nil {
-		panic(err)
-	}
-	tpResultsWriter := csv.NewWriter(file)
+	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", simulationStartTimeStr))
+
+	// Dump the info about how many nodes have confirmed and liked a certain color
+	ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", simulationStartTimeStr))
 
 	// Check the result writers
 	resultsWriters = append(resultsWriters, dsResultsWriter)
 	resultsWriters = append(resultsWriters, tpResultsWriter)
+	resultsWriters = append(resultsWriters, ccResultsWriter)
 
 	// Write the headers
-	if err = dsResultsWriter.Write(dsHeader); err != nil {
+	if err := dsResultsWriter.Write(dsHeader); err != nil {
 		panic(err)
 	}
-	if err = tpResultsWriter.Write(tpHeader); err != nil {
+	if err := tpResultsWriter.Write(tpHeader); err != nil {
+		panic(err)
+	}
+	if err := ccResultsWriter.Write(ccHeader); err != nil {
 		panic(err)
 	}
 
@@ -275,29 +277,28 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			panic(fmt.Sprintf("unknowm peer with id %d", id))
 		}
 		// Define the file name of the aw results
-		fileName := fmt.Sprint("aw", id, "-", simulationStartTime, ".result")
-
-		file, err := os.Create(fileName)
-		if err != nil {
-			panic(err)
-		}
-		awResultsWriter := csv.NewWriter(file)
-		if err = awResultsWriter.Write(awHeader); err != nil {
+		awResultsWriter := createWriter(fmt.Sprintf("aw%d-%s.csv", id, simulationStartTimeStr))
+		if err := awResultsWriter.Write(awHeader); err != nil {
 			panic(err)
 		}
 		resultsWriters = append(resultsWriters, awResultsWriter)
 		awPeer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(
 			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64, messageIDCounter int64) {
-				atomic.AddInt64(&confirmedMessageCounter, 1)
+				confirmedMessageMutex.Lock()
+				confirmedMessageCounter[awPeer.ID] += 1
+				confirmedMessageMutex.Unlock()
 
+				confirmedMessageMutex.RLock()
 				record := []string{
 					strconv.FormatInt(int64(message.ID), 10),
 					strconv.FormatInt(message.IssuanceTime.Unix(), 10),
 					strconv.FormatInt(int64(messageMetadata.ConfirmationTime().Sub(message.IssuanceTime)), 10),
 					strconv.FormatUint(weight, 10),
-					strconv.FormatInt(confirmedMessageCounter, 10),
+					strconv.FormatInt(confirmedMessageCounter[awPeer.ID], 10),
 					strconv.FormatInt(messageIDCounter, 10),
+					strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 				}
+				confirmedMessageMutex.RUnlock()
 
 				csvMutex.Lock()
 				if err := awResultsWriter.Write(record); err != nil {
@@ -323,14 +324,14 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			confirmationMutex.Lock()
 			defer confirmationMutex.Unlock()
 
-			confirmedCounter[confirmedColor]++
+			confirmedNodesCounter[confirmedColor]++
 		}))
 
 		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color) {
 			confirmationMutex.Lock()
 			defer confirmationMutex.Unlock()
 
-			confirmedCounter[unconfirmedColor]--
+			confirmedNodesCounter[unconfirmedColor]--
 		}))
 	}
 
@@ -359,20 +360,21 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 		for range time.Tick(time.Duration(config.ConsensusMonitorTick) * time.Millisecond) {
 			log.Infof("Network Status: %d TPS :: Consensus[ %d Undefined / %d Blue / %d Red / %d Green ] :: %d Nodes :: %d Validators",
 				atomic.LoadUint64(&tpsCounter),
-				confirmedCounter[multiverse.UndefinedColor],
-				confirmedCounter[multiverse.Blue],
-				confirmedCounter[multiverse.Red],
-				confirmedCounter[multiverse.Green],
+				confirmedNodesCounter[multiverse.UndefinedColor],
+				confirmedNodesCounter[multiverse.Blue],
+				confirmedNodesCounter[multiverse.Red],
+				confirmedNodesCounter[multiverse.Green],
 				config.NodesCount,
 				relevantValidators,
 			)
 
 			// Dump the double spending results
 			record := []string{
-				strconv.FormatInt(int64(opinionsWeights[multiverse.UndefinedColor]), 10),
-				strconv.FormatInt(int64(opinionsWeights[multiverse.Blue]), 10),
-				strconv.FormatInt(int64(opinionsWeights[multiverse.Red]), 10),
-				strconv.FormatInt(int64(opinionsWeights[multiverse.Green]), 10),
+				strconv.FormatInt(opinionsWeights[multiverse.UndefinedColor], 10),
+				strconv.FormatInt(opinionsWeights[multiverse.Blue], 10),
+				strconv.FormatInt(opinionsWeights[multiverse.Red], 10),
+				strconv.FormatInt(opinionsWeights[multiverse.Green], 10),
+				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 			}
 
 			if err := dsResultsWriter.Write(record); err != nil {
@@ -394,6 +396,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				strconv.FormatInt(int64(processedMessageCounts[multiverse.Red]), 10),
 				strconv.FormatInt(int64(processedMessageCounts[multiverse.Green]), 10),
 				strconv.FormatInt(int64(issuedMessageCounter), 10),
+				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 			}
 
 			if err := tpResultsWriter.Write(record); err != nil {
@@ -404,7 +407,26 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				log.Fatal(err)
 			}
 
-			if Max(Max(confirmedCounter[multiverse.Blue], confirmedCounter[multiverse.Red]), confirmedCounter[multiverse.Green]) >= int(config.SimulationStopThreshold*float64(config.NodesCount)) {
+			// Dump the tip pool sizes
+			record = []string{
+				strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Blue]), 10),
+				strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Red]), 10),
+				strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Green]), 10),
+				strconv.FormatInt(int64(opinions[multiverse.Blue]), 10),
+				strconv.FormatInt(int64(opinions[multiverse.Red]), 10),
+				strconv.FormatInt(int64(opinions[multiverse.Green]), 10),
+				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+			}
+
+			if err := ccResultsWriter.Write(record); err != nil {
+				log.Fatal("error writing record to csv:", err)
+			}
+
+			if err := ccResultsWriter.Error(); err != nil {
+				log.Fatal(err)
+			}
+
+			if Max(Max(confirmedNodesCounter[multiverse.Blue], confirmedNodesCounter[multiverse.Red]), confirmedNodesCounter[multiverse.Green]) >= int(config.SimulationStopThreshold*float64(config.NodesCount)) {
 				shutdownSignal <- types.Void
 			}
 			atomic.StoreUint64(&tpsCounter, 0)
@@ -412,6 +434,15 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	}()
 
 	return
+}
+
+func createWriter(fileName string) *csv.Writer {
+	file, err := os.Create(path.Join(config.ResultDir, fileName))
+	if err != nil {
+		panic(err)
+	}
+	tpResultsWriter := csv.NewWriter(file)
+	return tpResultsWriter
 }
 
 func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {

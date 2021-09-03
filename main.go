@@ -224,6 +224,12 @@ func dumpConfig(fileName string) {
 	if err != nil {
 		log.Error(err)
 	}
+	if _, err = os.Stat(config.ResultDir); os.IsNotExist(err) {
+		err = os.Mkdir(config.ResultDir, 0700)
+		if err != nil {
+			log.Error(err)
+		}
+	}
 	if ioutil.WriteFile(path.Join(config.ResultDir, fileName), bytes, 0644) != nil {
 		log.Error(err)
 	}

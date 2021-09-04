@@ -27,6 +27,13 @@ X_AXIS_BEGIN = 2000_000_000
 # The timescale of the 'ns after start' is ns. Use sec as the unit time.
 ONE_SEC = 1000_000_000
 
+# The issuance time of colored message (in ns)
+COLORED_MSG_ISSUANCE_TIME = 2000_000_000
+
+# Flags of operations
+RUN_SIM = True
+PLOT_FIGURES = True
+
 # Define the list of styles
 clr_list = ['k', 'b', 'g', 'r']  # list of basic colors
 sty_list = ['-', '--', '-.', ':']  # list of basic linestyles
@@ -116,7 +123,9 @@ def parse_confirmed_color_file(fn, var):
 
     # Get the throughput details
     colored_node_counts = data[colored_confirmed_like_items]
-    confirmed_time = data['ns since start'].iloc[-1]/ONE_SEC
+    confirmed_time = (data['ns since start'].iloc[-1] -
+                      COLORED_MSG_ISSUANCE_TIME)
+    confirmed_time /= ONE_SEC
 
     # Opening JSON file
     with open(config_fn) as f:
@@ -276,60 +285,68 @@ if __name__ == '__main__':
     os.makedirs(FIGURE_OUTPUT_PATH, exist_ok=True)
 
     # Run the simulation for different node counts
-    for n in range(100, 1001, 100):
-        os.chdir(MULTIVERSE_PATH)
-        os.system(f'go run . --nodesCount={n}')
     folder = f'{RESULTS_PATH}/var_nodes_{OUTPUT_FOLDER_SUFFIX}'
-    move_results(RESULTS_PATH, folder)
+    if RUN_SIM:
+        for n in range(100, 1001, 100):
+            os.chdir(MULTIVERSE_PATH)
+            os.system(f'go run . --nodesCount={n}')
 
-    # Plot the figures
-    confirmation_time_plot('NodesCount', folder + '/aw*csv',
-                           'CT_nodes.png', 'Confirmation Time v.s. Different Node Counts', 'N')
-
-    throughput_plot('NodesCount', folder + '/tp*csv',
-                    'CT_nodes_tp.png', 10)
-
-    confirmed_like_color_plot('NodesCount', folder + '/cc*csv',
-                              'DS_nodes_cc.png', 10)
-
-    # Run the simulation for different zipf's distribution
-    for z in range(0, 23, 2):
-        par = float(z) / 10.0
-        os.chdir(MULTIVERSE_PATH)
-        os.system(f'go run . --zipfParameter={par}')
-    folder = f'{RESULTS_PATH}/var_zipf_{OUTPUT_FOLDER_SUFFIX}'
-    move_results(RESULTS_PATH, folder)
-
-    # Plot the figures
-    confirmation_time_plot('ZipfParameter', folder + '/aw*csv', 'CT_zipfs.png',
-                           'Confirmation Time v.s. Different Zip\'s Parameters', 's')
-
-    throughput_plot('ZipfParameter', folder + '/tp*csv',
-                    'CT_zipfs_tp.png', 12)
-
-    confirmed_like_color_plot('ZipfParameter', folder + '/cc*csv',
-                              'DS_zipfs_cc.png', 12)
-
-    # Run the simulation for different parents counts and Zipf's par
-    z_list = ['0.4', '0.7', '0.9', '2.0']
-    for z in z_list:
-        par = float(z)
-        for p in range(2, 18, 1):
-            os.chdir(
-                MULTIVERSE_PATH)
-            os.system(f'go run . --tipsCount={p} --zipfParameter={par}')
-
-        folder = f'{RESULTS_PATH}/var_parents_{OUTPUT_FOLDER_SUFFIX}_z_{z}'
         move_results(RESULTS_PATH, folder)
 
     # Plot the figures
-    for z in z_list:
-        folder = f'{RESULTS_PATH}/var_parents_{OUTPUT_FOLDER_SUFFIX}_z_{z}'
-        confirmation_time_plot('TipsCount', folder + '/aw*csv',
-                               f'CT_parents_z_{z}.png', 'Confirmation Time v.s. Different Parents Counts', 'k')
+    if PLOT_FIGURES:
+        confirmation_time_plot('NodesCount', folder + '/aw*csv',
+                               'CT_nodes.png', 'Confirmation Time v.s. Different Node Counts', 'N')
 
-        throughput_plot('TipsCount', folder + '/tp*csv',
-                        f'CT_parents_z_{z}_tp.png', 16)
+        throughput_plot('NodesCount', folder + '/tp*csv',
+                        'CT_nodes_tp.png', 10)
 
-        confirmed_like_color_plot('TipsCount', folder + '/cc*csv',
-                                  f'DS_parents_z_{z}_cc.png', 16)
+        confirmed_like_color_plot('NodesCount', folder + '/cc*csv',
+                                  'DS_nodes_cc.png', 10)
+
+    # Run the simulation for different zipf's distribution
+    folder = f'{RESULTS_PATH}/var_zipf_{OUTPUT_FOLDER_SUFFIX}'
+    if RUN_SIM:
+        for z in range(0, 23, 2):
+            par = float(z) / 10.0
+            os.chdir(MULTIVERSE_PATH)
+            os.system(f'go run . --zipfParameter={par}')
+
+        move_results(RESULTS_PATH, folder)
+
+    # Plot the figures
+    if PLOT_FIGURES:
+        confirmation_time_plot('ZipfParameter', folder + '/aw*csv', 'CT_zipfs.png',
+                               'Confirmation Time v.s. Different Zip\'s Parameters', 's')
+
+        throughput_plot('ZipfParameter', folder + '/tp*csv',
+                        'CT_zipfs_tp.png', 12)
+
+        confirmed_like_color_plot('ZipfParameter', folder + '/cc*csv',
+                                  'DS_zipfs_cc.png', 12)
+
+    # Run the simulation for different parents counts and Zipf's par
+    z_list = ['0.4', '0.7', '0.9', '2.0']
+    if RUN_SIM:
+        for z in z_list:
+            par = float(z)
+            for p in range(2, 18, 1):
+                os.chdir(
+                    MULTIVERSE_PATH)
+                os.system(f'go run . --tipsCount={p} --zipfParameter={par}')
+
+            folder = f'{RESULTS_PATH}/var_parents_{OUTPUT_FOLDER_SUFFIX}_z_{z}'
+            move_results(RESULTS_PATH, folder)
+
+    # Plot the figures
+    if PLOT_FIGURES:
+        for z in z_list:
+            folder = f'{RESULTS_PATH}/var_parents_{OUTPUT_FOLDER_SUFFIX}_z_{z}'
+            confirmation_time_plot('TipsCount', folder + '/aw*csv',
+                                   f'CT_parents_z_{z}.png', 'Confirmation Time v.s. Different Parents Counts', 'k')
+
+            throughput_plot('TipsCount', folder + '/tp*csv',
+                            f'CT_parents_z_{z}_tp.png', 16)
+
+            confirmed_like_color_plot('TipsCount', folder + '/cc*csv',
+                                      f'DS_parents_z_{z}_cc.png', 16)

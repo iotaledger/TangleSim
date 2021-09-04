@@ -15,11 +15,14 @@ RESULTS_PATH = MULTIVERSE_PATH + "/results"
 
 FIGURE_OUTPUT_PATH = MULTIVERSE_PATH + '/scripts/figures'
 
-# Simulation time
-SIMULATION_TIME = 60.0
-
 # Transparent figure
 TRANSPARENT = False
+
+# The begining x_axis in ns
+X_AXIS_BEGIN = 20000_000_000
+
+# The timescale of the 'ns after start' is ns. Use sec as the unit time.
+ONE_SEC = 1000_000_000
 
 # Define the list of styles
 clr_list = ['k', 'b', 'g', 'r']  # list of basic colors
@@ -36,6 +39,12 @@ def parse_aw_file(fn, variation):
     logging.info(f'Parsing {fn}...')
     data = pd.read_csv(fn)
 
+    # Chop data before the begining time
+    data = data[data['ns since start'] >= X_AXIS_BEGIN]
+
+    # Reset the index to only consider the confirmed msgs from X_AXIS_BEGIN
+    data = data.reset_index()
+
     # Get the configuration setup of this simulation
     # Note currently we only consider the first node
     config_fn = re.sub('aw0', 'aw', fn)
@@ -46,8 +55,10 @@ def parse_aw_file(fn, variation):
         c = json.load(f)
 
     v = c[variation]
-    issued_messages = max(data[issued_message])
-    return v, data[target], issued_messages
+
+    # ns is the time scale of the aw outputs
+    x_axis_adjust = float(ONE_SEC)/float(c["DecelerationFactor"])
+    return v, data[target], x_axis_adjust
 
 
 def parse_throughput_file(fn, variation):
@@ -55,6 +66,9 @@ def parse_throughput_file(fn, variation):
     """
     logging.info(f'Parsing {fn}...')
     data = pd.read_csv(fn)
+
+    # Chop data before the begining time
+    data = data[data['ns since start'] >= X_AXIS_BEGIN]
 
     # Get the configuration setup of this simulation
     config_fn = re.sub('tp', 'aw', fn)
@@ -71,7 +85,10 @@ def parse_throughput_file(fn, variation):
 
     v = c[variation]
 
-    return v, (tip_pool_size, processed_messages, issued_messages)
+    # Return the scaled x axis
+    x_axis = (data['ns since start']/float(ONE_SEC) /
+              float(c["DecelerationFactor"]))
+    return v, (tip_pool_size, processed_messages, issued_messages, x_axis)
 
 
 def move_results(src, dst):
@@ -83,8 +100,8 @@ def move_results(src, dst):
     os.system(f'mv {src}/*.csv {dst}')
 
 
-def throughput_plot(var, fs, ofn, fc, chop=0):
-    """Generate the throughput figure with chopping the first `chop` data points.
+def throughput_plot(var, fs, ofn, fc):
+    """Generate the throughput figure.
     """
     # Init the matplotlib config
     font = {'family': 'Times New Roman',
@@ -110,19 +127,19 @@ def throughput_plot(var, fs, ofn, fc, chop=0):
         12, 5), dpi=500, constrained_layout=True)
 
     for i, (v, tp) in enumerate(sorted(variation_data.items())):
-        (tips, processed, issued) = tp
+        (tips, processed, issued, x_axis) = tp
         r_loc = i // cn
         c_loc = i % cn
 
-        axs[r_loc, c_loc].plot(np.array(list(tips.index))[chop:], tips[chop:],
-                               label='Tip Pool Size', color=clr_list[0], ls=sty_list[0], linewidth=1)
-        axs[r_loc, c_loc].plot(np.array(list(processed.index))[chop:], processed[chop:],
-                               label='Processed Messages', color=clr_list[1], ls=sty_list[1], linewidth=1)
-        axs[r_loc, c_loc].plot(np.array(list(issued.index))[chop:], issued[chop:],
-                               label='Issued Messages', color=clr_list[2], ls=sty_list[2], linewidth=1)
+        axs[r_loc, c_loc].plot(x_axis, tips, label='Tip Pool Size',
+                               color=clr_list[0], ls=sty_list[0], linewidth=1)
+        axs[r_loc, c_loc].plot(x_axis, processed, label='Processed Messages',
+                               color=clr_list[1], ls=sty_list[1], linewidth=1)
+        axs[r_loc, c_loc].plot(x_axis, issued, label='Issued Messages',
+                               color=clr_list[2], ls=sty_list[2], linewidth=1)
         axs[r_loc, c_loc].legend()
         axs[r_loc, c_loc].set(
-            xlabel='Time (100ms)', ylabel='Message Count', yscale='log', title=f'{var} = {v}')
+            xlabel='Time (s)', ylabel='Message Count', yscale='log', title=f'{var} = {v}')
 
     plt.savefig(f'{FIGURE_OUTPUT_PATH}/{ofn}', transparent=TRANSPARENT)
     plt.close()
@@ -140,15 +157,18 @@ def confirmation_time_plot(var, fs, ofn, title, label):
     plt.figure(figsize=(12, 5), dpi=500, constrained_layout=True)
     variation_data = {}
     for f in glob.glob(fs):
-        v, data, issued_messages = parse_aw_file(f, var)
-        variation_data[v] = (data, issued_messages)
+        v, data, x_axis_adjust = parse_aw_file(f, var)
+        variation_data[v] = (data, x_axis_adjust)
     for i, (v, d) in enumerate(sorted(variation_data.items())):
         clr = clr_list[i // 4]
         sty = sty_list[i % 4]
-        plt.plot(sorted(d[0].values), np.array(list(d[0].index)) / len(list(d[0].index)),
+
+        ct_series = np.array(sorted(d[0].values))
+        confirmed_msg_counts = np.array(list(d[0].index))
+        plt.plot(ct_series/d[1], confirmed_msg_counts / len(confirmed_msg_counts),
                  label=f'{label} = {v}', color=clr, ls=sty)
 
-    plt.xlabel('Confirmation Time (ns)')
+    plt.xlabel('Confirmation Time (s)')
     plt.ylabel('Cumulative Confirmed Message Percentage')
     plt.legend()
     plt.title(title)
@@ -180,7 +200,7 @@ if __name__ == '__main__':
                            'CT_nodes.png', 'Confirmation Time v.s. Different Node Counts', 'N')
 
     throughput_plot('NodesCount', folder + '/tp*csv',
-                    'CT_nodes_tp.png', 10, chop=0)
+                    'CT_nodes_tp.png', 10)
 
     # Run the simulation for different zipf's distribution
     for z in range(0, 21, 2):
@@ -195,7 +215,7 @@ if __name__ == '__main__':
                            'Confirmation Time v.s. Different Zip\'s Parameters', 's')
 
     throughput_plot('ZipfParameter', folder + '/tp*csv',
-                    'CT_zipfs_tp.png', 11, chop=0)
+                    'CT_zipfs_tp.png', 11)
 
     # Run the simulation for different parents counts and Zipf's par
     z_list = ['0.4', '0.7', '0.9', '2.0']  # ['0.9']
@@ -217,4 +237,4 @@ if __name__ == '__main__':
                                f'CT_parents_z_{z}.png', 'Confirmation Time v.s. Different Parents Counts', 'k')
 
         throughput_plot('TipsCount', folder + '/tp*csv',
-                        f'CT_parents_z_{z}_tp.png', 16, chop=0)
+                        f'CT_parents_z_{z}_tp.png', 16)

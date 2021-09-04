@@ -15,11 +15,14 @@ RESULTS_PATH = MULTIVERSE_PATH + "/results"
 
 FIGURE_OUTPUT_PATH = MULTIVERSE_PATH + '/scripts/figures'
 
+# The output folder suffix (e.g., ct for confirmation time and ds for double spending)
+OUTPUT_FOLDER_SUFFIX = 'ds'
+
 # Transparent figure
 TRANSPARENT = False
 
 # The begining x_axis in ns
-X_AXIS_BEGIN = 20000_000_000
+X_AXIS_BEGIN = 2000_000_000
 
 # The timescale of the 'ns after start' is ns. Use sec as the unit time.
 ONE_SEC = 1000_000_000
@@ -31,6 +34,13 @@ sty_list = ['-', '--', '-.', ':']  # list of basic linestyles
 # Define the target to parse
 target = "Confirmation Time (ns)"
 issued_message = "# of Issued Messages"
+
+# Items for double spending figures
+colored_confirmed_like_items = [
+    'Blue (Confirmed)', 'Red (Confirmed)', 'Blue (Like)', 'Red (Like)']
+# The color list for the double spending figures
+ds_clr_list = ['b', 'r', 'b', 'r']
+ds_sty_list = ['-', '-', '--', '--']
 
 
 def parse_aw_file(fn, variation):
@@ -91,6 +101,36 @@ def parse_throughput_file(fn, variation):
     return v, (tip_pool_size, processed_messages, issued_messages, x_axis)
 
 
+def parse_confirmed_color_file(fn, var):
+    """Parse the confirmed color files.
+    """
+    logging.info(f'Parsing {fn}...')
+    data = pd.read_csv(fn)
+
+    # Chop data before the begining time
+    data = data[data['ns since start'] >= X_AXIS_BEGIN]
+
+    # Get the configuration setup of this simulation
+    config_fn = re.sub('cc', 'aw', fn)
+    config_fn = config_fn.replace('.csv', '.config')
+
+    # Get the throughput details
+    colored_node_counts = data[colored_confirmed_like_items]
+    confirmed_time = data['ns since start'].iloc[-1]/ONE_SEC
+
+    # Opening JSON file
+    with open(config_fn) as f:
+        c = json.load(f)
+
+    v = c[var]
+
+    # Return the scaled x axis
+    x_axis = (data['ns since start']/float(ONE_SEC) /
+              float(c["DecelerationFactor"]))
+
+    return v, (colored_node_counts, confirmed_time, x_axis)
+
+
 def move_results(src, dst):
     """Move the files from the source folder to the destination folder.
     """
@@ -98,6 +138,51 @@ def move_results(src, dst):
         os.mkdir(folder)
     os.system(f'mv {src}/*.config {dst}')
     os.system(f'mv {src}/*.csv {dst}')
+
+
+def confirmed_like_color_plot(var, fs, ofn, fc):
+    """Generate the confirmed/like color figure.
+    """
+    # Init the matplotlib config
+    font = {'family': 'Times New Roman',
+            'weight': 'bold',
+            'size': 8}
+    matplotlib.rc('font', **font)
+
+    variation_data = {}
+    for f in glob.glob(fs):
+        # Confirmation time and the cc data
+        v, ct_cc = parse_confirmed_color_file(f, var)
+        variation_data[v] = ct_cc
+
+    rn = 4
+    cn = 4
+    if fc == 10:
+        rn = 2
+        cn = 5
+    elif fc <= 12:
+        rn = 3
+        cn = 4
+    fig, axs = plt.subplots(rn, cn, figsize=(
+        12, 5), dpi=500, constrained_layout=True)
+
+    for i, (v, d) in enumerate(sorted(variation_data.items())):
+        (nodes, ct,  x_axis) = d
+        r_loc = i // cn
+        c_loc = i % cn
+
+        for j, n in enumerate(nodes.columns):
+            axs[r_loc, c_loc].plot(x_axis, nodes[n], label=n,
+                                   color=ds_clr_list[j], ls=ds_sty_list[j], linewidth=1)
+
+        # Only put the legend on the first figures
+        if i == 0:
+            axs[r_loc, c_loc].legend()
+        axs[r_loc, c_loc].set(
+            xlabel='Time (s)', ylabel='Node Count', title=f'{var} = {v}, {ct:.1f}(s)')
+
+    plt.savefig(f'{FIGURE_OUTPUT_PATH}/{ofn}', transparent=TRANSPARENT)
+    plt.close()
 
 
 def throughput_plot(var, fs, ofn, fc):
@@ -110,7 +195,6 @@ def throughput_plot(var, fs, ofn, fc):
     matplotlib.rc('font', **font)
 
     variation_data = {}
-    throughput = []
     for f in glob.glob(fs):
         v, tp = parse_throughput_file(f, var)
         variation_data[v] = tp
@@ -137,7 +221,10 @@ def throughput_plot(var, fs, ofn, fc):
                                color=clr_list[1], ls=sty_list[1], linewidth=1)
         axs[r_loc, c_loc].plot(x_axis, issued, label='Issued Messages',
                                color=clr_list[2], ls=sty_list[2], linewidth=1)
-        axs[r_loc, c_loc].legend()
+
+        # Only put the legend on the first figures
+        if i == 0:
+            axs[r_loc, c_loc].legend()
         axs[r_loc, c_loc].set(
             xlabel='Time (s)', ylabel='Message Count', yscale='log', title=f'{var} = {v}')
 
@@ -192,7 +279,7 @@ if __name__ == '__main__':
     for n in range(100, 1001, 100):
         os.chdir(MULTIVERSE_PATH)
         os.system(f'go run . --nodesCount={n}')
-    folder = f'{RESULTS_PATH}/var_nodes_ct'
+    folder = f'{RESULTS_PATH}/var_nodes_{OUTPUT_FOLDER_SUFFIX}'
     move_results(RESULTS_PATH, folder)
 
     # Plot the figures
@@ -202,12 +289,15 @@ if __name__ == '__main__':
     throughput_plot('NodesCount', folder + '/tp*csv',
                     'CT_nodes_tp.png', 10)
 
+    confirmed_like_color_plot('NodesCount', folder + '/cc*csv',
+                              'DS_nodes_cc.png', 10)
+
     # Run the simulation for different zipf's distribution
-    for z in range(0, 21, 2):
+    for z in range(0, 23, 2):
         par = float(z) / 10.0
         os.chdir(MULTIVERSE_PATH)
         os.system(f'go run . --zipfParameter={par}')
-    folder = f'{RESULTS_PATH}/var_zipf_ct'
+    folder = f'{RESULTS_PATH}/var_zipf_{OUTPUT_FOLDER_SUFFIX}'
     move_results(RESULTS_PATH, folder)
 
     # Plot the figures
@@ -215,26 +305,31 @@ if __name__ == '__main__':
                            'Confirmation Time v.s. Different Zip\'s Parameters', 's')
 
     throughput_plot('ZipfParameter', folder + '/tp*csv',
-                    'CT_zipfs_tp.png', 11)
+                    'CT_zipfs_tp.png', 12)
+
+    confirmed_like_color_plot('ZipfParameter', folder + '/cc*csv',
+                              'DS_zipfs_cc.png', 12)
 
     # Run the simulation for different parents counts and Zipf's par
-    z_list = ['0.4', '0.7', '0.9', '2.0']  # ['0.9']
+    z_list = ['0.4', '0.7', '0.9', '2.0']
     for z in z_list:
         par = float(z)
-        for p in range(2, 17, 1):
+        for p in range(2, 18, 1):
             os.chdir(
                 MULTIVERSE_PATH)
             os.system(f'go run . --tipsCount={p} --zipfParameter={par}')
 
-        folder = f'{RESULTS_PATH}/var_parents_ct_z_{z}'
+        folder = f'{RESULTS_PATH}/var_parents_{OUTPUT_FOLDER_SUFFIX}_z_{z}'
         move_results(RESULTS_PATH, folder)
 
     # Plot the figures
-    os.chdir(RESULTS_PATH)
     for z in z_list:
-        folder = f'{RESULTS_PATH}/var_parents_ct_z_{z}'
+        folder = f'{RESULTS_PATH}/var_parents_{OUTPUT_FOLDER_SUFFIX}_z_{z}'
         confirmation_time_plot('TipsCount', folder + '/aw*csv',
                                f'CT_parents_z_{z}.png', 'Confirmation Time v.s. Different Parents Counts', 'k')
 
         throughput_plot('TipsCount', folder + '/tp*csv',
                         f'CT_parents_z_{z}_tp.png', 16)
+
+        confirmed_like_color_plot('TipsCount', folder + '/cc*csv',
+                                  f'DS_parents_z_{z}_cc.png', 16)

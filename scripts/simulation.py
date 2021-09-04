@@ -172,15 +172,14 @@ if __name__ == '__main__':
     for n in range(100, 1001, 100):
         os.chdir(MULTIVERSE_PATH)
         os.system(f'go run . --nodesCount={n}')
-    folder = 'results/var_nodes_ct'
-    move_results('results', folder)
+    folder = f'{RESULTS_PATH}/var_nodes_ct'
+    move_results(RESULTS_PATH, folder)
 
     # Plot the figures
-    os.chdir(RESULTS_PATH)
-    confirmation_time_plot('NodesCount', folder + '/aw*result',
+    confirmation_time_plot('NodesCount', folder + '/aw*csv',
                            'CT_nodes.png', 'Confirmation Time v.s. Different Node Counts', 'N')
 
-    throughput_plot('NodesCount', folder + '/tp*result',
+    throughput_plot('NodesCount', folder + '/tp*csv',
                     'CT_nodes_tp.png', 10, chop=0)
 
     # Run the simulation for different zipf's distribution
@@ -188,15 +187,14 @@ if __name__ == '__main__':
         par = float(z) / 10.0
         os.chdir(MULTIVERSE_PATH)
         os.system(f'go run . --zipfParameter={par}')
-    folder = 'results/var_zipf_ct'
-    move_results('results', folder)
+    folder = f'{RESULTS_PATH}/var_zipf_ct'
+    move_results(RESULTS_PATH, folder)
 
     # Plot the figures
-    os.chdir(RESULTS_PATH)
-    confirmation_time_plot('ZipfParameter', folder + '/aw*result',
-                           'CT_zipfs.png', 'Confirmation Time v.s. Different Zip\'s Parameters', 's')
+    confirmation_time_plot('ZipfParameter', folder + '/aw*csv', 'CT_zipfs.png',
+                           'Confirmation Time v.s. Different Zip\'s Parameters', 's')
 
-    throughput_plot('ZipfParameter', folder + '/tp*result',
+    throughput_plot('ZipfParameter', folder + '/tp*csv',
                     'CT_zipfs_tp.png', 11, chop=0)
 
     # Run the simulation for different parents counts and Zipf's par
@@ -208,15 +206,15 @@ if __name__ == '__main__':
                 MULTIVERSE_PATH)
             os.system(f'go run . --tipsCount={p} --zipfParameter={par}')
 
-        folder = f'results/var_parents_ct_z_{z}'
-        move_results('results', folder)
+        folder = f'{RESULTS_PATH}/var_parents_ct_z_{z}'
+        move_results(RESULTS_PATH, folder)
 
     # Plot the figures
     os.chdir(RESULTS_PATH)
     for z in z_list:
-        folder = f'results/var_parents_ct_z_{z}'
-        confirmation_time_plot('TipsCount', folder + '/aw*result',
+        folder = f'{RESULTS_PATH}/var_parents_ct_z_{z}'
+        confirmation_time_plot('TipsCount', folder + '/aw*csv',
                                f'CT_parents_z_{z}.png', 'Confirmation Time v.s. Different Parents Counts', 'k')
 
-        throughput_plot('TipsCount', folder + '/tp*result',
+        throughput_plot('TipsCount', folder + '/tp*csv',
                         f'CT_parents_z_{z}_tp.png', 16, chop=0)

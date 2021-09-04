@@ -125,7 +125,7 @@ def throughput_plot(var, fs, ofn, fc, chop=0):
             xlabel='Time (100ms)', ylabel='Message Count', yscale='log', title=f'{var} = {v}')
 
     plt.savefig(f'{FIGURE_OUTPUT_PATH}/{ofn}', transparent=TRANSPARENT)
-    plt.clf()
+    plt.close()
 
 
 def confirmation_time_plot(var, fs, ofn, title, label):
@@ -153,7 +153,7 @@ def confirmation_time_plot(var, fs, ofn, title, label):
     plt.legend()
     plt.title(title)
     plt.savefig(f'{FIGURE_OUTPUT_PATH}/{ofn}', transparent=TRANSPARENT)
-    plt.clf()
+    plt.close()
 
 
 if __name__ == '__main__':

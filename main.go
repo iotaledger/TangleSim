@@ -164,7 +164,7 @@ func main() {
 
 	resultsWriters := monitorNetworkState(testNetwork)
 	defer flushWriters(resultsWriters)
-	secureNetwork(testNetwork, config.DecelerationFactor)
+	secureNetwork(testNetwork)
 
 	// To simulate the confirmation time w/o any double spendings, the colored msgs are not to be sent
 
@@ -457,7 +457,7 @@ func createWriter(fileName string) *csv.Writer {
 	return tpResultsWriter
 }
 
-func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
+func secureNetwork(testNetwork *network.Network) {
 	// In the simulation we let all nodes can send messages.
 	// largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
 
@@ -470,22 +470,22 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 
 		relevantValidators++
 
-		// Weight: 100, 20, 1
-		// TPS: 1000
-		// Sleep time: 121/100000, 121/20000, 121/1000
-		// Issuing message count per second: 100000/121 + 20000/121 + 1000/121 = 1000
-
 		// Each peer should send messages according to their mana: Fix TPS for example 1000;
 		// A node with a x% of mana will issue 1000*x% messages per second
-		issuingPeriod := float64(config.NodesTotalWeight) / float64(config.TPS) / weightOfPeer
-		log.Debug(peer.ID, " issuing period is ", issuingPeriod)
-		pace := time.Duration(issuingPeriod * decelerationFactor * float64(time.Second))
-		log.Debug(peer.ID, " peer sent a meesage at ", pace, ". weight of peer is ", weightOfPeer)
-		go startSecurityWorker(peer, pace)
+
+		// Weight: 100, 20, 1
+		// TPS: 1000
+		// Band widths summed up: 100000/121 + 20000/121 + 1000/121 = 1000
+
+		band := weightOfPeer * float64(config.TPS) / float64(config.NodesTotalWeight)
+
+		go startSecurityWorker(peer, band)
 	}
 }
 
-func startSecurityWorker(peer *network.Peer, pace time.Duration) {
+func startSecurityWorker(peer *network.Peer, band float64) {
+	pace := time.Duration(float64(time.Second) * config.DecelerationFactor / band)
+
 	if pace == time.Duration(0) {
 		return
 	}
@@ -495,9 +495,9 @@ func startSecurityWorker(peer *network.Peer, pace time.Duration) {
 		select {
 		case <-ticker.C:
 			if config.IMIF == "poisson" {
-				pace = time.Duration(float64(time.Second) * rand.ExpFloat64() / float64(pace))
+				pace = time.Duration(float64(time.Second) * config.DecelerationFactor * rand.ExpFloat64() / band)
 				if pace > 0 {
-					ticker = time.NewTicker(pace)
+					ticker.Reset(pace)
 				}
 			}
 			sendMessage(peer)

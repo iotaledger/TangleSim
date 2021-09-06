@@ -90,7 +90,7 @@ func parseFlags() {
 	consensusMonitorTickPtr :=
 		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
 	doubleSpendDelayPtr :=
-		flag.Int("decelerationFactor", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
+		flag.Int("doubleSpendDelay", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
 	relevantValidatorWeightPtr :=
 		flag.Int("releventValidatorWeight", config.RelevantValidatorWeight, "The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages")
 	payloadLoss := flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
@@ -344,11 +344,11 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	// Here we only monitor the opinion weight of node w/ the highest weight
 	dsPeer := testNetwork.Peers[0]
-	dsPeer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ApprovalWeightUpdated.Attach(events.NewClosure(func(opinion multiverse.Color, delta_weight int64) {
+	dsPeer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ApprovalWeightUpdated.Attach(events.NewClosure(func(opinion multiverse.Color, deltaWeight int64) {
 		opinionWeightMutex.Lock()
 		defer opinionWeightMutex.Unlock()
 
-		opinionsWeights[opinion] += delta_weight
+		opinionsWeights[opinion] += deltaWeight
 	}))
 
 	// Here we only monitor the tip pool size of node w/ the highest weight
@@ -364,7 +364,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 		}))
 
 	go func() {
-		for range time.Tick(time.Duration(config.ConsensusMonitorTick) * time.Millisecond) {
+		for range time.Tick(time.Duration(config.DecelerationFactor*config.ConsensusMonitorTick) * time.Millisecond) {
 			log.Infof("Network Status: %d TPS :: Consensus[ %d Undefined / %d Blue / %d Red / %d Green ] :: %d Nodes :: %d Validators",
 				atomic.LoadUint64(&tpsCounter),
 				confirmedNodesCounter[multiverse.UndefinedColor],
@@ -391,7 +391,6 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				strconv.FormatInt(opinionsWeights[multiverse.Blue], 10),
 				strconv.FormatInt(opinionsWeights[multiverse.Red], 10),
 				strconv.FormatInt(opinionsWeights[multiverse.Green], 10),
-				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 				sinceIssuance,
 			}

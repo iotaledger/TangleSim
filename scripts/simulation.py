@@ -22,7 +22,7 @@ OUTPUT_FOLDER_SUFFIX = 'ds'
 TRANSPARENT = False
 
 # The begining x_axis in ns
-X_AXIS_BEGIN = 2000_000_000
+X_AXIS_BEGIN = 20000_000_000
 
 # The timescale of the 'ns after start' is ns. Use sec as the unit time.
 ONE_SEC = 1000_000_000

@@ -26,10 +26,10 @@ import (
 var (
 	log      = logger.New("Simulation")
 	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages", "# of Issued Messages", "ns since start"}
-	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green", "ns since start"}
+	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green", "ns since start", "ns since issuance"}
 	tpHeader = []string{"UndefinedColor (Tip Pool Size)", "Blue (Tip Pool Size)", "Red (Tip Pool Size)", "Green (Tip Pool Size)",
 		"UndefinedColor (Processed)", "Blue (Processed)", "Red (Processed)", "Green (Processed)", "# of Issued Messages", "ns since start"}
-	ccHeader = []string{"Blue (Confirmed)", "Red (Confirmed)", "Green (Confirmed)", "Blue (Like)", "Red (Like)", "Green (Like)", "ns since start"}
+	ccHeader = []string{"Blue (Confirmed)", "Red (Confirmed)", "Green (Confirmed)", "Blue (Like)", "Red (Like)", "Green (Like)", "ns since start", "ns since issuance"}
 
 	csvMutex              sync.Mutex
 	shutdownSignal        = make(chan types.Empty)
@@ -52,15 +52,17 @@ var (
 	confirmedMessageCounter = make(map[network.PeerID]int64)
 	confirmedMessageMutex   sync.RWMutex
 
-	opinionMutex sync.Mutex
+	opinionMutex sync.RWMutex
 
-	confirmationMutex sync.Mutex
+	confirmationMutex sync.RWMutex
 
-	opinionWeightMutex sync.Mutex
+	opinionWeightMutex sync.RWMutex
 
-	processedMessageMutex sync.Mutex
+	processedMessageMutex sync.RWMutex
 
 	relevantValidators int
+
+	dsIssuanceTime time.Time
 )
 
 // Parse the flags and update the configuration
@@ -84,17 +86,19 @@ func parseFlags() {
 	tpsPtr :=
 		flag.Int("tps", config.TPS, "the tips per seconds")
 	decelerationFactorPtr :=
-		flag.Float64("decelerationFactor", config.DecelerationFactor, "The factor to control the speed in the simulation")
+		flag.Int("decelerationFactor", config.DecelerationFactor, "The factor to control the speed in the simulation")
 	consensusMonitorTickPtr :=
 		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
-	releventValidatorWeightPtr :=
-		flag.Int("releventValidatorWeight", config.ReleventValidatorWeight, "The node whose weight * ReleventValidatorWeight <= largestWeight will not issue messages")
+	doubleSpendDelayPtr :=
+		flag.Int("decelerationFactor", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
+	relevantValidatorWeightPtr :=
+		flag.Int("releventValidatorWeight", config.RelevantValidatorWeight, "The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages")
 	payloadLoss := flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
 	minDelay := flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
 	maxDelay := flag.Int("maxDelay", config.MaxDelay, "The maximum network delay in ms")
-	deltaURTS := flag.Float64("DeltaURTS", config.DeltaURTS, "in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199")
-	simulationStopThreshold := flag.Float64("SimulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion")
-	simulationTarget := flag.String("SimulationTarget", config.SimulationTarget, "The simulation target, CT: Confirmation Time, DS: Double Spending")
+	deltaURTS := flag.Float64("deltaURTS", config.DeltaURTS, "in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199")
+	simulationStopThreshold := flag.Float64("simulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion")
+	simulationTarget := flag.String("simulationTarget", config.SimulationTarget, "The simulation target, CT: Confirmation Time, DS: Double Spending")
 	resultDirPtr := flag.String("resultDir", config.ResultDir, "Directory where the results will be stored")
 	// Parse the flags
 	flag.Parse()
@@ -110,7 +114,7 @@ func parseFlags() {
 	config.TPS = *tpsPtr
 	config.DecelerationFactor = *decelerationFactorPtr
 	config.ConsensusMonitorTick = *consensusMonitorTickPtr
-	config.ReleventValidatorWeight = *releventValidatorWeightPtr
+	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
 	config.PayloadLoss = *payloadLoss
 	config.MinDelay = *minDelay
 	config.MaxDelay = *maxDelay
@@ -118,7 +122,7 @@ func parseFlags() {
 	config.SimulationStopThreshold = *simulationStopThreshold
 	config.SimulationTarget = *simulationTarget
 	config.ResultDir = *resultDirPtr
-
+	config.DoubleSpendDelay = *doubleSpendDelayPtr
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
@@ -130,7 +134,8 @@ func parseFlags() {
 	log.Info("TPS: ", config.TPS)
 	log.Info("DecelerationFactor: ", config.DecelerationFactor)
 	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
-	log.Info("ReleventValidatorWeight: ", config.ReleventValidatorWeight)
+	log.Info("RelevantValidatorWeight: ", config.RelevantValidatorWeight)
+	log.Info("DoubleSpendDelay: ", config.DoubleSpendDelay)
 	log.Info("PayloadLoss: ", config.PayloadLoss)
 	log.Info("MinDelay: ", config.MinDelay)
 	log.Info("MaxDelay: ", config.MaxDelay)
@@ -165,8 +170,9 @@ func main() {
 
 	// Here we simulate the double spending
 	if config.SimulationTarget == "DS" {
-		time.Sleep(2 * time.Second)
+		time.Sleep(time.Duration(config.DoubleSpendDelay) * time.Second)
 		attackers := testNetwork.RandomPeers(3)
+		dsIssuanceTime = time.Now()
 		sendMessage(attackers[0], multiverse.Blue)
 		sendMessage(attackers[1], multiverse.Red)
 	}
@@ -180,7 +186,7 @@ func main() {
 	select {
 	case <-shutdownSignal:
 		log.Info("Shutting down simulation (consensus reached) ... [DONE]")
-	case <-time.After(maxSimulationDuration):
+	case <-time.After(time.Duration(config.DecelerationFactor) * maxSimulationDuration):
 		log.Info("Shutting down simulation (simulation timed out) ... [DONE]")
 	}
 }
@@ -197,9 +203,9 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay int
-		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, DecelerationFactor, PayloadLoss, DeltaURTS                float64
-		TSA, ResultDir                                                                                                  string
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay int
+		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, PayloadLoss, DeltaURTS                                                                          float64
+		TSA, ResultDir                                                                                                                                        string
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -212,12 +218,13 @@ func dumpConfig(fileName string) {
 		TPS:                     config.TPS,
 		DecelerationFactor:      config.DecelerationFactor,
 		ConsensusMonitorTick:    config.ConsensusMonitorTick,
-		ReleventValidatorWeight: config.ReleventValidatorWeight,
+		ReleventValidatorWeight: config.RelevantValidatorWeight,
 		PayloadLoss:             config.PayloadLoss,
 		MinDelay:                config.MinDelay,
 		MaxDelay:                config.MaxDelay,
 		DeltaURTS:               config.DeltaURTS,
 		ResultDir:               config.ResultDir,
+		DoubleSpendDelay:        config.DoubleSpendDelay,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")
@@ -353,7 +360,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 			tipPoolSizes[opinion] = tipPoolSize
 			processedMessageCounts[opinion] = processedMessages
-			issuedMessageCounter = issuedMessages
+			atomic.StoreInt64(&issuedMessageCounter, issuedMessages)
 		}))
 
 	go func() {
@@ -367,6 +374,16 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				config.NodesCount,
 				relevantValidators,
 			)
+			opinionWeightMutex.RLock()
+			processedMessageMutex.RLock()
+			confirmationMutex.RLock()
+			opinionMutex.RLock()
+
+			sinceIssuance := "0"
+			if !dsIssuanceTime.IsZero() {
+				sinceIssuance = strconv.FormatInt(time.Since(dsIssuanceTime).Nanoseconds(), 10)
+
+			}
 
 			// Dump the double spending results
 			record := []string{
@@ -375,6 +392,8 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				strconv.FormatInt(opinionsWeights[multiverse.Red], 10),
 				strconv.FormatInt(opinionsWeights[multiverse.Green], 10),
 				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+				sinceIssuance,
 			}
 
 			if err := dsResultsWriter.Write(record); err != nil {
@@ -395,7 +414,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				strconv.FormatInt(int64(processedMessageCounts[multiverse.Blue]), 10),
 				strconv.FormatInt(int64(processedMessageCounts[multiverse.Red]), 10),
 				strconv.FormatInt(int64(processedMessageCounts[multiverse.Green]), 10),
-				strconv.FormatInt(int64(issuedMessageCounter), 10),
+				strconv.FormatInt(atomic.LoadInt64(&issuedMessageCounter), 10),
 				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 			}
 
@@ -416,6 +435,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				strconv.FormatInt(int64(opinions[multiverse.Red]), 10),
 				strconv.FormatInt(int64(opinions[multiverse.Green]), 10),
 				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+				sinceIssuance,
 			}
 
 			if err := ccResultsWriter.Write(record); err != nil {
@@ -430,6 +450,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				shutdownSignal <- types.Void
 			}
 			atomic.StoreUint64(&tpsCounter, 0)
+			opinionWeightMutex.RUnlock()
+			processedMessageMutex.RUnlock()
+			confirmationMutex.RUnlock()
+			opinionMutex.RUnlock()
 		}
 	}()
 
@@ -445,14 +469,14 @@ func createWriter(fileName string) *csv.Writer {
 	return tpResultsWriter
 }
 
-func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
+func secureNetwork(testNetwork *network.Network, decelerationFactor int) {
 	// In the simulation we let all nodes can send messages.
 	// largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
 
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
 
-		// if float64(config.ReleventValidatorWeight)*weightOfPeer <= largestWeight {
+		// if float64(config.RelevantValidatorWeight)*weightOfPeer <= largestWeight {
 		// 	continue
 		// }
 
@@ -467,7 +491,7 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 		// A node with a x% of mana will issue 1000*x% messages per second
 		issuingPeriod := float64(config.NodesTotalWeight) / float64(config.TPS) / weightOfPeer
 		log.Debug(peer.ID, " issuing period is ", issuingPeriod)
-		pace := time.Duration(issuingPeriod * decelerationFactor * float64(time.Second))
+		pace := time.Duration(issuingPeriod * float64(decelerationFactor) * float64(time.Second))
 		log.Debug(peer.ID, " peer sent a meesage at ", pace, ". weight of peer is ", weightOfPeer)
 		go startSecurityWorker(peer, pace)
 	}

@@ -74,7 +74,7 @@ def parse_aw_file(fn, variation):
     v = c[variation]
 
     # ns is the time scale of the aw outputs
-    x_axis_adjust = float(ONE_SEC)/float(c["DecelerationFactor"])
+    x_axis_adjust = float(ONE_SEC) / float(c["DecelerationFactor"])
     return v, data[target], x_axis_adjust
 
 
@@ -103,7 +103,7 @@ def parse_throughput_file(fn, variation):
     v = c[variation]
 
     # Return the scaled x axis
-    x_axis = (data['ns since start']/float(ONE_SEC) /
+    x_axis = (data['ns since start'] / float(ONE_SEC) /
               float(c["DecelerationFactor"]))
     return v, (tip_pool_size, processed_messages, issued_messages, x_axis)
 
@@ -123,18 +123,19 @@ def parse_confirmed_color_file(fn, var):
 
     # Get the throughput details
     colored_node_counts = data[colored_confirmed_like_items]
-    confirmed_time = (data['ns since start'].iloc[-1] -
-                      COLORED_MSG_ISSUANCE_TIME)
+    confirmed_time = data['ns since issuance'].iloc[-1]
     confirmed_time /= ONE_SEC
 
     # Opening JSON file
     with open(config_fn) as f:
         c = json.load(f)
 
+    confirmed_time /= float(c["DecelerationFactor"])
+
     v = c[var]
 
     # Return the scaled x axis
-    x_axis = (data['ns since start']/float(ONE_SEC) /
+    x_axis = (data['ns since start'] / float(ONE_SEC) /
               float(c["DecelerationFactor"]))
 
     return v, (colored_node_counts, confirmed_time, x_axis)
@@ -176,7 +177,7 @@ def confirmed_like_color_plot(var, fs, ofn, fc):
         12, 5), dpi=500, constrained_layout=True)
 
     for i, (v, d) in enumerate(sorted(variation_data.items())):
-        (nodes, ct,  x_axis) = d
+        (nodes, ct, x_axis) = d
         r_loc = i // cn
         c_loc = i % cn
 
@@ -261,7 +262,7 @@ def confirmation_time_plot(var, fs, ofn, title, label):
 
         ct_series = np.array(sorted(d[0].values))
         confirmed_msg_counts = np.array(list(d[0].index))
-        plt.plot(ct_series/d[1], confirmed_msg_counts / len(confirmed_msg_counts),
+        plt.plot(ct_series / d[1], confirmed_msg_counts / len(confirmed_msg_counts),
                  label=f'{label} = {v}', color=clr, ls=sty)
 
     plt.xlabel('Confirmation Time (s)')
@@ -287,9 +288,11 @@ if __name__ == '__main__':
     # Run the simulation for different node counts
     folder = f'{RESULTS_PATH}/var_nodes_{OUTPUT_FOLDER_SUFFIX}'
     if RUN_SIM:
-        for n in range(100, 1001, 100):
+        deceleration_factors = [2, 3, 3, 4, 10, 15, 15, 20, 25, 30]
+        for idx, n in enumerate(range(100, 1001, 100)):
             os.chdir(MULTIVERSE_PATH)
-            os.system(f'go run . --nodesCount={n}')
+            os.system(
+                f'./multiverse_sim --simulationTarget=CT --nodesCount={n} --decelerationFactor={deceleration_factors[idx]}')
 
         move_results(RESULTS_PATH, folder)
 
@@ -310,7 +313,7 @@ if __name__ == '__main__':
         for z in range(0, 23, 2):
             par = float(z) / 10.0
             os.chdir(MULTIVERSE_PATH)
-            os.system(f'go run . --zipfParameter={par}')
+            os.system(f'./multiverse_sim --simulationTarget=CT --zipfParameter={par}')
 
         move_results(RESULTS_PATH, folder)
 
@@ -333,7 +336,7 @@ if __name__ == '__main__':
             for p in range(2, 18, 1):
                 os.chdir(
                     MULTIVERSE_PATH)
-                os.system(f'go run . --tipsCount={p} --zipfParameter={par}')
+                os.system(f'./multiverse_sim --simulationTarget=CT --tipsCount={p} --zipfParameter={par}')
 
             folder = f'{RESULTS_PATH}/var_parents_{OUTPUT_FOLDER_SUFFIX}_z_{z}'
             move_results(RESULTS_PATH, folder)

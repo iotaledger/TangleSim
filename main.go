@@ -97,7 +97,7 @@ func parseFlags() {
 	minDelay := flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
 	maxDelay := flag.Int("maxDelay", config.MaxDelay, "The maximum network delay in ms")
 	deltaURTS := flag.Float64("deltaURTS", config.DeltaURTS, "in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199")
-	simulationStopThreshold := flag.Float64("simulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion")
+	simulationStopThreshold := flag.Float64("simulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when >= SimulationStopThreshold * NodesCount have reached the same opinion")
 	simulationTarget := flag.String("simulationTarget", config.SimulationTarget, "The simulation target, CT: Confirmation Time, DS: Double Spending")
 	resultDirPtr := flag.String("resultDir", config.ResultDir, "Directory where the results will be stored")
 	// Parse the flags

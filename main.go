@@ -486,7 +486,9 @@ func secureNetwork(testNetwork *network.Network) {
 func startSecurityWorker(peer *network.Peer, band float64) {
 	pace := time.Duration(float64(time.Second) * config.DecelerationFactor / band)
 
+	log.Debug("Peer ID: ", peer.ID, " Pace: ", pace)
 	if pace == time.Duration(0) {
+		log.Warn("Peer ID: ", peer.ID, " has 0 pace!")
 		return
 	}
 	ticker := time.NewTicker(pace)

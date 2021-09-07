@@ -42,6 +42,9 @@ sty_list = ['-', '--', '-.', ':']  # list of basic linestyles
 target = "Confirmation Time (ns)"
 issued_message = "# of Issued Messages"
 
+# Rename the parameters
+var_dict = {'TipsCount': 'k', 'ZipfParameter': 's', 'NodesCount': 'N'}
+
 # Items for double spending figures
 colored_confirmed_like_items = [
     'Blue (Confirmed)', 'Red (Confirmed)', 'Blue (Like)', 'Red (Like)']
@@ -150,6 +153,23 @@ def move_results(src, dst):
     os.system(f'mv {src}/*.csv {dst}')
 
 
+def get_row_col_counts(fc):
+    """Return the row/columns counts of the figure
+    """
+    rn = 4
+    cn = 4
+    if fc == 6:
+        rn = 2
+        cn = 3
+    elif fc == 10:
+        rn = 2
+        cn = 5
+    elif fc <= 12:
+        rn = 3
+        cn = 4
+    return (rn, cn)
+
+
 def confirmed_like_color_plot(var, fs, ofn, fc):
     """Generate the confirmed/like color figure.
     """
@@ -165,14 +185,7 @@ def confirmed_like_color_plot(var, fs, ofn, fc):
         v, ct_cc = parse_confirmed_color_file(f, var)
         variation_data[v] = ct_cc
 
-    rn = 4
-    cn = 4
-    if fc == 10:
-        rn = 2
-        cn = 5
-    elif fc <= 12:
-        rn = 3
-        cn = 4
+    rn, cn = get_row_col_counts(fc)
     fig, axs = plt.subplots(rn, cn, figsize=(
         12, 5), dpi=500, constrained_layout=True)
 
@@ -189,7 +202,7 @@ def confirmed_like_color_plot(var, fs, ofn, fc):
         if i == 0:
             axs[r_loc, c_loc].legend()
         axs[r_loc, c_loc].set(
-            xlabel='Time (s)', ylabel='Node Count', title=f'{var} = {v}, {ct:.1f}(s)')
+            xlabel='Time (s)', ylabel='Node Count', title=f'{var_dict[var]} = {v}, {ct:.1f}(s)')
 
     plt.savefig(f'{FIGURE_OUTPUT_PATH}/{ofn}', transparent=TRANSPARENT)
     plt.close()
@@ -209,14 +222,7 @@ def throughput_plot(var, fs, ofn, fc):
         v, tp = parse_throughput_file(f, var)
         variation_data[v] = tp
 
-    rn = 4
-    cn = 4
-    if fc == 10:
-        rn = 2
-        cn = 5
-    elif fc <= 12:
-        rn = 3
-        cn = 4
+    rn, cn = get_row_col_counts(fc)
     fig, axs = plt.subplots(rn, cn, figsize=(
         12, 5), dpi=500, constrained_layout=True)
 
@@ -236,7 +242,7 @@ def throughput_plot(var, fs, ofn, fc):
         if i == 0:
             axs[r_loc, c_loc].legend()
         axs[r_loc, c_loc].set(
-            xlabel='Time (s)', ylabel='Message Count', yscale='log', title=f'{var} = {v}')
+            xlabel='Time (s)', ylabel='Message Count', yscale='log', title=f'{var_dict[var]} = {v}')
 
     plt.savefig(f'{FIGURE_OUTPUT_PATH}/{ofn}', transparent=TRANSPARENT)
     plt.close()
@@ -313,7 +319,8 @@ if __name__ == '__main__':
         for z in range(0, 23, 2):
             par = float(z) / 10.0
             os.chdir(MULTIVERSE_PATH)
-            os.system(f'./multiverse_sim --simulationTarget=CT --zipfParameter={par}')
+            os.system(
+                f'./multiverse_sim --simulationTarget=CT --zipfParameter={par}')
 
         move_results(RESULTS_PATH, folder)
 
@@ -333,10 +340,11 @@ if __name__ == '__main__':
     if RUN_SIM:
         for z in z_list:
             par = float(z)
-            for p in range(2, 18, 1):
+            for p in [2, 4, 8, 16, 32, 64]:
                 os.chdir(
                     MULTIVERSE_PATH)
-                os.system(f'./multiverse_sim --simulationTarget=CT --tipsCount={p} --zipfParameter={par}')
+                os.system(
+                    f'./multiverse_sim --simulationTarget=CT --tipsCount={p} --zipfParameter={par}')
 
             folder = f'{RESULTS_PATH}/var_parents_{OUTPUT_FOLDER_SUFFIX}_z_{z}'
             move_results(RESULTS_PATH, folder)
@@ -349,7 +357,7 @@ if __name__ == '__main__':
                                    f'CT_parents_z_{z}.png', 'Confirmation Time v.s. Different Parents Counts', 'k')
 
             throughput_plot('TipsCount', folder + '/tp*csv',
-                            f'CT_parents_z_{z}_tp.png', 16)
+                            f'CT_parents_z_{z}_tp.png', 6)
 
             confirmed_like_color_plot('TipsCount', folder + '/cc*csv',
-                                      f'DS_parents_z_{z}_cc.png', 16)
+                                      f'DS_parents_z_{z}_cc.png', 6)

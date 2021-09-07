@@ -91,7 +91,7 @@ func parseFlags() {
 	consensusMonitorTickPtr :=
 		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
 	doubleSpendDelayPtr :=
-		flag.Int("decelerationFactor", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
+		flag.Int("doubleSpendDelay", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
 	relevantValidatorWeightPtr :=
 		flag.Int("releventValidatorWeight", config.RelevantValidatorWeight, "The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages")
 	payloadLoss := flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
@@ -118,7 +118,7 @@ func parseFlags() {
 	config.DecelerationFactor = *decelerationFactorPtr
 	config.ConsensusMonitorTick = *consensusMonitorTickPtr
 	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
-  config.DoubleSpendDelay = *doubleSpendDelayPtr
+	config.DoubleSpendDelay = *doubleSpendDelayPtr
 	config.PayloadLoss = *payloadLoss
 	config.MinDelay = *minDelay
 	config.MaxDelay = *maxDelay
@@ -509,7 +509,7 @@ func secureNetwork(testNetwork *network.Network) {
 }
 
 func startSecurityWorker(peer *network.Peer, band float64) {
-	pace := time.Duration(float64(time.Second) * config.DecelerationFactor / band)
+	pace := time.Duration(float64(time.Second) * float64(config.DecelerationFactor) / band)
 
 	log.Debug("Peer ID: ", peer.ID, " Pace: ", pace)
 	if pace == time.Duration(0) {
@@ -522,7 +522,7 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 		select {
 		case <-ticker.C:
 			if config.IMIF == "poisson" {
-				pace = time.Duration(float64(time.Second) * config.DecelerationFactor * rand.ExpFloat64() / band)
+				pace = time.Duration(float64(time.Second) * float64(config.DecelerationFactor) * rand.ExpFloat64() / band)
 				if pace > 0 {
 					ticker.Reset(pace)
 				}

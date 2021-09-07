@@ -179,7 +179,7 @@ func main() {
 		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
 			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
 		network.PacketLoss(0, config.PayloadLoss),
-		network.Topology(network.WattsStrogatz(config.NeighbourCountWS, config.RandomnessWS)),
+		network.Topology(network.WattsStrogatz(config.NeighbourCountWS*2, config.RandomnessWS)),
 	)
 	testNetwork.Start()
 	defer testNetwork.Shutdown()

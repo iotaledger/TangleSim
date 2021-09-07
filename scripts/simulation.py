@@ -57,14 +57,6 @@ def parse_aw_file(fn, variation):
     """Parse the accumulated weight files.
     """
     logging.info(f'Parsing {fn}...')
-    data = pd.read_csv(fn)
-
-    # Chop data before the begining time
-    data = data[data['ns since start'] >= X_AXIS_BEGIN]
-
-    # Reset the index to only consider the confirmed msgs from X_AXIS_BEGIN
-    data = data.reset_index()
-
     # Get the configuration setup of this simulation
     # Note currently we only consider the first node
     config_fn = re.sub('aw0', 'aw', fn)
@@ -76,8 +68,17 @@ def parse_aw_file(fn, variation):
 
     v = c[variation]
 
+    data = pd.read_csv(fn)
+
+    # Chop data before the begining time
+    data = data[data['ns since start'] >= X_AXIS_BEGIN * float(c["DecelerationFactor"])]
+
+    # Reset the index to only consider the confirmed msgs from X_AXIS_BEGIN
+    data = data.reset_index()
+
     # ns is the time scale of the aw outputs
-    x_axis_adjust = float(ONE_SEC) / float(c["DecelerationFactor"])
+    x_axis_adjust = float(ONE_SEC)
+    data[target] = data[target] / float(c["DecelerationFactor"])
     return v, data[target], x_axis_adjust
 
 
@@ -85,25 +86,25 @@ def parse_throughput_file(fn, variation):
     """Parse the throughput files.
     """
     logging.info(f'Parsing {fn}...')
-    data = pd.read_csv(fn)
-
-    # Chop data before the begining time
-    data = data[data['ns since start'] >= X_AXIS_BEGIN]
-
     # Get the configuration setup of this simulation
     config_fn = re.sub('tp', 'aw', fn)
     config_fn = config_fn.replace('.csv', '.config')
-
-    # Get the throughput details
-    tip_pool_size = data['UndefinedColor (Tip Pool Size)']
-    processed_messages = data['UndefinedColor (Processed)']
-    issued_messages = data['# of Issued Messages']
 
     # Opening JSON file
     with open(config_fn) as f:
         c = json.load(f)
 
     v = c[variation]
+
+    data = pd.read_csv(fn)
+
+    # Chop data before the begining time
+    data = data[data['ns since start'] >= X_AXIS_BEGIN * float(c["DecelerationFactor"])]
+
+    # Get the throughput details
+    tip_pool_size = data['UndefinedColor (Tip Pool Size)']
+    processed_messages = data['UndefinedColor (Processed)']
+    issued_messages = data['# of Issued Messages']
 
     # Return the scaled x axis
     x_axis = (data['ns since start'] / float(ONE_SEC) /
@@ -115,31 +116,29 @@ def parse_confirmed_color_file(fn, var):
     """Parse the confirmed color files.
     """
     logging.info(f'Parsing {fn}...')
-    data = pd.read_csv(fn)
-
-    # Chop data before the begining time
-    data = data[data['ns since start'] >= X_AXIS_BEGIN]
-
     # Get the configuration setup of this simulation
     config_fn = re.sub('cc', 'aw', fn)
     config_fn = config_fn.replace('.csv', '.config')
-
-    # Get the throughput details
-    colored_node_counts = data[colored_confirmed_like_items]
-    confirmed_time = data['ns since issuance'].iloc[-1]
-    confirmed_time /= ONE_SEC
 
     # Opening JSON file
     with open(config_fn) as f:
         c = json.load(f)
 
+    data = pd.read_csv(fn)
+
+    # Chop data before the begining time
+    data = data[data['ns since start'] >= X_AXIS_BEGIN * float(c["DecelerationFactor"])]
+
+    # Get the throughput details
+    colored_node_counts = data[colored_confirmed_like_items]
+    confirmed_time = data['ns since issuance'].iloc[-1]
+    confirmed_time /= ONE_SEC
     confirmed_time /= float(c["DecelerationFactor"])
 
     v = c[var]
 
     # Return the scaled x axis
-    x_axis = (data['ns since start'] / float(ONE_SEC) /
-              float(c["DecelerationFactor"]))
+    x_axis = (data['ns since start'])
 
     return v, (colored_node_counts, confirmed_time, x_axis)
 
@@ -294,7 +293,7 @@ if __name__ == '__main__':
     # Run the simulation for different node counts
     folder = f'{RESULTS_PATH}/var_nodes_{OUTPUT_FOLDER_SUFFIX}'
     if RUN_SIM:
-        deceleration_factors = [2, 3, 3, 4, 10, 15, 15, 20, 25, 30]
+        deceleration_factors = [1, 2, 2, 3, 5, 10, 15, 20, 25, 30]
         for idx, n in enumerate(range(100, 1001, 100)):
             os.chdir(MULTIVERSE_PATH)
             os.system(

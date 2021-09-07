@@ -21,6 +21,8 @@ var (
 	SimulationStopThreshold = 1.0       // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
 	SimulationTarget        = "CT"      // The simulation target, CT: Confirmation Time, DS: Double Spending
 	ResultDir               = "results" // Path where all the result files will be saved
+	RandomnessWS            = 1.0       // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
+	NeighbourCountWS        = 8         // Number of neighbors node is connected to in WattsStrogatz network topology
 )
 
 var (

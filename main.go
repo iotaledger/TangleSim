@@ -94,14 +94,26 @@ func parseFlags() {
 		flag.Int("doubleSpendDelay", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
 	relevantValidatorWeightPtr :=
 		flag.Int("releventValidatorWeight", config.RelevantValidatorWeight, "The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages")
-	payloadLoss := flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
-	minDelay := flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
-	maxDelay := flag.Int("maxDelay", config.MaxDelay, "The maximum network delay in ms")
-	deltaURTS := flag.Float64("deltaURTS", config.DeltaURTS, "in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199")
-	simulationStopThreshold := flag.Float64("simulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when >= SimulationStopThreshold * NodesCount have reached the same opinion")
-	simulationTarget := flag.String("simulationTarget", config.SimulationTarget, "The simulation target, CT: Confirmation Time, DS: Double Spending")
-	resultDirPtr := flag.String("resultDir", config.ResultDir, "Directory where the results will be stored")
-	imif := flag.String("IMIF", config.IMIF, "Inter Message Issuing Function for time delay between activity messages: poisson or uniform")
+	payloadLoss :=
+		flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
+	minDelay :=
+		flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
+	maxDelay :=
+		flag.Int("maxDelay", config.MaxDelay, "The maximum network delay in ms")
+	deltaURTS :=
+		flag.Float64("deltaURTS", config.DeltaURTS, "in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199")
+	simulationStopThreshold :=
+		flag.Float64("simulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when >= SimulationStopThreshold * NodesCount have reached the same opinion")
+	simulationTarget :=
+		flag.String("simulationTarget", config.SimulationTarget, "The simulation target, CT: Confirmation Time, DS: Double Spending")
+	resultDirPtr :=
+		flag.String("resultDir", config.ResultDir, "Directory where the results will be stored")
+	imif :=
+		flag.String("IMIF", config.IMIF, "Inter Message Issuing Function for time delay between activity messages: poisson or uniform")
+	randomnessWS :=
+		flag.Float64("WattsStrogatzRandomness", config.RandomnessWS, "WattsStrogatz randomness parameter")
+	neighbourCountWS :=
+		flag.Int("WattsStrogatzNeighborCount", config.NeighbourCountWS, "Number of neighbors node is connected to in WattsStrogatz network topology")
 
 	// Parse the flags
 	flag.Parse()
@@ -127,6 +139,8 @@ func parseFlags() {
 	config.SimulationTarget = *simulationTarget
 	config.ResultDir = *resultDirPtr
 	config.IMIF = *imif
+	config.RandomnessWS = *randomnessWS
+	config.NeighbourCountWS = *neighbourCountWS
 
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
@@ -149,6 +163,8 @@ func parseFlags() {
 	log.Info("SimulationTarget:", config.SimulationTarget)
 	log.Info("ResultDir:", config.ResultDir)
 	log.Info("IMIF: ", config.IMIF)
+	log.Info("WattsStrogatzRandomness: ", config.RandomnessWS)
+	log.Info("WattsStrogatzNeighborCount: ", config.NeighbourCountWS)
 
 }
 
@@ -163,7 +179,7 @@ func main() {
 		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
 			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
 		network.PacketLoss(0, config.PayloadLoss),
-		network.Topology(network.WattsStrogatz(4, 1)),
+		network.Topology(network.WattsStrogatz(config.NeighbourCountWS, config.RandomnessWS)),
 	)
 	testNetwork.Start()
 	defer testNetwork.Shutdown()

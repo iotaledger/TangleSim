@@ -192,7 +192,7 @@ func main() {
 
 	// Here we simulate the double spending
 	if config.SimulationTarget == "DS" {
-		time.Sleep(time.Duration(config.DoubleSpendDelay) * time.Second)
+		time.Sleep(time.Duration(config.DoubleSpendDelay*config.DecelerationFactor) * time.Second)
 		attackers := testNetwork.RandomPeers(3)
 		dsIssuanceTime = time.Now()
 		sendMessage(attackers[0], multiverse.Blue)

@@ -159,7 +159,7 @@ def get_row_col_counts(fc):
     rn = 4
     cn = 4
     if fc == 6:
-        rn = 3
+        rn = 2
         cn = 3
     elif fc == 10:
         rn = 2

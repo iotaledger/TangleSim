@@ -43,7 +43,7 @@ target = "Confirmation Time (ns)"
 issued_message = "# of Issued Messages"
 
 # Rename the parameters
-var_dict = {'TipsCount': 'k', 'ZipfParameter': 'k', 'NodesCount': 'N'}
+var_dict = {'TipsCount': 'k', 'ZipfParameter': 's', 'NodesCount': 'N'}
 
 # Items for double spending figures
 colored_confirmed_like_items = [
@@ -175,7 +175,7 @@ def confirmed_like_color_plot(var, fs, ofn, fc):
     """
     # Init the matplotlib config
     font = {'family': 'Times New Roman',
-            'weigsht': 'bold',
+            'weight': 'bold',
             'size': 8}
     matplotlib.rc('font', **font)
 

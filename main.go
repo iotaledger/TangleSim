@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
 	"strconv"
@@ -90,7 +91,7 @@ func parseFlags() {
 	consensusMonitorTickPtr :=
 		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
 	doubleSpendDelayPtr :=
-		flag.Int("decelerationFactor", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
+		flag.Int("doubleSpendDelay", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
 	relevantValidatorWeightPtr :=
 		flag.Int("releventValidatorWeight", config.RelevantValidatorWeight, "The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages")
 	payloadLoss := flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
@@ -100,6 +101,8 @@ func parseFlags() {
 	simulationStopThreshold := flag.Float64("simulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when >= SimulationStopThreshold * NodesCount have reached the same opinion")
 	simulationTarget := flag.String("simulationTarget", config.SimulationTarget, "The simulation target, CT: Confirmation Time, DS: Double Spending")
 	resultDirPtr := flag.String("resultDir", config.ResultDir, "Directory where the results will be stored")
+	imif := flag.String("IMIF", config.IMIF, "Inter Message Issuing Function for time delay between activity messages: poisson or uniform")
+
 	// Parse the flags
 	flag.Parse()
 
@@ -115,6 +118,7 @@ func parseFlags() {
 	config.DecelerationFactor = *decelerationFactorPtr
 	config.ConsensusMonitorTick = *consensusMonitorTickPtr
 	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
+	config.DoubleSpendDelay = *doubleSpendDelayPtr
 	config.PayloadLoss = *payloadLoss
 	config.MinDelay = *minDelay
 	config.MaxDelay = *maxDelay
@@ -122,7 +126,8 @@ func parseFlags() {
 	config.SimulationStopThreshold = *simulationStopThreshold
 	config.SimulationTarget = *simulationTarget
 	config.ResultDir = *resultDirPtr
-	config.DoubleSpendDelay = *doubleSpendDelayPtr
+	config.IMIF = *imif
+
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
@@ -143,6 +148,7 @@ func parseFlags() {
 	log.Info("SimulationStopThreshold:", config.SimulationStopThreshold)
 	log.Info("SimulationTarget:", config.SimulationTarget)
 	log.Info("ResultDir:", config.ResultDir)
+	log.Info("IMIF: ", config.IMIF)
 
 }
 
@@ -164,7 +170,7 @@ func main() {
 
 	resultsWriters := monitorNetworkState(testNetwork)
 	defer flushWriters(resultsWriters)
-	secureNetwork(testNetwork, config.DecelerationFactor)
+	secureNetwork(testNetwork)
 
 	// To simulate the confirmation time w/o any double spendings, the colored msgs are not to be sent
 
@@ -205,7 +211,7 @@ func dumpConfig(fileName string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay int
 		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, PayloadLoss, DeltaURTS                                                                          float64
-		TSA, ResultDir                                                                                                                                        string
+		TSA, ResultDir, IMIF                                                                                                                                  string
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -219,17 +225,24 @@ func dumpConfig(fileName string) {
 		DecelerationFactor:      config.DecelerationFactor,
 		ConsensusMonitorTick:    config.ConsensusMonitorTick,
 		ReleventValidatorWeight: config.RelevantValidatorWeight,
+		DoubleSpendDelay:        config.DoubleSpendDelay,
 		PayloadLoss:             config.PayloadLoss,
 		MinDelay:                config.MinDelay,
 		MaxDelay:                config.MaxDelay,
 		DeltaURTS:               config.DeltaURTS,
 		ResultDir:               config.ResultDir,
-		DoubleSpendDelay:        config.DoubleSpendDelay,
+		IMIF:                    config.IMIF,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")
 	if err != nil {
 		log.Error(err)
+	}
+	if _, err = os.Stat(config.ResultDir); os.IsNotExist(err) {
+		err = os.Mkdir(config.ResultDir, 0700)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 	if ioutil.WriteFile(path.Join(config.ResultDir, fileName), bytes, 0644) != nil {
 		log.Error(err)
@@ -469,7 +482,7 @@ func createWriter(fileName string) *csv.Writer {
 	return tpResultsWriter
 }
 
-func secureNetwork(testNetwork *network.Network, decelerationFactor int) {
+func secureNetwork(testNetwork *network.Network) {
 	// In the simulation we let all nodes can send messages.
 	// largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
 
@@ -482,24 +495,40 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor int) {
 
 		relevantValidators++
 
-		// Weight: 100, 20, 1
-		// TPS: 1000
-		// Sleep time: 121/100000, 121/20000, 121/1000
-		// Issuing message count per second: 100000/121 + 20000/121 + 1000/121 = 1000
-
 		// Each peer should send messages according to their mana: Fix TPS for example 1000;
 		// A node with a x% of mana will issue 1000*x% messages per second
-		issuingPeriod := float64(config.NodesTotalWeight) / float64(config.TPS) / weightOfPeer
-		log.Debug(peer.ID, " issuing period is ", issuingPeriod)
-		pace := time.Duration(issuingPeriod * float64(decelerationFactor) * float64(time.Second))
-		log.Debug(peer.ID, " peer sent a meesage at ", pace, ". weight of peer is ", weightOfPeer)
-		go startSecurityWorker(peer, pace)
+
+		// Weight: 100, 20, 1
+		// TPS: 1000
+		// Band widths summed up: 100000/121 + 20000/121 + 1000/121 = 1000
+
+		band := weightOfPeer * float64(config.TPS) / float64(config.NodesTotalWeight)
+
+		go startSecurityWorker(peer, band)
 	}
 }
 
-func startSecurityWorker(peer *network.Peer, pace time.Duration) {
-	for range time.Tick(pace) {
-		sendMessage(peer)
+func startSecurityWorker(peer *network.Peer, band float64) {
+	pace := time.Duration(float64(time.Second) * float64(config.DecelerationFactor) / band)
+
+	log.Debug("Peer ID: ", peer.ID, " Pace: ", pace)
+	if pace == time.Duration(0) {
+		log.Warn("Peer ID: ", peer.ID, " has 0 pace!")
+		return
+	}
+	ticker := time.NewTicker(pace)
+
+	for {
+		select {
+		case <-ticker.C:
+			if config.IMIF == "poisson" {
+				pace = time.Duration(float64(time.Second) * float64(config.DecelerationFactor) * rand.ExpFloat64() / band)
+				if pace > 0 {
+					ticker.Reset(pace)
+				}
+			}
+			sendMessage(peer)
+		}
 	}
 }
 

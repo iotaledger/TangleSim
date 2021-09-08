@@ -16,7 +16,7 @@ RESULTS_PATH = MULTIVERSE_PATH + "/results"
 FIGURE_OUTPUT_PATH = MULTIVERSE_PATH + '/scripts/figures'
 
 # The output folder suffix (e.g., ct for confirmation time and ds for double spending)
-SIMULATION_TARGET = 'CT'
+SIMULATION_TARGET = 'DS'
 
 # Transparent figure
 TRANSPARENT = False
@@ -71,7 +71,8 @@ def parse_aw_file(fn, variation):
     data = pd.read_csv(fn)
 
     # Chop data before the begining time
-    data = data[data['ns since start'] >= X_AXIS_BEGIN * float(c["DecelerationFactor"])]
+    data = data[data['ns since start'] >=
+                X_AXIS_BEGIN * float(c["DecelerationFactor"])]
 
     # Reset the index to only consider the confirmed msgs from X_AXIS_BEGIN
     data = data.reset_index()
@@ -99,7 +100,8 @@ def parse_throughput_file(fn, variation):
     data = pd.read_csv(fn)
 
     # Chop data before the begining time
-    data = data[data['ns since start'] >= X_AXIS_BEGIN * float(c["DecelerationFactor"])]
+    data = data[data['ns since start'] >=
+                X_AXIS_BEGIN * float(c["DecelerationFactor"])]
 
     # Get the throughput details
     tip_pool_size = data['UndefinedColor (Tip Pool Size)']
@@ -127,7 +129,8 @@ def parse_confirmed_color_file(fn, var):
     data = pd.read_csv(fn)
 
     # Chop data before the begining time
-    data = data[data['ns since start'] >= X_AXIS_BEGIN * float(c["DecelerationFactor"])]
+    data = data[data['ns since start'] >=
+                X_AXIS_BEGIN * float(c["DecelerationFactor"])]
 
     # Get the throughput details
     colored_node_counts = data[COLORED_CONFIRMED_LIKE_ITEMS]
@@ -138,7 +141,8 @@ def parse_confirmed_color_file(fn, var):
     v = c[var]
 
     # Return the scaled x axis
-    x_axis = (data['ns since start'])
+    x_axis = ((data['ns since start']) /
+              float(ONE_SEC * float(c["DecelerationFactor"])))
 
     return v, (colored_node_counts, confirmed_time, x_axis)
 

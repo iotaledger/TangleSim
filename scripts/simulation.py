@@ -16,7 +16,7 @@ RESULTS_PATH = MULTIVERSE_PATH + "/results"
 FIGURE_OUTPUT_PATH = MULTIVERSE_PATH + '/scripts/figures'
 
 # The output folder suffix (e.g., ct for confirmation time and ds for double spending)
-OUTPUT_FOLDER_SUFFIX = 'ds'
+SIMULATION_TARGET = 'CT'
 
 # Transparent figure
 TRANSPARENT = False
@@ -35,22 +35,22 @@ RUN_SIM = True
 PLOT_FIGURES = True
 
 # Define the list of styles
-clr_list = ['k', 'b', 'g', 'r']  # list of basic colors
-sty_list = ['-', '--', '-.', ':']  # list of basic linestyles
+CLR_LIST = ['k', 'b', 'g', 'r']  # list of basic colors
+STY_LIST = ['-', '--', '-.', ':']  # list of basic linestyles
 
 # Define the target to parse
-target = "Confirmation Time (ns)"
-issued_message = "# of Issued Messages"
+TARGET = "Confirmation Time (ns)"
+ISSUED_MESSAGE = "# of Issued Messages"
 
 # Rename the parameters
-var_dict = {'TipsCount': 'k', 'ZipfParameter': 's', 'NodesCount': 'N'}
+VAR_DICT = {'TipsCount': 'k', 'ZipfParameter': 's', 'NodesCount': 'N'}
 
 # Items for double spending figures
-colored_confirmed_like_items = [
+COLORED_CONFIRMED_LIKE_ITEMS = [
     'Blue (Confirmed)', 'Red (Confirmed)', 'Blue (Like)', 'Red (Like)']
 # The color list for the double spending figures
-ds_clr_list = ['b', 'r', 'b', 'r']
-ds_sty_list = ['-', '-', '--', '--']
+DS_CLR_LIST = ['b', 'r', 'b', 'r']
+DS_STY_LIST = ['-', '-', '--', '--']
 
 
 def parse_aw_file(fn, variation):
@@ -78,8 +78,8 @@ def parse_aw_file(fn, variation):
 
     # ns is the time scale of the aw outputs
     x_axis_adjust = float(ONE_SEC)
-    data[target] = data[target] / float(c["DecelerationFactor"])
-    return v, data[target], x_axis_adjust
+    data[TARGET] = data[TARGET] / float(c["DecelerationFactor"])
+    return v, data[TARGET], x_axis_adjust
 
 
 def parse_throughput_file(fn, variation):
@@ -130,7 +130,7 @@ def parse_confirmed_color_file(fn, var):
     data = data[data['ns since start'] >= X_AXIS_BEGIN * float(c["DecelerationFactor"])]
 
     # Get the throughput details
-    colored_node_counts = data[colored_confirmed_like_items]
+    colored_node_counts = data[COLORED_CONFIRMED_LIKE_ITEMS]
     confirmed_time = data['ns since issuance'].iloc[-1]
     confirmed_time /= ONE_SEC
     confirmed_time /= float(c["DecelerationFactor"])
@@ -195,13 +195,13 @@ def confirmed_like_color_plot(var, fs, ofn, fc):
 
         for j, n in enumerate(nodes.columns):
             axs[r_loc, c_loc].plot(x_axis, nodes[n], label=n,
-                                   color=ds_clr_list[j], ls=ds_sty_list[j], linewidth=1)
+                                   color=DS_CLR_LIST[j], ls=DS_STY_LIST[j], linewidth=1)
 
         # Only put the legend on the first figures
         if i == 0:
             axs[r_loc, c_loc].legend()
         axs[r_loc, c_loc].set(
-            xlabel='Time (s)', ylabel='Node Count', title=f'{var_dict[var]} = {v}, {ct:.1f}(s)')
+            xlabel='Time (s)', ylabel='Node Count', title=f'{VAR_DICT[var]} = {v}, {ct:.1f}(s)')
 
     plt.savefig(f'{FIGURE_OUTPUT_PATH}/{ofn}', transparent=TRANSPARENT)
     plt.close()
@@ -231,17 +231,17 @@ def throughput_plot(var, fs, ofn, fc):
         c_loc = i % cn
 
         axs[r_loc, c_loc].plot(x_axis, tips, label='Tip Pool Size',
-                               color=clr_list[0], ls=sty_list[0], linewidth=1)
+                               color=CLR_LIST[0], ls=STY_LIST[0], linewidth=1)
         axs[r_loc, c_loc].plot(x_axis, processed, label='Processed Messages',
-                               color=clr_list[1], ls=sty_list[1], linewidth=1)
+                               color=CLR_LIST[1], ls=STY_LIST[1], linewidth=1)
         axs[r_loc, c_loc].plot(x_axis, issued, label='Issued Messages',
-                               color=clr_list[2], ls=sty_list[2], linewidth=1)
+                               color=CLR_LIST[2], ls=STY_LIST[2], linewidth=1)
 
         # Only put the legend on the first figures
         if i == 0:
             axs[r_loc, c_loc].legend()
         axs[r_loc, c_loc].set(
-            xlabel='Time (s)', ylabel='Message Count', yscale='log', title=f'{var_dict[var]} = {v}')
+            xlabel='Time (s)', ylabel='Message Count', yscale='log', title=f'{VAR_DICT[var]} = {v}')
 
     plt.savefig(f'{FIGURE_OUTPUT_PATH}/{ofn}', transparent=TRANSPARENT)
     plt.close()
@@ -262,8 +262,8 @@ def confirmation_time_plot(var, fs, ofn, title, label):
         v, data, x_axis_adjust = parse_aw_file(f, var)
         variation_data[v] = (data, x_axis_adjust)
     for i, (v, d) in enumerate(sorted(variation_data.items())):
-        clr = clr_list[i // 4]
-        sty = sty_list[i % 4]
+        clr = CLR_LIST[i // 4]
+        sty = STY_LIST[i % 4]
 
         ct_series = np.array(sorted(d[0].values))
         confirmed_msg_counts = np.array(list(d[0].index))
@@ -291,13 +291,13 @@ if __name__ == '__main__':
     os.makedirs(FIGURE_OUTPUT_PATH, exist_ok=True)
 
     # Run the simulation for different node counts
-    folder = f'{RESULTS_PATH}/var_nodes_{OUTPUT_FOLDER_SUFFIX}'
+    folder = f'{RESULTS_PATH}/var_nodes_{SIMULATION_TARGET}'
     if RUN_SIM:
         deceleration_factors = [1, 2, 2, 3, 5, 10, 15, 20, 25, 30]
         for idx, n in enumerate(range(100, 1001, 100)):
             os.chdir(MULTIVERSE_PATH)
             os.system(
-                f'./multiverse_sim --simulationTarget=CT --nodesCount={n} --decelerationFactor={deceleration_factors[idx]}')
+                f'./multiverse_sim --simulationTarget={SIMULATION_TARGET} --nodesCount={n} --decelerationFactor={deceleration_factors[idx]}')
 
         move_results(RESULTS_PATH, folder)
 
@@ -313,13 +313,13 @@ if __name__ == '__main__':
                                   'DS_nodes_cc.png', 10)
 
     # Run the simulation for different zipf's distribution
-    folder = f'{RESULTS_PATH}/var_zipf_{OUTPUT_FOLDER_SUFFIX}'
+    folder = f'{RESULTS_PATH}/var_zipf_{SIMULATION_TARGET}'
     if RUN_SIM:
         for z in range(0, 23, 2):
             par = float(z) / 10.0
             os.chdir(MULTIVERSE_PATH)
             os.system(
-                f'./multiverse_sim --simulationTarget=CT --zipfParameter={par}')
+                f'./multiverse_sim --simulationTarget={SIMULATION_TARGET} --zipfParameter={par}')
 
         move_results(RESULTS_PATH, folder)
 
@@ -343,15 +343,15 @@ if __name__ == '__main__':
                 os.chdir(
                     MULTIVERSE_PATH)
                 os.system(
-                    f'./multiverse_sim --simulationTarget=CT --tipsCount={p} --zipfParameter={par}')
+                    f'./multiverse_sim --simulationTarget={SIMULATION_TARGET} --tipsCount={p} --zipfParameter={par}')
 
-            folder = f'{RESULTS_PATH}/var_parents_{OUTPUT_FOLDER_SUFFIX}_z_{z}'
+            folder = f'{RESULTS_PATH}/var_parents_{SIMULATION_TARGET}_z_{z}'
             move_results(RESULTS_PATH, folder)
 
     # Plot the figures
     if PLOT_FIGURES:
         for z in z_list:
-            folder = f'{RESULTS_PATH}/var_parents_{OUTPUT_FOLDER_SUFFIX}_z_{z}'
+            folder = f'{RESULTS_PATH}/var_parents_{SIMULATION_TARGET}_z_{z}'
             confirmation_time_plot('TipsCount', folder + '/aw*csv',
                                    f'CT_parents_z_{z}.png', 'Confirmation Time v.s. Different Parents Counts', 'k')
 

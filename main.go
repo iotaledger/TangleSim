@@ -30,7 +30,7 @@ var (
 	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green", "ns since start", "ns since issuance"}
 	tpHeader = []string{"UndefinedColor (Tip Pool Size)", "Blue (Tip Pool Size)", "Red (Tip Pool Size)", "Green (Tip Pool Size)",
 		"UndefinedColor (Processed)", "Blue (Processed)", "Red (Processed)", "Green (Processed)", "# of Issued Messages", "ns since start"}
-	ccHeader = []string{"Blue (Confirmed)", "Red (Confirmed)", "Green (Confirmed)", "Blue (Like)", "Red (Like)", "Green (Like)", "Unconfirmed Blue", "Unconfirmed Red", "Unconfirmed Green", "ns since start", "ns since issuance"}
+	ccHeader = []string{"Blue (Confirmed)", "Red (Confirmed)", "Green (Confirmed)", "Blue (Like)", "Red (Like)", "Green (Like)", "Unconfirmed Blue", "Unconfirmed Red", "Unconfirmed Green", "Flips (Winning color changed)", "ns since start", "ns since issuance"}
 
 	csvMutex              sync.Mutex
 	shutdownSignal        = make(chan types.Empty)
@@ -65,6 +65,10 @@ var (
 	relevantValidators int
 
 	dsIssuanceTime time.Time
+
+	mostLikedColor multiverse.Color
+
+	flipsCounter int
 )
 
 // Parse the flags and update the configuration
@@ -276,6 +280,8 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	opinionsWeights[multiverse.Red] = 0
 	opinionsWeights[multiverse.Green] = 0
 
+	mostLikedColor = multiverse.UndefinedColor
+
 	// The simulation start time
 	simulationStartTime := time.Now()
 	simulationStartTimeStr := simulationStartTime.UTC().Format(time.RFC3339)
@@ -356,6 +362,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 			opinions[oldOpinion]--
 			opinions[newOpinion]++
+			if mostLikedColorChanged() {
+				flipsCounter++
+			}
+
 		}))
 		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color) {
 			confirmationMutex.Lock()
@@ -396,6 +406,12 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	go func() {
 		for range time.Tick(time.Duration(config.DecelerationFactor*config.ConsensusMonitorTick) * time.Millisecond) {
+			log.Infof("Opinions[ %3d Undefined / %3d Blue / %3d Red / %3d Green ]",
+				opinions[multiverse.UndefinedColor],
+				opinions[multiverse.Blue],
+				opinions[multiverse.Red],
+				opinions[multiverse.Green],
+			)
 			log.Infof("Network Status: %3d TPS :: Consensus[ %3d Undefined / %3d Blue / %3d Red / %3d Green ] :: %d Nodes :: %d Validators",
 				atomic.LoadUint64(&tpsCounter),
 				confirmedNodesCounter[multiverse.UndefinedColor],
@@ -404,13 +420,6 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				confirmedNodesCounter[multiverse.Green],
 				config.NodesCount,
 				relevantValidators,
-			)
-			log.Infof("Network Status: %d3 TPS ::   Opinions[ %3d Undefined / %3d Blue / %3d Red / %3d Green ]",
-				atomic.LoadUint64(&tpsCounter),
-				opinions[multiverse.UndefinedColor],
-				opinions[multiverse.Blue],
-				opinions[multiverse.Red],
-				opinions[multiverse.Green],
 			)
 			opinionWeightMutex.RLock()
 			processedMessageMutex.RLock()
@@ -463,7 +472,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				log.Fatal(err)
 			}
 
-			// Dump the DS opinion and confirmation counters
+			// Dump the opinion and confirmation counters
 			record = []string{
 				strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Blue]), 10),
 				strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Red]), 10),
@@ -474,6 +483,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				strconv.FormatInt(int64(colorUnconfirmedCounter[multiverse.Blue]), 10),
 				strconv.FormatInt(int64(colorUnconfirmedCounter[multiverse.Red]), 10),
 				strconv.FormatInt(int64(colorUnconfirmedCounter[multiverse.Green]), 10),
+				strconv.FormatInt(int64(flipsCounter), 10),
 				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 				sinceIssuance,
 			}
@@ -575,4 +585,27 @@ func Max(x, y int) int {
 		return y
 	}
 	return x
+}
+
+func mostLikedColorChanged() bool {
+	currentMostLikedColor := multiverse.UndefinedColor
+	if opinions[multiverse.Green] > 0 {
+		currentMostLikedColor = multiverse.Green
+	}
+	if opinions[multiverse.Blue] > opinions[multiverse.Green] {
+		currentMostLikedColor = multiverse.Blue
+	}
+	if opinions[multiverse.Red] > opinions[multiverse.Blue] {
+		currentMostLikedColor = multiverse.Red
+	}
+	if mostLikedColor != currentMostLikedColor && opinions[mostLikedColor] > opinions[currentMostLikedColor] {
+		// color set for the first time
+		if mostLikedColor == multiverse.UndefinedColor {
+			mostLikedColor = currentMostLikedColor
+			return false
+		}
+		mostLikedColor = currentMostLikedColor
+		return true
+	}
+	return false
 }

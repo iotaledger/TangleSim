@@ -18,6 +18,9 @@ FIGURE_OUTPUT_PATH = MULTIVERSE_PATH + '/scripts/figures'
 # The output folder suffix (e.g., ct for confirmation time and ds for double spending)
 SIMULATION_TARGET = 'DS'
 
+# Execution way (e.g., 'go run .' or './multiverse_sim')
+EXECUTE = './multiverse_sim'
+
 # Transparent figure
 TRANSPARENT = False
 
@@ -48,6 +51,7 @@ VAR_DICT = {'TipsCount': 'k', 'ZipfParameter': 's', 'NodesCount': 'N'}
 # Items for double spending figures
 COLORED_CONFIRMED_LIKE_ITEMS = [
     'Blue (Confirmed)', 'Red (Confirmed)', 'Blue (Like)', 'Red (Like)']
+
 # The color list for the double spending figures
 DS_CLR_LIST = ['b', 'r', 'b', 'r']
 DS_STY_LIST = ['-', '-', '--', '--']
@@ -301,7 +305,7 @@ if __name__ == '__main__':
         for idx, n in enumerate(range(100, 1001, 100)):
             os.chdir(MULTIVERSE_PATH)
             os.system(
-                f'./multiverse_sim --simulationTarget={SIMULATION_TARGET} --nodesCount={n} --decelerationFactor={deceleration_factors[idx]}')
+                f'{EXECUTE} --simulationTarget={SIMULATION_TARGET} --nodesCount={n} --decelerationFactor={deceleration_factors[idx]}')
 
         move_results(RESULTS_PATH, folder)
 
@@ -323,7 +327,7 @@ if __name__ == '__main__':
             par = float(z) / 10.0
             os.chdir(MULTIVERSE_PATH)
             os.system(
-                f'./multiverse_sim --simulationTarget={SIMULATION_TARGET} --zipfParameter={par}')
+                f'{EXECUTE} --simulationTarget={SIMULATION_TARGET} --zipfParameter={par}')
 
         move_results(RESULTS_PATH, folder)
 
@@ -347,7 +351,7 @@ if __name__ == '__main__':
                 os.chdir(
                     MULTIVERSE_PATH)
                 os.system(
-                    f'./multiverse_sim --simulationTarget={SIMULATION_TARGET} --tipsCount={p} --zipfParameter={par}')
+                    f'{EXECUTE} --simulationTarget={SIMULATION_TARGET} --tipsCount={p} --zipfParameter={par}')
 
             folder = f'{RESULTS_PATH}/var_parents_{SIMULATION_TARGET}_z_{z}'
             move_results(RESULTS_PATH, folder)

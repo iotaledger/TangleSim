@@ -618,10 +618,8 @@ func mostLikedColorChanged() bool {
 			mostLikedColor = currentMostLikedColor
 			return false
 		}
-		if opinions[currentMostLikedColor] > opinions[mostLikedColor] {
-			mostLikedColor = currentMostLikedColor
-			return true
-		}
+		mostLikedColor = currentMostLikedColor
+		return true
 	}
 	return false
 }

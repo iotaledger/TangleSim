@@ -13,6 +13,6 @@ Batch running the multiverse-simulation in different parameter sets, and generat
 pip install -r requirements.txt
 ```
 - Run the simulation
-```
+```s
 python simulation.py
 ```

@@ -587,6 +587,19 @@ func Max(x, y int) int {
 	return x
 }
 
+// ArgMax returns the max value of the array.
+func ArgMax(x []int64) int {
+	maxLocation := 0
+	currentMax := int64(x[0])
+	for i, v := range x[1:] {
+		if v > currentMax {
+			currentMax = v
+			maxLocation = i + 1
+		}
+	}
+	return maxLocation
+}
+
 func mostLikedColorChanged() bool {
 	currentMostLikedColor := multiverse.UndefinedColor
 	if opinions[multiverse.Green] > 0 {
@@ -595,17 +608,20 @@ func mostLikedColorChanged() bool {
 	if opinions[multiverse.Blue] > opinions[multiverse.Green] {
 		currentMostLikedColor = multiverse.Blue
 	}
-	if opinions[multiverse.Red] > opinions[multiverse.Blue] {
+	if opinions[multiverse.Red] > opinions[multiverse.Blue] && opinions[multiverse.Red] > opinions[multiverse.Green] {
 		currentMostLikedColor = multiverse.Red
 	}
-	if mostLikedColor != currentMostLikedColor && opinions[mostLikedColor] > opinions[currentMostLikedColor] {
-		// color set for the first time
+	// color selected
+	if mostLikedColor != currentMostLikedColor {
+		// color selected for the first time, it not counts
 		if mostLikedColor == multiverse.UndefinedColor {
 			mostLikedColor = currentMostLikedColor
 			return false
 		}
-		mostLikedColor = currentMostLikedColor
-		return true
+		if opinions[currentMostLikedColor] > opinions[mostLikedColor] {
+			mostLikedColor = currentMostLikedColor
+			return true
+		}
 	}
 	return false
 }

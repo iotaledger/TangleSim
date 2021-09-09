@@ -30,7 +30,7 @@ var (
 	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green", "ns since start", "ns since issuance"}
 	tpHeader = []string{"UndefinedColor (Tip Pool Size)", "Blue (Tip Pool Size)", "Red (Tip Pool Size)", "Green (Tip Pool Size)",
 		"UndefinedColor (Processed)", "Blue (Processed)", "Red (Processed)", "Green (Processed)", "# of Issued Messages", "ns since start"}
-	ccHeader = []string{"Blue (Confirmed)", "Red (Confirmed)", "Green (Confirmed)", "Blue (Like)", "Red (Like)", "Green (Like)", "ns since start", "ns since issuance"}
+	ccHeader = []string{"Blue (Confirmed)", "Red (Confirmed)", "Green (Confirmed)", "Blue (Like)", "Red (Like)", "Green (Like)", "Unconfirmed Blue", "Unconfirmed Red", "Unconfirmed Green", "ns since start", "ns since issuance"}
 
 	csvMutex              sync.Mutex
 	shutdownSignal        = make(chan types.Empty)
@@ -48,7 +48,8 @@ var (
 
 	issuedMessageCounter = int64(0)
 
-	confirmedNodesCounter = make(map[multiverse.Color]int)
+	confirmedNodesCounter   = make(map[multiverse.Color]int)
+	colorUnconfirmedCounter = make(map[multiverse.Color]int)
 
 	confirmedMessageCounter = make(map[network.PeerID]int64)
 	confirmedMessageMutex   sync.RWMutex
@@ -367,6 +368,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			confirmationMutex.Lock()
 			defer confirmationMutex.Unlock()
 
+			colorUnconfirmedCounter[unconfirmedColor]++
 			confirmedNodesCounter[unconfirmedColor]--
 		}))
 	}
@@ -394,7 +396,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	go func() {
 		for range time.Tick(time.Duration(config.DecelerationFactor*config.ConsensusMonitorTick) * time.Millisecond) {
-			log.Infof("Network Status: %d TPS :: Consensus[ %d Undefined / %d Blue / %d Red / %d Green ] :: %d Nodes :: %d Validators",
+			log.Infof("Network Status: %3d TPS :: Consensus[ %3d Undefined / %3d Blue / %3d Red / %3d Green ] :: %d Nodes :: %d Validators",
 				atomic.LoadUint64(&tpsCounter),
 				confirmedNodesCounter[multiverse.UndefinedColor],
 				confirmedNodesCounter[multiverse.Blue],
@@ -402,6 +404,13 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				confirmedNodesCounter[multiverse.Green],
 				config.NodesCount,
 				relevantValidators,
+			)
+			log.Infof("Network Status: %d3 TPS ::   Opinions[ %3d Undefined / %3d Blue / %3d Red / %3d Green ]",
+				atomic.LoadUint64(&tpsCounter),
+				opinions[multiverse.UndefinedColor],
+				opinions[multiverse.Blue],
+				opinions[multiverse.Red],
+				opinions[multiverse.Green],
 			)
 			opinionWeightMutex.RLock()
 			processedMessageMutex.RLock()
@@ -454,7 +463,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				log.Fatal(err)
 			}
 
-			// Dump the tip pool sizes
+			// Dump the DS opinion and confirmation counters
 			record = []string{
 				strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Blue]), 10),
 				strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Red]), 10),
@@ -462,6 +471,9 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				strconv.FormatInt(int64(opinions[multiverse.Blue]), 10),
 				strconv.FormatInt(int64(opinions[multiverse.Red]), 10),
 				strconv.FormatInt(int64(opinions[multiverse.Green]), 10),
+				strconv.FormatInt(int64(colorUnconfirmedCounter[multiverse.Blue]), 10),
+				strconv.FormatInt(int64(colorUnconfirmedCounter[multiverse.Red]), 10),
+				strconv.FormatInt(int64(colorUnconfirmedCounter[multiverse.Green]), 10),
 				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 				sinceIssuance,
 			}

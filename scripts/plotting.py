@@ -56,14 +56,13 @@ class FigurePlotter:
             for f in glob.glob(fs):
 
                 # colored_node_counts, convergence_time, flips: The flips count, x_axis
-                v, cc_ct_flips_x = self.parser.parse_confirmed_color_file(
-                    f, var)
+                v, (cc, ct, flips, x) = self.parser.parse_confirmed_color_file(f, var)
 
                 # Store the convergence time
                 if v not in variation_data:
-                    variation_data[v] = [cc_ct_flips_x[2]]
+                    variation_data[v] = [flips]
                 else:
-                    variation_data[v].append(cc_ct_flips_x[2])
+                    variation_data[v].append(flips)
 
         data = []
         variations = []
@@ -108,14 +107,13 @@ class FigurePlotter:
             for f in glob.glob(fs):
 
                 # colored_node_counts, convergence_time, flips: The flips count, x_axis
-                v, cc_ct_flips_x = self.parser.parse_confirmed_color_file(
-                    f, var)
+                v, (cc, ct, flips, x) = self.parser.parse_confirmed_color_file(f, var)
 
                 # Store the convergence time
                 if v not in variation_data:
-                    variation_data[v] = [cc_ct_flips_x[1]]
+                    variation_data[v] = [ct]
                 else:
-                    variation_data[v].append(cc_ct_flips_x[1])
+                    variation_data[v].append(ct)
 
         data = []
         variations = []
@@ -152,10 +150,7 @@ class FigurePlotter:
         variation_data = {}
         for f in glob.glob(fs):
             # colored_node_counts, convergence_time, flips: The flips count, x_axis
-            v, cc_ct_flips_x = self.parser.parse_confirmed_color_file(
-                f, var)
-
-            v, ct_cc = self.parser.parse_confirmed_color_file(f, var)
+            v, cc_ct_flips_x = self.parser.parse_confirmed_color_file(f, var)
             variation_data[v] = cc_ct_flips_x
 
         rn, cn = get_row_col_counts(fc)

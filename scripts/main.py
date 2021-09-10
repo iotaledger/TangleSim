@@ -150,14 +150,17 @@ if __name__ == '__main__':
         plotter = FigurePlotter(config.cd)
 
         # (The variation name in the configuration file, the confirmation time figure title,
-        #  the convergence time figure title)
-        n, t_confirmation, t_convergence = c.FIGURE_NAMING_DICT[var]
+        #  the convergence time figure title, the flips title)
+        n, t_confirmation, t_convergence, t_flips = c.FIGURE_NAMING_DICT[var]
 
         for iter in range(repetition):
-            if repetition != 1:
+            if repetition != 1 and target == 'DS':
                 folder = base_folder + f'/iter_{iter}'
                 plotter.convergence_time_distribution_plot(
-                    n, base_folder, f'DS_{n}_cv.png', 2, repetition, title=t_convergence)
+                    n, base_folder, f'DS_{n}_cv.png', len(vv), repetition, title=t_convergence)
+
+                plotter.flips_distribution_plot(
+                    n, base_folder, f'DS_{n}_fl.png', len(vv), repetition, title=t_flips)
 
             plotter.confirmation_time_plot(
                 n, folder + '/aw*csv', f'CT_{n}_{iter}.png', t_confirmation, c.VAR_DICT[n])

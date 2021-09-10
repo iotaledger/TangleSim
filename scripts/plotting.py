@@ -30,6 +30,58 @@ class FigurePlotter:
         self.ds_sty_list = c.DS_STY_LIST
         self.var_dict = c.VAR_DICT
 
+    def flips_distribution_plot(self, var, base_folder, ofn, fc, iters, title):
+        """Generate the flips distribution figures.
+
+        Args:
+            var: The variation.
+            base_folder: The parent folder of the iteration results.
+            ofn: The output file name.
+            fc: The figure count.
+            iters: The number of iteration.
+            title: The figure title.
+        """
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 14}
+        matplotlib.rc('font', **font)
+
+        plt.figure(figsize=(12, 5), dpi=500, constrained_layout=True)
+        variation_data = {}
+
+        for i in range(iters):
+            fs = base_folder + f'/iter_{i}/cc*csv'
+
+            for f in glob.glob(fs):
+
+                # colored_node_counts, convergence_time, flips: The flips count, x_axis
+                v, cc_ct_flips_x = self.parser.parse_confirmed_color_file(
+                    f, var)
+
+                # Store the convergence time
+                if v not in variation_data:
+                    variation_data[v] = [cc_ct_flips_x[2]]
+                else:
+                    variation_data[v].append(cc_ct_flips_x[2])
+
+        data = []
+        variations = []
+        for i, (v, d) in enumerate(sorted(variation_data.items())):
+            data.append(d)
+            variations.append(v)
+
+        plt.boxplot(data)
+        plt.xlabel(var)
+        plt.title(title)
+        plt.xticks(ticks=list(range(1, 1+len(variations))), labels=variations)
+        plt.ylabel('Number of Flips')
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent)
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent)
+        plt.close()
+
     def convergence_time_distribution_plot(self, var, base_folder, ofn, fc, iters, title):
         """Generate the convergence time distribution figures.
 
@@ -55,14 +107,15 @@ class FigurePlotter:
 
             for f in glob.glob(fs):
 
-                # Confirmation time and the cc data
-                v, ct_cc = self.parser.parse_confirmed_color_file(f, var)
+                # colored_node_counts, convergence_time, flips: The flips count, x_axis
+                v, cc_ct_flips_x = self.parser.parse_confirmed_color_file(
+                    f, var)
 
-                # Store the confirmation time
+                # Store the convergence time
                 if v not in variation_data:
-                    variation_data[v] = [ct_cc[1]]
+                    variation_data[v] = [cc_ct_flips_x[1]]
                 else:
-                    variation_data[v].append(ct_cc[1])
+                    variation_data[v].append(cc_ct_flips_x[1])
 
         data = []
         variations = []
@@ -98,16 +151,19 @@ class FigurePlotter:
 
         variation_data = {}
         for f in glob.glob(fs):
-            # Confirmation time and the cc data
+            # colored_node_counts, convergence_time, flips: The flips count, x_axis
+            v, cc_ct_flips_x = self.parser.parse_confirmed_color_file(
+                f, var)
+
             v, ct_cc = self.parser.parse_confirmed_color_file(f, var)
-            variation_data[v] = ct_cc
+            variation_data[v] = cc_ct_flips_x
 
         rn, cn = get_row_col_counts(fc)
         fig, axs = plt.subplots(rn, cn, figsize=(
             12, 5), dpi=500, constrained_layout=True)
 
         for i, (v, d) in enumerate(sorted(variation_data.items())):
-            (nodes, ct, x_axis) = d
+            (nodes, ct, _, x_axis) = d
             r_loc = i // cn
             c_loc = i % cn
 

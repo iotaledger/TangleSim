@@ -230,9 +230,9 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay int
-		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, PayloadLoss, DeltaURTS                                                                          float64
-		TSA, ResultDir, IMIF                                                                                                                                  string
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
+		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                     float64
+		TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                  string
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -251,8 +251,12 @@ func dumpConfig(fileName string) {
 		MinDelay:                config.MinDelay,
 		MaxDelay:                config.MaxDelay,
 		DeltaURTS:               config.DeltaURTS,
+		SimulationStopThreshold: config.SimulationStopThreshold,
+		SimulationTarget:        config.SimulationTarget,
 		ResultDir:               config.ResultDir,
 		IMIF:                    config.IMIF,
+		RandomnessWS:            config.RandomnessWS,
+		NeighbourCountWS:        config.NeighbourCountWS,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")

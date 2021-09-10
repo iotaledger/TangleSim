@@ -230,33 +230,33 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, WattsStrogatzNeighborCount int
-		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, WattsStrogatzRandomness                                                    float64
-		TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                            string
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
+		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                     float64
+		TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                  string
 	}
 	data := Configuration{
-		NodesCount:                 config.NodesCount,
-		NodesTotalWeight:           config.NodesTotalWeight,
-		ZipfParameter:              config.ZipfParameter,
-		MessageWeightThreshold:     config.MessageWeightThreshold,
-		TipsCount:                  config.TipsCount,
-		WeakTipsRatio:              config.WeakTipsRatio,
-		TSA:                        config.TSA,
-		TPS:                        config.TPS,
-		DecelerationFactor:         config.DecelerationFactor,
-		ConsensusMonitorTick:       config.ConsensusMonitorTick,
-		RelevantValidatorWeight:    config.RelevantValidatorWeight,
-		DoubleSpendDelay:           config.DoubleSpendDelay,
-		PayloadLoss:                config.PayloadLoss,
-		MinDelay:                   config.MinDelay,
-		MaxDelay:                   config.MaxDelay,
-		DeltaURTS:                  config.DeltaURTS,
-		SimulationStopThreshold:    config.SimulationStopThreshold,
-		SimulationTarget:           config.SimulationTarget,
-		ResultDir:                  config.ResultDir,
-		IMIF:                       config.IMIF,
-		WattsStrogatzRandomness:    config.RandomnessWS,
-		WattsStrogatzNeighborCount: config.NeighbourCountWS,
+		NodesCount:              config.NodesCount,
+		NodesTotalWeight:        config.NodesTotalWeight,
+		ZipfParameter:           config.ZipfParameter,
+		MessageWeightThreshold:  config.MessageWeightThreshold,
+		TipsCount:               config.TipsCount,
+		WeakTipsRatio:           config.WeakTipsRatio,
+		TSA:                     config.TSA,
+		TPS:                     config.TPS,
+		DecelerationFactor:      config.DecelerationFactor,
+		ConsensusMonitorTick:    config.ConsensusMonitorTick,
+		ReleventValidatorWeight: config.RelevantValidatorWeight,
+		DoubleSpendDelay:        config.DoubleSpendDelay,
+		PayloadLoss:             config.PayloadLoss,
+		MinDelay:                config.MinDelay,
+		MaxDelay:                config.MaxDelay,
+		DeltaURTS:               config.DeltaURTS,
+		SimulationStopThreshold: config.SimulationStopThreshold,
+		SimulationTarget:        config.SimulationTarget,
+		ResultDir:               config.ResultDir,
+		IMIF:                    config.IMIF,
+		RandomnessWS:            config.RandomnessWS,
+		NeighbourCountWS:        config.NeighbourCountWS,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")

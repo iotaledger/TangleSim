@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import sys
 
 import constant as c
 from utils import *
@@ -31,7 +32,7 @@ def parse_arg():
     parser.add_argument("-rt", "--REPETITION_TIME", type=int,
                         help="The number of runs for a single configuration")
     parser.add_argument("-v", "--VARIATIONS",
-                        help="# N, K, S, D (Number of nodes/parents, Zipfs, delays)")
+                        help="N, K, S, D (Number of nodes/parents, Zipfs, delays)")
     parser.add_argument("-vv", "--VARIATION_VALUES", nargs="+", type=float,
                         help="The variation values, e.g., '100 200 300' for different N")
     parser.add_argument("-df", "--DECELERATION_FACTORS", nargs="+", type=int,
@@ -61,6 +62,35 @@ def parse_arg():
 
 
 if __name__ == '__main__':
+    """ Running Examples
+    Different N:
+    $python3 main.py -rs -pf -msp 'YOUR_PATH'
+
+    Different K, 100 times:
+    $python3 main.py -rs -pf -v K -vv 2 4 8 16 32 64 -df 1 -msp 'YOUR_PATH' -rt 100 -st DS
+
+    Different S:
+    NOTE: ned to specify -rp, -exec, -fop
+
+    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
+    -msp 'YOUR_PATH' -rp 'RESULT_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=2 -rt 100 -st DS
+
+    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
+    -msp 'YOUR_PATH' -rp 'SPECIFC_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=4 -rt 100 -st DS
+
+    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
+    -msp 'YOUR_PATH' -rp 'SPECIFC_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=8 -rt 100 -st DS
+
+    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
+    -msp 'YOUR_PATH' -rp 'SPECIFC_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=16 -rt 100 -st DS
+
+    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
+    -msp 'YOUR_PATH' -rp 'SPECIFC_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=32 -rt 100 -st DS
+
+    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
+    -msp 'YOUR_PATH' -rp 'SPECIFC_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=64 -rt 100 -st DS
+    """
+
     debug_level = "INFO"
     logging.basicConfig(
         level=debug_level,
@@ -77,7 +107,7 @@ if __name__ == '__main__':
     if len(df) != 1 and (len(df) != len(vv)):
         logging.error(
             'The DECELERATION_FACTORS should be only one value, or the same length with the VARIATION_VALUES!')
-        os.exit(1)
+        sys.exit(1)
     elif len(df) == 1:
         df = df * len(vv)
 
@@ -85,29 +115,35 @@ if __name__ == '__main__':
     exec = config.cd['EXECUTE']
     target = config.cd['SIMULATION_TARGET']
     result_path = config.cd['RESULTS_PATH']
-    folder = f'{result_path}/var_{var}_{target}'
+    base_folder = f'{result_path}/var_{var}_{target}'
+    repetition = config.cd['REPETITION_TIME']
 
-    os.makedirs(config.cd['RESULTS_PATH'], exist_ok=True)
+    os.makedirs(result_path, exist_ok=True)
     os.makedirs(config.cd['FIGURE_OUTPUT_PATH'], exist_ok=True)
 
     # Run the simulation
     if config.cd['RUN_SIM']:
         os.chdir(config.cd['MULTIVERSE_PATH'])
-        if var in c.SIMULATION_VAR_DICT:
-            # Simulation var
-            vn = c.SIMULATION_VAR_DICT[var]
-            for i, v in enumerate(vv):
-                os.system(
-                    f'{exec} --simulationTarget={target} --{vn}={v} --decelerationFactor={df[i]}')
-        elif var == 'D':
-            for i, v in vv:
-                os.system(
-                    f'{exec} --simulationTarget={target} --MinDelay={v} --maxDelay={v} -decelerationFactor={df[i]}')
-        else:
-            logging.error(f'The VARIATIONS {var} is not supported!')
-            os.exit(2)
+        for iter in range(repetition):
+            if repetition != 1:
+                folder = base_folder + f'/iter_{iter}'
+                os.makedirs(folder, exist_ok=True)
 
-        move_results(result_path, folder)
+            if var in c.SIMULATION_VAR_DICT:
+                # Simulation var
+                vn = c.SIMULATION_VAR_DICT[var]
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target} --{vn}={v} --decelerationFactor={df[i]}')
+            elif var == 'D':
+                for i, v in vv:
+                    os.system(
+                        f'{exec} --simulationTarget={target} --MinDelay={v} --maxDelay={v} -decelerationFactor={df[i]}')
+            else:
+                logging.error(f'The VARIATIONS {var} is not supported!')
+                sys.exit(2)
+
+            move_results(result_path, folder)
 
     # Plot the figures
     if config.cd['PLOT_FIGURES']:
@@ -116,11 +152,15 @@ if __name__ == '__main__':
         # (The variation name in the configuration file, the confirmation time figure title)
         n, t = c.FIGURE_NAMING_DICT[var]
 
-        plotter.confirmation_time_plot(
-            n, folder + '/aw*csv', 'CT_{n}.png', t, c.VAR_DICT[n])
+        for iter in range(repetition):
+            if repetition != 1:
+                folder = base_folder + f'/iter_{iter}'
 
-        plotter.throughput_plot(n, folder + '/tp*csv',
-                                'CT_{n}_tp.png', len(vv))
+            plotter.confirmation_time_plot(
+                n, folder + '/aw*csv', f'CT_{n}_{iter}.png', t, c.VAR_DICT[n])
 
-        plotter.confirmed_like_color_plot(
-            n, folder + '/cc*csv', 'DS_{n}_cc.png', len(vv))
+            plotter.throughput_plot(n, folder + '/tp*csv',
+                                    f'CT_{n}_tp_{iter}.png', len(vv))
+
+            plotter.confirmed_like_color_plot(
+                n, folder + '/cc*csv', f'DS_{n}_cc_iter_{iter}.png', len(vv))

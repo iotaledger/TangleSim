@@ -149,15 +149,18 @@ if __name__ == '__main__':
     if config.cd['PLOT_FIGURES']:
         plotter = FigurePlotter(config.cd)
 
-        # (The variation name in the configuration file, the confirmation time figure title)
-        n, t = c.FIGURE_NAMING_DICT[var]
+        # (The variation name in the configuration file, the confirmation time figure title,
+        #  the convergence time figure title)
+        n, t_confirmation, t_convergence = c.FIGURE_NAMING_DICT[var]
 
         for iter in range(repetition):
             if repetition != 1:
                 folder = base_folder + f'/iter_{iter}'
+                plotter.convergence_time_distribution_plot(
+                    n, base_folder, f'DS_{n}_cv.png', 2, repetition, title=t_convergence)
 
             plotter.confirmation_time_plot(
-                n, folder + '/aw*csv', f'CT_{n}_{iter}.png', t, c.VAR_DICT[n])
+                n, folder + '/aw*csv', f'CT_{n}_{iter}.png', t_confirmation, c.VAR_DICT[n])
 
             plotter.throughput_plot(n, folder + '/tp*csv',
                                     f'CT_{n}_tp_{iter}.png', len(vv))

@@ -29,7 +29,7 @@ SIMULATION_VAR_DICT = {'N': 'nodesCount',
                        'S': 'zipfParameter', 'K': 'tipsCount'}
 
 # The figure naming mapping
-FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node Counts"),
-                      'S': ("ZipfParameter", "Confirmation Time v.s. Different Zipf's Parameters"),
-                      'K': ("TipsCount", "Confirmation Time v.s. Different Parents Counts"),
-                      'D': ("MinDelay", "Confirmation Time v.s. Different Delays")}
+FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node Counts", "Convergence Time v.s. Different Node Counts"),
+                      'S': ("ZipfParameter", "Confirmation Time v.s. Different Zipf's Parameters", "Convergence Time v.s. Different Zipf's Parameters"),
+                      'K': ("TipsCount", "Confirmation Time v.s. Different Parents Counts", "Convergence Time v.s. Different Parents Counts"),
+                      'D': ("MinDelay", "Confirmation Time v.s. Different Delays", "Convergence Time v.s. Different Delays")}

@@ -1,6 +1,7 @@
 """The helper functions.
 """
 
+import numpy as np
 import logging
 import os
 
@@ -27,18 +28,11 @@ def get_row_col_counts(fc):
         fc: The figure count.
 
     Returns:
-        rn: The number of rows.
-        cn: The number of columns.
+        rc: The row count.
+        cc: The column count.
     """
-    rn = 4
-    cn = 4
-    if fc == 6:
-        rn = 2
-        cn = 3
-    elif fc == 10:
-        rn = 2
-        cn = 5
-    elif fc <= 12:
-        rn = 3
-        cn = 4
-    return (rn, cn)
+    rc = int(np.sqrt(fc))
+    while fc % rc != 0:
+        rc -= 1
+    cc = int(fc/rc)
+    return (rc, cc)

@@ -124,6 +124,8 @@ if __name__ == '__main__':
     # Run the simulation
     if config.cd['RUN_SIM']:
         os.chdir(config.cd['MULTIVERSE_PATH'])
+        folder = base_folder
+        os.makedirs(folder, exist_ok=True)
         for iter in range(repetition):
             if repetition != 1:
                 folder = base_folder + f'/iter_{iter}'
@@ -153,20 +155,28 @@ if __name__ == '__main__':
         #  the convergence time figure title, the flips title)
         n, t_confirmation, t_convergence, t_flips = c.FIGURE_NAMING_DICT[var]
 
+        folder = base_folder
+        iter_suffix = ''
         for iter in range(repetition):
-            if repetition != 1 and target == 'DS':
-                folder = base_folder + f'/iter_{iter}'
-                plotter.convergence_time_distribution_plot(
-                    n, base_folder, f'DS_{n}_cv.png', len(vv), repetition, title=t_convergence)
 
-                plotter.flips_distribution_plot(
-                    n, base_folder, f'DS_{n}_fl.png', len(vv), repetition, title=t_flips)
+            if repetition != 1:
+                folder = base_folder + f'/iter_{iter}'
+                iter_suffix = f'_iter_{iter}'
+
+            if target == 'DS':
+                if repetition != 1 and iter == 0:
+                    # The distribution plots of multiple iterations are ran only one time.
+                    plotter.convergence_time_distribution_plot(
+                        n, base_folder, f'DS_{n}_cv.png', len(vv), repetition, title=t_convergence)
+
+                    plotter.flips_distribution_plot(
+                        n, base_folder, f'DS_{n}_fl.png', len(vv), repetition, title=t_flips)
+
+                plotter.confirmed_like_color_plot(
+                    n, folder + '/cc*csv', f'DS_{n}_cc{iter_suffix}.png', len(vv))
 
             plotter.confirmation_time_plot(
-                n, folder + '/aw*csv', f'CT_{n}_{iter}.png', t_confirmation, c.VAR_DICT[n])
+                n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.png', t_confirmation, c.VAR_DICT[n])
 
             plotter.throughput_plot(n, folder + '/tp*csv',
-                                    f'CT_{n}_tp_{iter}.png', len(vv))
-
-            plotter.confirmed_like_color_plot(
-                n, folder + '/cc*csv', f'DS_{n}_cc_iter_{iter}.png', len(vv))
+                                    f'CT_{n}_tp{iter_suffix}.png', len(vv))

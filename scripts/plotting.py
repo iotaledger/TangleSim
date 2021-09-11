@@ -153,23 +153,27 @@ class FigurePlotter:
             v, cc_ct_flips_x = self.parser.parse_confirmed_color_file(f, var)
             variation_data[v] = cc_ct_flips_x
 
-        rn, cn = get_row_col_counts(fc)
-        fig, axs = plt.subplots(rn, cn, figsize=(
+        rc, cc = get_row_col_counts(fc)
+        fig, axs = plt.subplots(rc, cc, figsize=(
             12, 5), dpi=500, constrained_layout=True)
 
         for i, (v, d) in enumerate(sorted(variation_data.items())):
             (nodes, ct, _, x_axis) = d
-            r_loc = i // cn
-            c_loc = i % cn
+            r_loc = i // cc
+            c_loc = i % cc
 
+            if rc == 1:
+                ax = axs[c_loc]
+            else:
+                ax = axs[r_loc, c_loc]
             for j, n in enumerate(nodes.columns):
-                axs[r_loc, c_loc].plot(x_axis, nodes[n], label=n,
-                                       color=self.ds_clr_list[j], ls=self.ds_sty_list[j], linewidth=1)
+                ax.plot(x_axis, nodes[n], label=n,
+                        color=self.ds_clr_list[j], ls=self.ds_sty_list[j], linewidth=1)
 
             # Only put the legend on the first figures
             if i == 0:
-                axs[r_loc, c_loc].legend()
-            axs[r_loc, c_loc].set(
+                ax.legend()
+            ax.set(
                 xlabel='Time (s)', ylabel='Node Count', title=f'{self.var_dict[var]} = {v}, {ct:.1f}(s)')
 
         plt.savefig(f'{self.figure_output_path}/{ofn}',
@@ -196,26 +200,31 @@ class FigurePlotter:
             v, tp = self.parser.parse_throughput_file(f, var)
             variation_data[v] = tp
 
-        rn, cn = get_row_col_counts(fc)
-        fig, axs = plt.subplots(rn, cn, figsize=(
+        rc, cc = get_row_col_counts(fc)
+        fig, axs = plt.subplots(rc, cc, figsize=(
             12, 5), dpi=500, constrained_layout=True)
 
         for i, (v, tp) in enumerate(sorted(variation_data.items())):
             (tips, processed, issued, x_axis) = tp
-            r_loc = i // cn
-            c_loc = i % cn
+            r_loc = i // cc
+            c_loc = i % cc
 
-            axs[r_loc, c_loc].plot(x_axis, tips, label='Tip Pool Size',
-                                   color=self.clr_list[0], ls=self.sty_list[0], linewidth=1)
-            axs[r_loc, c_loc].plot(x_axis, processed, label='Processed Messages',
-                                   color=self.clr_list[1], ls=self.sty_list[1], linewidth=1)
-            axs[r_loc, c_loc].plot(x_axis, issued, label='Issued Messages',
-                                   color=self.clr_list[2], ls=self.sty_list[2], linewidth=1)
+            if rc == 1:
+                ax = axs[c_loc]
+            else:
+                ax = axs[r_loc, c_loc]
+
+            ax.plot(x_axis, tips, label='Tip Pool Size',
+                    color=self.clr_list[0], ls=self.sty_list[0], linewidth=1)
+            ax.plot(x_axis, processed, label='Processed Messages',
+                    color=self.clr_list[1], ls=self.sty_list[1], linewidth=1)
+            ax.plot(x_axis, issued, label='Issued Messages',
+                    color=self.clr_list[2], ls=self.sty_list[2], linewidth=1)
 
             # Only put the legend on the first figures
             if i == 0:
-                axs[r_loc, c_loc].legend()
-            axs[r_loc, c_loc].set(
+                ax.legend()
+            ax.set(
                 xlabel='Time (s)', ylabel='Message Count', yscale='log', title=f'{self.var_dict[var]} = {v}')
 
         plt.savefig(f'{self.figure_output_path}/{ofn}',

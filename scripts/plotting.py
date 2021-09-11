@@ -58,7 +58,7 @@ class FigurePlotter:
                 # colored_node_counts, convergence_time, flips: The flips count, x_axis
                 v, (cc, ct, flips, x) = self.parser.parse_confirmed_color_file(f, var)
 
-                # Store the convergence time
+                # Store the flips
                 if v not in variation_data:
                     variation_data[v] = [flips]
                 else:

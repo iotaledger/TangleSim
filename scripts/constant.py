@@ -18,11 +18,11 @@ VAR_DICT = {'TipsCount': 'k', 'ZipfParameter': 's',
 
 # Items for double spending figures
 COLORED_CONFIRMED_LIKE_ITEMS = [
-    'Blue (Confirmed)', 'Red (Confirmed)', 'Blue (Like)', 'Red (Like)']
+    'Blue (Confirmed)', 'Red (Confirmed)', 'Blue (Like)', 'Red (Like)', 'Unconfirmed Blue', 'Unconfirmed Red']
 
 # The color list for the double spending figures
-DS_CLR_LIST = ['b', 'r', 'b', 'r']
-DS_STY_LIST = ['-', '-', '--', '--']
+DS_CLR_LIST = ['b', 'r', 'b', 'r', 'b', 'r']
+DS_STY_LIST = ['-', '-', '--', '--', "-.", "-."]
 
 # The simulation mapping
 SIMULATION_VAR_DICT = {'N': 'nodesCount',

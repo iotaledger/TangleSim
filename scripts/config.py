@@ -1,4 +1,5 @@
 import numpy as np
+from pathlib import Path
 
 """The configuration for the simulation script.
 """
@@ -16,7 +17,7 @@ class Configuration:
         self.cd = {}
 
         # The data paths
-        self.cd['MULTIVERSE_PATH'] = '/home/bylin/projects/IOTA/my_multiverse_simulation/multiverse-simulation'
+        self.cd['MULTIVERSE_PATH'] = str(Path().absolute().parent)
         self.cd['RESULTS_PATH'] = self.cd['MULTIVERSE_PATH'] + "/results"
         self.cd['FIGURE_OUTPUT_PATH'] = (
             self.cd['MULTIVERSE_PATH'] + '/scripts/figures')
@@ -29,7 +30,7 @@ class Configuration:
         self.cd['VARIATIONS'] = 'N'
 
         # The variations value list
-        self.cd['VARIATION_VALUES'] = range(100, 1001, 100)
+        self.cd['VARIATION_VALUES'] = list(range(100, 1001, 100))
 
         # The deceleration factor list
         self.cd['DECELERATION_FACTORS'] = [1, 2, 2, 3, 5, 10, 15, 20, 25, 30]

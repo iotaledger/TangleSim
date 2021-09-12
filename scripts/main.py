@@ -19,39 +19,55 @@ def parse_arg():
         config: The configuration.
     """
 
-    parser = argparse.ArgumentParser()
+    config = Configuration()
+
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument("-msp", "--MULTIVERSE_PATH", type=str,
-                        help="The path of multiverse-simulation")
+                        help="The path of multiverse-simulation",
+                        default=config.cd['MULTIVERSE_PATH'])
     parser.add_argument("-rp", "--RESULTS_PATH", type=str,
-                        help="The path to save the simulation results")
+                        help="The path to save the simulation results",
+                        default=config.cd['RESULTS_PATH'])
     parser.add_argument("-fop", "--FIGURE_OUTPUT_PATH", type=str,
-                        help="The path to output the figures")
+                        help="The path to output the figures",
+                        default=config.cd['FIGURE_OUTPUT_PATH'])
     parser.add_argument("-st", "--SIMULATION_TARGET", type=str,
-                        help="The simulation target, CT (confirmation time) or DS (double spending)")
+                        help="The simulation target, CT (confirmation time) or DS (double spending)",
+                        default=config.cd['SIMULATION_TARGET'])
     parser.add_argument("-rt", "--REPETITION_TIME", type=int,
-                        help="The number of runs for a single configuration")
+                        help="The number of runs for a single configuration",
+                        default=config.cd['REPETITION_TIME'])
     parser.add_argument("-v", "--VARIATIONS",
-                        help="N, K, S, D (Number of nodes/parents, Zipfs, delays)")
+                        help="N, K, S, D (Number of nodes/parents, Zipfs, delays)",
+                        default=config.cd['VARIATIONS'])
     parser.add_argument("-vv", "--VARIATION_VALUES", nargs="+", type=float,
-                        help="The variation values, e.g., '100 200 300' for different N")
+                        help="The variation values, e.g., '100 200 300' for different N",
+                        default=config.cd['VARIATION_VALUES'])
     parser.add_argument("-df", "--DECELERATION_FACTORS", nargs="+", type=int,
-                        help="The deceleration factors for each variation. If only one element, then it will be used for all runs")
+                        help="The deceleration factors for each variation. If only one element, then it will be used for all runs",
+                        default=config.cd['DECELERATION_FACTORS'])
     parser.add_argument("-exec", "--EXECUTE", type=str,
-                        help="Execution way, e.g., 'go run .' or './multiverse_sim'")
+                        help="Execution way, e.g., 'go run .' or './multiverse_sim'",
+                        default=config.cd['EXECUTE'])
     parser.add_argument("-t", "--TRANSPARENT", type=bool,
-                        help="The generated figures should be transparent")
+                        help="The generated figures should be transparent",
+                        default=config.cd['TRANSPARENT'])
     parser.add_argument("-xb", "--X_AXIS_BEGIN", type=str,
-                        help="The begining x axis in ns")
+                        help="The begining x axis in ns",
+                        default=config.cd['X_AXIS_BEGIN'])
     parser.add_argument("-ct", "--COLORED_MSG_ISSUANCE_TIME", type=str,
-                        help="The issuance time of colored message (in ns)")
+                        help="The issuance time of colored message (in ns)",
+                        default=config.cd['COLORED_MSG_ISSUANCE_TIME'])
     parser.add_argument("-rs", "--RUN_SIM", dest='RUN_SIM', action='store_true',
-                        help="Run the simulation")
+                        help="Run the simulation",
+                        default=config.cd['RUN_SIM'])
     parser.add_argument("-pf", "--PLOT_FIGURES", dest='PLOT_FIGURES', action='store_true',
-                        help="Plot the figures")
+                        help="Plot the figures",
+                        default=config.cd['PLOT_FIGURES'])
 
     # Update the che configuration dictionary
-    config = Configuration()
     args = parser.parse_args()
     for arg in vars(args):
         v = getattr(args, arg)

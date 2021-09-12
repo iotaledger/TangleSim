@@ -75,7 +75,7 @@ def parse_arg():
                         help="The number of runs for a single configuration",
                         default=config.cd['REPETITION_TIME'])
     parser.add_argument("-v", "--VARIATIONS",
-                        help="N, K, S, D (Number of nodes/parents, Zipfs, delays)",
+                        help="N, K, S, D (Number of nodes, parents, Zipfs, delays)",
                         default=config.cd['VARIATIONS'])
     parser.add_argument("-vv", "--VARIATION_VALUES", nargs="+", type=float,
                         help="The variation values, e.g., '100 200 300' for different N",
@@ -133,19 +133,24 @@ if __name__ == '__main__':
     elif len(df) == 1:
         df = df * len(vv)
 
+    # Note that if relative paths are set, then the base path will be MULTIVERSE_PATH
+    os.chdir(config.cd['MULTIVERSE_PATH'])
+
+    # Get the vars/folder locations
     var = config.cd['VARIATIONS']
     exec = config.cd['EXECUTE']
     target = config.cd['SIMULATION_TARGET']
+    sim_result_path = config.cd['MULTIVERSE_PATH'] + '/results'
     result_path = config.cd['RESULTS_PATH']
     base_folder = f'{result_path}/var_{var}_{target}'
     repetition = config.cd['REPETITION_TIME']
 
+    # Generate the folders if they don't exist
     os.makedirs(result_path, exist_ok=True)
     os.makedirs(config.cd['FIGURE_OUTPUT_PATH'], exist_ok=True)
 
     # Run the simulation
     if config.cd['RUN_SIM']:
-        os.chdir(config.cd['MULTIVERSE_PATH'])
         folder = base_folder
         os.makedirs(folder, exist_ok=True)
         for iter in range(repetition):
@@ -167,7 +172,7 @@ if __name__ == '__main__':
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)
 
-            move_results(result_path, folder)
+            move_results(sim_result_path, folder)
 
     # Plot the figures
     if config.cd['PLOT_FIGURES']:

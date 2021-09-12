@@ -56,8 +56,9 @@ class FigurePlotter:
 
             for f in glob.glob(fs):
 
-                # colored_node_counts, convergence_time, flips: The flips count, x_axis
-                v, (cc, ct, flips, x) = self.parser.parse_confirmed_color_file(f, var)
+                # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
+                v, (cc, ct, flips, *_,
+                    x) = self.parser.parse_confirmed_color_file(f, var)
 
                 if target == 'convergence_time':
                     # Store the convergence time
@@ -87,8 +88,6 @@ class FigurePlotter:
             plt.ylabel('Convergence Time (s)')
         elif target == 'flips':
             plt.ylabel('Number of Flips')
-        plt.savefig(f'{self.figure_output_path}/{ofn}',
-                    transparent=self.transparent)
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent)
         plt.close()
@@ -121,6 +120,89 @@ class FigurePlotter:
         self._distribution_boxplot(
             var, base_folder, ofn, fc, iters, title, 'convergence_time')
 
+    def unconfirmed_count_distribution_plot(self, var, base_folder, ofn, fc, iters, title):
+        """The basic function of generating the distribution boxplot figures.
+
+        Args:
+            var: The variation.
+            base_folder: The parent folder of the iteration results.
+            ofn: The output file name.
+            fc: The figure count.
+            iters: The number of iteration.
+            title: The figure title.
+        """
+        def set_box_color(bp, color):
+            """The helper functions to set colors of the unconfirming boxplot.
+            """
+            plt.setp(bp['boxes'], color=color)
+            plt.setp(bp['whiskers'], color=color)
+            plt.setp(bp['caps'], color=color)
+            plt.setp(bp['medians'], color=color)
+
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 14}
+        matplotlib.rc('font', **font)
+
+        plt.figure(figsize=(12, 5), dpi=500, constrained_layout=True)
+        variation_data_blue = {}
+        variation_data_red = {}
+
+        for i in range(iters):
+            fs = base_folder + f'/iter_{i}/cc*csv'
+
+            for f in glob.glob(fs):
+
+                # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
+                v, (cc, *_, ub, ur, x) = self.parser.parse_confirmed_color_file(f, var)
+
+                # Store the unconfirming counts
+                if v not in variation_data_blue:
+                    variation_data_blue[v] = [ub]
+                    variation_data_red[v] = [ur]
+                else:
+                    variation_data_blue[v].append(ub)
+                    variation_data_red[v].append(ur)
+
+        data_blue = []
+        data_red = []
+        variations = []
+        for v, d in sorted(variation_data_blue.items()):
+            data_blue.append(d)
+            data_red.append(variation_data_red[v])
+            variations.append(v)
+
+        # Location of the box
+        box_location = 0
+        xticks = []
+        for i in range(len(variations)):
+            box_location += 1
+            xticks.append(box_location + 0.5)
+            bp = plt.boxplot(data_blue[i], positions=[
+                             box_location], sym='o', widths=0.6)
+            set_box_color(bp, 'b')
+            box_location += 1
+            bp = plt.boxplot(data_red[i], positions=[
+                             box_location], sym='x', widths=0.6)
+            box_location += 1
+            set_box_color(bp, 'r')
+
+        # draw temporary red and blue lines and use them to create a legend
+        h_b, = plt.plot([1, 1], 'b-')
+        h_r, = plt.plot([1, 1], 'r-')
+        plt.legend((h_b, h_r), ('Unconfirming Blue', 'Unconfirming Red'))
+        h_b.set_visible(False)
+        h_r.set_visible(False)
+
+        plt.xlabel(var)
+        plt.ylabel('Counts')
+        plt.title(title)
+        plt.xticks(xticks, variations)
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent)
+        plt.close()
+
     def confirmed_like_color_plot(self, var, fs, ofn, fc):
         """Generate the confirmed/like color figures.
 
@@ -138,7 +220,7 @@ class FigurePlotter:
 
         variation_data = {}
         for f in glob.glob(fs):
-            # colored_node_counts, convergence_time, flips: The flips count, x_axis
+            # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
             v, cc_ct_flips_x = self.parser.parse_confirmed_color_file(f, var)
             variation_data[v] = cc_ct_flips_x
 
@@ -147,7 +229,7 @@ class FigurePlotter:
             12, 5), dpi=500, constrained_layout=True)
 
         for i, (v, d) in enumerate(sorted(variation_data.items())):
-            (nodes, ct, _, x_axis) = d
+            (nodes, ct, *_, x_axis) = d
             r_loc = i // cc
             c_loc = i % cc
 

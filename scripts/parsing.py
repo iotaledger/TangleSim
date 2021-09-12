@@ -116,6 +116,8 @@ class FileParser:
             colored_node_counts: The colored node counts list.
             convergence_time: The convergence time.
             flips: The flips count.
+            unconfirming_blue: The unconfirming count of blue branch.
+            unconfirming_red: The unconfirming count of red branch.
             x_axis: The scaled x axis.
         """
         logging.info(f'Parsing {fn}...')
@@ -136,6 +138,10 @@ class FileParser:
         # Get the throughput details
         colored_node_counts = data[self.colored_confirmed_like_items]
         flips = data['Flips (Winning color changed)'].iloc[-1]
+
+        # Unconfirmed Blue,Unconfirmed Red
+        unconfirming_blue = data['Unconfirmed Blue'].iloc[-1]
+        unconfirming_red = data['Unconfirmed Blue'].iloc[-1]
         convergence_time = data['ns since issuance'].iloc[-1]
         convergence_time /= self.one_second
         convergence_time /= float(c["DecelerationFactor"])
@@ -146,4 +152,4 @@ class FileParser:
         x_axis = ((data['ns since start']) /
                   float(self.one_second * float(c["DecelerationFactor"])))
 
-        return v, (colored_node_counts, convergence_time, flips, x_axis)
+        return v, (colored_node_counts, convergence_time, flips, unconfirming_blue, unconfirming_red, x_axis)

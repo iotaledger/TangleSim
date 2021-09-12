@@ -1,6 +1,7 @@
 """The simulation script to run multiverse-simulation in batch.
 """
 import argparse
+import textwrap
 import logging
 import os
 import sys
@@ -21,8 +22,42 @@ def parse_arg():
 
     config = Configuration()
 
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = ArgumentParserWithDefaults(
+        description=textwrap.dedent("""        
+    In the following we provide some examples.
+
+    - Different Ns for confirmation time (CT) analysis
+        - The output results will be put in [RESULTS_PATH]/var_N_CT
+        - Usage: python3 main.py -rs -pf
+
+    - Different Ks for double spending (DS) analysis, 100 times
+        - The output results will be put in [RESULTS_PATH]/var_K_DS
+        - Usage: python3 main.py -rs -pf -v K -vv 2 4 8 16 32 64 -df 1 -rt 100 -st DS
+
+    - Different Ss for double spending (DS) analysis, 100 times
+        - The output results will be put in [RESULTS_PATH]/var_S_DS
+        - NOTE: Need to use -rp, -fop to specify different RESULTS_PATH and FIGURE_OUTPUT_PATH
+          if customized EXECUTE is set, or the output folder for the multiverse results will be
+          put in the same folder, and the output figures will be overwritten.
+        - Usage example of generating different Ss (0~2.2) and different Ks (2, 4, 8, 16, 32, 64)
+            - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
+              -rp 'YOUR_RESULT_PATH_1' -fop 'YOUR_FIGURE_OUTPUT_PATH_1' -exec 'go run . --tipsCount=2' -rt 100 -st DS
+
+            - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
+              -rp 'YOUR_RESULTS_PATH_2' -fop 'YOUR_FIGURE_OUTPUT_PATH_2' -exec 'go run . --tipsCount=4; -rt 100 -st DS
+
+            - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
+              -rp 'YOUR_RESULTS_PATH_3' -fop 'YOUR_FIGURE_OUTPUT_PATH_3' -exec 'go run . --tipsCount=8' -rt 100 -st DS
+
+            - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
+              -rp 'YOUR_RESULTS_PATH_4' -fop 'YOUR_FIGURE_OUTPUT_PATH_4' -exec 'go run . --tipsCount=16' -rt 100 -st DS
+
+            - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
+              -rp 'YOUR_RESULTS_PATH_5' -fop 'YOUR_FIGURE_OUTPUT_PATH_5' -exec 'go run . --tipsCount=32' -rt 100 -st DS
+
+            - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
+              -rp 'YOUR_RESULTS_PATH_6' -fop 'YOUR_FIGURE_OUTPUT_PATH_6' -exec 'go run . --tipsCount=64' -rt 100 -st DS
+    """), formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument("-msp", "--MULTIVERSE_PATH", type=str,
                         help="The path of multiverse-simulation",
@@ -78,35 +113,6 @@ def parse_arg():
 
 
 if __name__ == '__main__':
-    """ Running Examples
-    Different N:
-    $python3 main.py -rs -pf -msp 'YOUR_PATH'
-
-    Different K, 100 times:
-    $python3 main.py -rs -pf -v K -vv 2 4 8 16 32 64 -df 1 -msp 'YOUR_PATH' -rt 100 -st DS
-
-    Different S:
-    NOTE: ned to specify -rp, -exec, -fop
-
-    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
-    -msp 'YOUR_PATH' -rp 'RESULT_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=2 -rt 100 -st DS
-
-    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
-    -msp 'YOUR_PATH' -rp 'SPECIFC_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=4 -rt 100 -st DS
-
-    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
-    -msp 'YOUR_PATH' -rp 'SPECIFC_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=8 -rt 100 -st DS
-
-    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
-    -msp 'YOUR_PATH' -rp 'SPECIFC_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=16 -rt 100 -st DS
-
-    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
-    -msp 'YOUR_PATH' -rp 'SPECIFC_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=32 -rt 100 -st DS
-
-    $python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 
-    -msp 'YOUR_PATH' -rp 'SPECIFC_PATH' -fop 'FIGURE_PATH' -exec 'go run . --tipsCount=64 -rt 100 -st DS
-    """
-
     debug_level = "INFO"
     logging.basicConfig(
         level=debug_level,

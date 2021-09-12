@@ -2,8 +2,23 @@
 """
 
 import numpy as np
+import argparse
 import logging
 import os
+
+
+class ArgumentParserWithDefaults(argparse.ArgumentParser):
+    """The argument parser to support RawTextHelpFormatter and show default values.
+    """
+
+    def add_argument(self, *args, help=None, default=None, **kwargs):
+        if help is not None:
+            kwargs['help'] = help
+        if default is not None and args[0] != '-h':
+            kwargs['default'] = default
+            if help is not None:
+                kwargs['help'] += '\nDefault: {}'.format(default)
+        super().add_argument(*args, **kwargs)
 
 
 def move_results(src, dst):

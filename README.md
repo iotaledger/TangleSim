@@ -41,6 +41,7 @@ In order to take into account different conflict perceptions we assign colors to
 This mechanism works by having a node that colors messages.
 Each message propagates its color to its descendants ad infinum. If a message has parents with different colors the node deems it invalid and drops it.
 Due to this, it is worth to note, coloring the tangle will create distinct subtangles that can't be combined.
+This basically means that we are creating a simulation of the UTXO dag instead of the message dag.
 Each node in the simulation keeps track of the weight of the colors. Each time a message is colored, the weight of its issuer is added to the color weight.
 If the weight of the issuer was previously assigned to another color, it is subtracted from the color. 
 Each node in the simulation considers the color with the most weight to be the winner. 

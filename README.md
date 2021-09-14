@@ -39,7 +39,7 @@ depending on whether we also simulate colored perceptions in our run.
 
 In order to take into account different conflict perceptions we assign colors to subtangles. 
 This mechanism works by having a node that colors messages.
-Each message propagates its color to its descendants ad infinum. If a message has parents with different colors the node deems it invalid and drops it.
+Each message propagates its color to its descendants ad infinitum. If a message has parents with different colors the node deems it invalid and drops it.
 Due to this, it is worth to note, coloring the tangle will create distinct subtangles that can't be combined.
 This basically means that we are creating a simulation of the UTXO dag instead of the message dag.
 Each node in the simulation keeps track of the weight of the colors. Each time a message is colored, the weight of its issuer is added to the color weight.
@@ -53,8 +53,8 @@ Each message in the simulation can choose up to a configurable *k* other message
 They will usually pick parents that weren't referenced before, known as tips. 
 Tip selection plays a great deal with the way weights are distributed, and in the simulation we will implement various 
 tip-selection strategies, honest and malicious. Currently, only 2 tip selection strategies are implemented. 
-URTS (Uniform Random Tip Selection) and RURTS (Restricted URTS). URTS, as the name implies, randomly selects any tip.
-RURTS, won't select tips that have aged above a configurable delta. All other tips will be selected uniformly.
+URTS (Uniform Random Tip Selection) and RURTS (Restrictedk URTS). URTS, as the name implies, randomly selects any tip.
+RURTS won't select tips that have aged above a configurable delta. All other tips will be selected uniformly.
 
 
 ## Running the simulation

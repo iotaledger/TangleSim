@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/iotaledger/multivers-simulation/adversary"
 	"github.com/iotaledger/multivers-simulation/simulation"
 	"io/ioutil"
 	"math/rand"
@@ -75,8 +76,11 @@ func main() {
 	log.Info("Starting simulation ... [DONE]")
 	defer log.Info("Shutting down simulation ... [DONE]")
 	simulation.ParseFlags()
-	nodeFactories := []network.NodeFactory{
-		network.NodeClosure(multiverse.NewNode),
+
+	nodeFactories := map[network.AdversaryType]network.NodeFactory{
+		network.HonestNode:   network.NodeClosure(multiverse.NewNode),
+		network.ShiftOpinion: network.NodeClosure(adversary.NewShiftingOpinionNode),
+		//network.TheSameOpinion: network.NodeClosure(multiverse.NewSameOpinionNode),
 	}
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
@@ -84,6 +88,7 @@ func main() {
 		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
 			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
 		network.PacketLoss(0, config.PayloadLoss),
+
 		network.Topology(network.WattsStrogatz(config.NeighbourCountWS*2, config.RandomnessWS)),
 	)
 	testNetwork.Start()
@@ -95,6 +100,7 @@ func main() {
 
 	// To simulate the confirmation time w/o any double spendings, the colored msgs are not to be sent
 
+	// TODO attackers should be created based on provided config
 	// Here we simulate the double spending
 	if config.SimulationTarget == "DS" {
 		time.Sleep(time.Duration(config.DoubleSpendDelay*config.DecelerationFactor) * time.Second)

@@ -15,6 +15,8 @@ type OpinionManagerInterface interface {
 	FormOpinion(messageID MessageID)
 	Opinion() Color
 	WeightsUpdated()
+	UpdateWeights(messageID MessageID) (updated bool)
+	Tangle() *Tangle
 }
 
 type OpinionManager struct {
@@ -52,6 +54,10 @@ func (o *OpinionManager) Events() *OpinionManagerEvents {
 	return o.events
 }
 
+func (o *OpinionManager) Tangle() *Tangle {
+	return o.tangle
+}
+
 func (o *OpinionManager) Setup() {
 	o.tangle.Booker.Events.MessageBooked.Attach(events.NewClosure(o.FormOpinion))
 }
@@ -61,6 +67,14 @@ func (o *OpinionManager) Setup() {
 func (o *OpinionManager) FormOpinion(messageID MessageID) {
 	defer o.events.OpinionFormed.Trigger(messageID)
 
+	if updated := o.UpdateWeights(messageID); !updated {
+		return
+	}
+
+	o.WeightsUpdated()
+}
+
+func (o *OpinionManager) UpdateWeights(messageID MessageID) (updated bool) {
 	message := o.tangle.Storage.Message(messageID)
 	messageMetadata := o.tangle.Storage.MessageMetadata(messageID)
 
@@ -103,7 +117,8 @@ func (o *OpinionManager) FormOpinion(messageID MessageID) {
 		o.colorConfirmed = true
 		o.events.ColorConfirmed.Trigger(lastOpinion.Color)
 	}
-	o.WeightsUpdated()
+	updated = true
+	return
 }
 
 func (o *OpinionManager) Opinion() Color {

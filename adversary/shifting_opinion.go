@@ -1,21 +1,9 @@
 package adversary
 
 import (
-	"fmt"
+	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/multiverse"
 )
-
-// region HonestNode ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-type HonestNode struct {
-	*multiverse.Node
-}
-
-func (h *HonestNode) SetupOpinionManager() {
-	// no change in behavior of honest node's opinion manager
-}
-
-// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // region ShiftingOpinionNode ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -25,15 +13,18 @@ type ShiftingOpinionNode struct {
 
 func NewShiftingOpinionNode() interface{} {
 	node := multiverse.NewNode().(*multiverse.Node)
-	return &ShiftingOpinionNode{
+	shiftingNode := &ShiftingOpinionNode{
 		node,
 	}
+	shiftingNode.setupOpinionManager()
+	return shiftingNode
 
 }
 
-func (s *ShiftingOpinionNode) SetupOpinionManager() {
+func (s *ShiftingOpinionNode) setupOpinionManager() {
 	om := s.Tangle().OpinionManager
 	s.Tangle().OpinionManager = NewShiftingOpinionManager(om)
+	s.Tangle().OpinionManager.Setup()
 }
 
 type ShiftingOpinionManager struct {
@@ -46,7 +37,17 @@ func NewShiftingOpinionManager(om multiverse.OpinionManagerInterface) *ShiftingO
 	}
 }
 
-func (sm *ShiftingOpinionManager) WeightsUpdated() {
+func (sm *ShiftingOpinionManager) FormOpinion(messageID multiverse.MessageID) {
+	defer sm.Events().OpinionFormed.Trigger(messageID)
+
+	if updated := sm.UpdateWeights(messageID); !updated {
+		return
+	}
+
+	sm.weightsUpdated()
+}
+
+func (sm *ShiftingOpinionManager) weightsUpdated() {
 	maxApprovalWeight := uint64(0)
 	maxOpinion := multiverse.UndefinedColor
 	for color, approvalWeight := range sm.ApprovalWeights() {
@@ -59,7 +60,11 @@ func (sm *ShiftingOpinionManager) WeightsUpdated() {
 	if oldOpinion := sm.Opinion(); maxOpinion != oldOpinion {
 		sm.Events().OpinionChanged.Trigger(oldOpinion, oldOpinion)
 	}
-	fmt.Println("I'm shadowed opinion manager")
+}
+
+func (sm *ShiftingOpinionManager) Setup() {
+	sm.Tangle().Booker.Events.MessageBooked.Detach(events.NewClosure(sm.OpinionManager.FormOpinion))
+	sm.Tangle().Booker.Events.MessageBooked.Attach(events.NewClosure(sm.FormOpinion))
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

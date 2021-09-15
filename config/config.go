@@ -24,9 +24,9 @@ var (
 	RandomnessWS            = 1.0               // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
 	NeighbourCountWS        = 8                 // Number of neighbors node is connected to in WattsStrogatz network topology
 	AdversaryDelays         = []int{50, 200}    // Delays in ms of adversary nodes, eg '50 100 200'
-	AdversaryTypes          = []int{1, 2}       // Defines attack strategy, one of the following: 'shift', 'same'
-	AdversaryMana           = []float64{10, 10} // Adversary nodes mana in %, e.g. '10 10' or 'random' if adversary nodes should be selected randomly
-
+	AdversaryTypes          = []int{1, 2}       // Defines attack strategy, one of the following: 0 - honest node behavior, 1 - shifts opinion, 2 - keeps the same opinion. Max 3 types, one per color.
+	AdversaryMana           = []float64{10, 10} // Adversary nodes mana in %, e.g. '10 10' or leave empty if adversary nodes should be selected randomly, 0 means low mana node, 100 means high mana node
+	AdversaryErrorThreshold = 0.00_00_1         // The error threshold of q - percentage of mana held by adversary
 )
 
 var (

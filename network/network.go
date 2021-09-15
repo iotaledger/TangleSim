@@ -1,14 +1,15 @@
 package network
 
 import (
+	"github.com/iotaledger/multivers-simulation/adversary"
+	"github.com/iotaledger/multivers-simulation/logger"
 	"time"
 
 	"github.com/iotaledger/hive.go/crypto"
 	"github.com/iotaledger/hive.go/datastructure/set"
-	"github.com/iotaledger/hive.go/logger"
 )
 
-var log = logger.NewLogger("Network")
+var log = logger.New("Network")
 
 // region Network //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -89,12 +90,14 @@ func (c *Configuration) CreatePeers(network *Network) {
 	log.Debugf("Creating peers ...")
 	defer log.Info("Creating peers ... [DONE]")
 
+	// TODO update node creation based on adversary groups
+	adversaryGroups := adversary.NewGroups()
 	network.WeightDistribution = NewConsensusWeightDistribution()
 	for _, nodesSpecification := range c.nodes {
-		nodeWeights := nodesSpecification.weightGenerator(nodesSpecification.nodeCount)
+		nodeWeights := nodesSpecification.weightGenerator(nodesSpecification.nodeCount, adversaryGroups)
 
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
-			peer := NewPeer(nodesSpecification.nodeFactory())
+			peer := NewPeer(nodesSpecification.nodeFactories[0]())
 			network.Peers = append(network.Peers, peer)
 			log.Debugf("Created %s ... [DONE]", peer)
 
@@ -117,19 +120,23 @@ func (c *Configuration) ConnectPeers(network *Network) {
 
 type Option func(*Configuration)
 
-func Nodes(nodeCount int, nodeFactory NodeFactory, weightGenerator WeightGenerator) Option {
+func Nodes(nodeCount int, nodeFactories []NodeFactory, weightGenerator WeightGenerator) Option {
+	nodeSpecs := &NodesSpecification{
+		nodeCount:       nodeCount,
+		nodeFactories:   nodeFactories,
+		adversaryGroups: adversary.NewGroups(),
+		weightGenerator: weightGenerator,
+	}
+
 	return func(config *Configuration) {
-		config.nodes = append(config.nodes, &NodesSpecification{
-			nodeCount:       nodeCount,
-			nodeFactory:     nodeFactory,
-			weightGenerator: weightGenerator,
-		})
+		config.nodes = append(config.nodes, nodeSpecs)
 	}
 }
 
 type NodesSpecification struct {
 	nodeCount       int
-	nodeFactory     NodeFactory
+	nodeFactories   []NodeFactory
+	adversaryGroups adversary.Groups
 	weightGenerator WeightGenerator
 }
 

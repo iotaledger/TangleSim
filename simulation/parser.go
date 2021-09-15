@@ -62,6 +62,8 @@ func ParseFlags() {
 		flag.String("adversaryType", "", "Defines attack strategy, one of the following: 'shift', 'same'")
 	adversaryMana :=
 		flag.String("adversaryMana", "", "Adversary nodes mana in %, e.g. '10 10' or 'random' if adversary nodes should be selected randomly")
+	adversaryErrorThreshold :=
+		flag.Float64("payloadLoss", config.AdversaryErrorThreshold, "The error threshold of q - percentage of mana held by adversary")
 
 	// Parse the flags
 	flag.Parse()
@@ -89,18 +91,8 @@ func ParseFlags() {
 	config.IMIF = *imif
 	config.RandomnessWS = *randomnessWS
 	config.NeighbourCountWS = *neighbourCountWS
-
-	if *adversaryDelays != "" {
-		config.AdversaryDelays = parseStrToInt(*adversaryDelays)
-	}
-	if *adversaryTypes != "" {
-		config.AdversaryTypes = parseStrToInt(*adversaryTypes)
-	}
-	if *adversaryMana != "" {
-		config.AdversaryMana = parseStrToFloat64(*adversaryMana)
-	}
-
-	//TODO make sure three above have the same length
+	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana)
+	config.AdversaryErrorThreshold = *adversaryErrorThreshold
 
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
@@ -128,7 +120,37 @@ func ParseFlags() {
 	log.Info("AdversaryDelays: ", config.AdversaryDelays)
 	log.Info("AdversaryTypes: ", config.AdversaryTypes)
 	log.Info("AdversaryMana: ", config.AdversaryMana)
+	log.Info("AdversaryErrorThreshold: ", config.AdversaryErrorThreshold)
+}
 
+func parseAdversaryConfig(adversaryDelays *string, adversaryTypes *string, adversaryMana *string) {
+	if *adversaryDelays != "" {
+		config.AdversaryDelays = parseStrToInt(*adversaryDelays)
+	}
+	if *adversaryTypes != "" {
+		config.AdversaryTypes = parseStrToInt(*adversaryTypes)
+	}
+	if *adversaryMana != "" {
+		config.AdversaryMana = parseStrToFloat64(*adversaryMana)
+	}
+
+	// no adversary if simulation target is not DS
+	if config.SimulationTarget != "DS" {
+		config.AdversaryTypes = []int{}
+	}
+
+	// maximum 3 adversary types allowed for one simulation, one per color
+	if len(config.AdversaryTypes) > 3 {
+		config.AdversaryTypes = []int{}
+	}
+
+	// make sure mana and delays are only defined when adversary type is provided and have the same length
+	if len(config.AdversaryDelays) != 0 && len(config.AdversaryDelays) != len(config.AdversaryTypes) {
+		config.AdversaryDelays = []int{}
+	}
+	if len(config.AdversaryMana) != 0 && len(config.AdversaryMana) != len(config.AdversaryTypes) {
+		config.AdversaryMana = []float64{}
+	}
 }
 
 func parseStrToInt(strList string) []int {

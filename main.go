@@ -75,8 +75,11 @@ func main() {
 	log.Info("Starting simulation ... [DONE]")
 	defer log.Info("Shutting down simulation ... [DONE]")
 	simulation.ParseFlags()
+	nodeFactories := []network.NodeFactory{
+		network.NodeClosure(multiverse.NewNode),
+	}
 	testNetwork := network.New(
-		network.Nodes(config.NodesCount, network.NodeClosure(multiverse.NewNode), network.ZIPFDistribution(
+		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
 			config.ZipfParameter, float64(config.NodesTotalWeight))),
 		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
 			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
@@ -128,8 +131,10 @@ func flushWriters(writers []*csv.Writer) {
 func dumpConfig(fileName string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                     float64
+		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS, AdversaryErrorThreshold                            float64
 		TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                  string
+		AdversaryDelays, AdversaryTypes                                                                                                                                         []int
+		AdversaryMana                                                                                                                                                           []float64
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -154,6 +159,10 @@ func dumpConfig(fileName string) {
 		IMIF:                    config.IMIF,
 		RandomnessWS:            config.RandomnessWS,
 		NeighbourCountWS:        config.NeighbourCountWS,
+		AdversaryTypes:          config.AdversaryTypes,
+		AdversaryDelays:         config.AdversaryDelays,
+		AdversaryMana:           config.AdversaryMana,
+		AdversaryErrorThreshold: config.AdversaryErrorThreshold,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")
@@ -172,6 +181,8 @@ func dumpConfig(fileName string) {
 }
 
 func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Writer) {
+	// TODO we should skip adversary nodes when collecting metrics
+	// TODO and save somehow how many adversary node was created
 	opinions[multiverse.UndefinedColor] = config.NodesCount
 	opinions[multiverse.Blue] = 0
 	opinions[multiverse.Red] = 0

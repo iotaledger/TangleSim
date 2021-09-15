@@ -76,7 +76,7 @@ func main() {
 	defer log.Info("Shutting down simulation ... [DONE]")
 	simulation.ParseFlags()
 	testNetwork := network.New(
-		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(
+		network.Nodes(config.NodesCount, network.NodeClosure(multiverse.NewNode), network.ZIPFDistribution(
 			config.ZipfParameter, float64(config.NodesTotalWeight))),
 		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
 			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
@@ -226,7 +226,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			panic(err)
 		}
 		resultsWriters = append(resultsWriters, awResultsWriter)
-		awPeer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(
+		awPeer.Node.(multiverse.NodeInterface).Tangle().ApprovalManager.Events.MessageConfirmed.Attach(
 			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64, messageIDCounter int64) {
 				confirmedMessageMutex.Lock()
 				confirmedMessageCounter[awPeer.ID] += 1
@@ -257,7 +257,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	}
 
 	for _, peer := range testNetwork.Peers {
-		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color) {
+		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color) {
 			opinionMutex.Lock()
 			defer opinionMutex.Unlock()
 
@@ -268,14 +268,14 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			}
 
 		}))
-		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color) {
+		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color) {
 			confirmationMutex.Lock()
 			defer confirmationMutex.Unlock()
 
 			confirmedNodesCounter[confirmedColor]++
 		}))
 
-		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color) {
+		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color) {
 			confirmationMutex.Lock()
 			defer confirmationMutex.Unlock()
 
@@ -286,7 +286,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	// Here we only monitor the opinion weight of node w/ the highest weight
 	dsPeer := testNetwork.Peers[0]
-	dsPeer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ApprovalWeightUpdated.Attach(events.NewClosure(func(opinion multiverse.Color, deltaWeight int64) {
+	dsPeer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ApprovalWeightUpdated.Attach(events.NewClosure(func(opinion multiverse.Color, deltaWeight int64) {
 		opinionWeightMutex.Lock()
 		defer opinionWeightMutex.Unlock()
 
@@ -295,7 +295,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	// Here we only monitor the tip pool size of node w/ the highest weight
 	peer := testNetwork.Peers[0]
-	peer.Node.(*multiverse.Node).Tangle.TipManager.Events.MessageProcessed.Attach(events.NewClosure(
+	peer.Node.(multiverse.NodeInterface).Tangle().TipManager.Events.MessageProcessed.Attach(events.NewClosure(
 		func(opinion multiverse.Color, tipPoolSize int, processedMessages uint64, issuedMessages int64) {
 			processedMessageMutex.Lock()
 			defer processedMessageMutex.Unlock()
@@ -474,10 +474,10 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 	atomic.AddUint64(&tpsCounter, 1)
 
 	if len(optionalColor) >= 1 {
-		peer.Node.(*multiverse.Node).IssuePayload(optionalColor[0])
+		peer.Node.(multiverse.NodeInterface).IssuePayload(optionalColor[0])
 	}
 
-	peer.Node.(*multiverse.Node).IssuePayload(multiverse.UndefinedColor)
+	peer.Node.(multiverse.NodeInterface).IssuePayload(multiverse.UndefinedColor)
 }
 
 // Max returns the larger of x or y.

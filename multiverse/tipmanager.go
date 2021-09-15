@@ -56,7 +56,7 @@ func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
 }
 
 func (t *TipManager) Setup() {
-	t.tangle.OpinionManager.Events.OpinionFormed.Attach(events.NewClosure(t.AnalyzeMessage))
+	t.tangle.OpinionManager.Events().OpinionFormed.Attach(events.NewClosure(t.AnalyzeMessage))
 }
 
 func (t *TipManager) AnalyzeMessage(messageID MessageID) {

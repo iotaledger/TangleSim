@@ -25,9 +25,9 @@ func New(option ...Option) (network *Network) {
 		Peers: make([]*Peer, 0),
 	}
 
-	config := NewConfiguration(option...)
-	config.CreatePeers(network)
-	config.ConnectPeers(network)
+	configuration := NewConfiguration(option...)
+	configuration.CreatePeers(network)
+	configuration.ConnectPeers(network)
 
 	return
 }

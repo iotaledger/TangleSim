@@ -8,8 +8,17 @@ import (
 
 // region OpinionManager ///////////////////////////////////////////////////////////////////////////////////////////////
 
+type OpinionManagerInterface interface {
+	Events() *OpinionManagerEvents
+	ApprovalWeights() map[Color]uint64
+	Setup()
+	FormOpinion(messageID MessageID)
+	Opinion() Color
+	WeightsUpdated()
+}
+
 type OpinionManager struct {
-	Events *OpinionManagerEvents
+	events *OpinionManagerEvents
 
 	tangle          *Tangle
 	ownOpinion      Color
@@ -20,7 +29,7 @@ type OpinionManager struct {
 
 func NewOpinionManager(tangle *Tangle) (opinionManager *OpinionManager) {
 	return &OpinionManager{
-		Events: &OpinionManagerEvents{
+		events: &OpinionManagerEvents{
 			OpinionFormed:         events.NewEvent(messageIDEventCaller),
 			OpinionChanged:        events.NewEvent(opinionChangedEventHandler),
 			ApprovalWeightUpdated: events.NewEvent(approvalWeightUpdatedHandler),
@@ -35,6 +44,14 @@ func NewOpinionManager(tangle *Tangle) (opinionManager *OpinionManager) {
 	}
 }
 
+func (o *OpinionManager) ApprovalWeights() map[Color]uint64 {
+	return o.approvalWeights
+}
+
+func (o *OpinionManager) Events() *OpinionManagerEvents {
+	return o.events
+}
+
 func (o *OpinionManager) Setup() {
 	o.tangle.Booker.Events.MessageBooked.Attach(events.NewClosure(o.FormOpinion))
 }
@@ -42,7 +59,7 @@ func (o *OpinionManager) Setup() {
 // Form the opinion of the current tangle.
 // The opinion is determined by the color with the most approvalWeight.
 func (o *OpinionManager) FormOpinion(messageID MessageID) {
-	defer o.Events.OpinionFormed.Trigger(messageID)
+	defer o.events.OpinionFormed.Trigger(messageID)
 
 	message := o.tangle.Storage.Message(messageID)
 	messageMetadata := o.tangle.Storage.MessageMetadata(messageID)
@@ -71,31 +88,35 @@ func (o *OpinionManager) FormOpinion(messageID MessageID) {
 	if exist {
 		if o.colorConfirmed && float64(o.approvalWeights[lastOpinion.Color]) > float64(config.NodesTotalWeight)*config.MessageWeightThreshold {
 			o.colorConfirmed = false
-			o.Events.ColorUnconfirmed.Trigger(lastOpinion.Color)
+			o.events.ColorUnconfirmed.Trigger(lastOpinion.Color)
 		}
 
 		o.approvalWeights[lastOpinion.Color] -= o.tangle.WeightDistribution.Weight(message.Issuer)
-		o.Events.ApprovalWeightUpdated.Trigger(lastOpinion.Color, int64(-o.tangle.WeightDistribution.Weight(message.Issuer)))
+		o.events.ApprovalWeightUpdated.Trigger(lastOpinion.Color, int64(-o.tangle.WeightDistribution.Weight(message.Issuer)))
 	}
 	lastOpinion.Color = messageMetadata.InheritedColor()
 
 	o.approvalWeights[messageMetadata.InheritedColor()] += o.tangle.WeightDistribution.Weight(message.Issuer)
-	o.Events.ApprovalWeightUpdated.Trigger(messageMetadata.InheritedColor(), int64(o.tangle.WeightDistribution.Weight(message.Issuer)))
+	o.events.ApprovalWeightUpdated.Trigger(messageMetadata.InheritedColor(), int64(o.tangle.WeightDistribution.Weight(message.Issuer)))
 
 	if !o.colorConfirmed && float64(o.approvalWeights[lastOpinion.Color]) > float64(config.NodesTotalWeight)*config.MessageWeightThreshold {
 		o.colorConfirmed = true
-		o.Events.ColorConfirmed.Trigger(lastOpinion.Color)
+		o.events.ColorConfirmed.Trigger(lastOpinion.Color)
 	}
-	o.weightsUpdated()
+	o.WeightsUpdated()
 }
 
 func (o *OpinionManager) Opinion() Color {
 	return o.ownOpinion
 }
 
+func (o *OpinionManager) SetOpinion(opinion Color) {
+	o.ownOpinion = opinion
+}
+
 // Update the opinions counter and ownOpinion based on the highest peer color value and maxApprovalWeight
 // Each Color has approvalWeight. The Color with maxApprovalWeight determines the ownOpinion
-func (o *OpinionManager) weightsUpdated() {
+func (o *OpinionManager) WeightsUpdated() {
 	maxApprovalWeight := uint64(0)
 	maxOpinion := UndefinedColor
 	for color, approvalWeight := range o.approvalWeights {
@@ -107,7 +128,7 @@ func (o *OpinionManager) weightsUpdated() {
 
 	if oldOpinion := o.ownOpinion; maxOpinion != oldOpinion {
 		o.ownOpinion = maxOpinion
-		o.Events.OpinionChanged.Trigger(oldOpinion, maxOpinion)
+		o.events.OpinionChanged.Trigger(oldOpinion, maxOpinion)
 	}
 }
 

@@ -1,7 +1,6 @@
 package network
 
 import (
-	"github.com/iotaledger/multivers-simulation/adversary"
 	"github.com/iotaledger/multivers-simulation/logger"
 	"time"
 
@@ -91,7 +90,7 @@ func (c *Configuration) CreatePeers(network *Network) {
 	defer log.Info("Creating peers ... [DONE]")
 
 	// TODO update node creation based on adversary groups
-	adversaryGroups := adversary.NewGroups()
+	adversaryGroups := NewAdversaryGroups()
 	network.WeightDistribution = NewConsensusWeightDistribution()
 	for _, nodesSpecification := range c.nodes {
 		nodeWeights := nodesSpecification.weightGenerator(nodesSpecification.nodeCount, adversaryGroups)
@@ -124,7 +123,7 @@ func Nodes(nodeCount int, nodeFactories []NodeFactory, weightGenerator WeightGen
 	nodeSpecs := &NodesSpecification{
 		nodeCount:       nodeCount,
 		nodeFactories:   nodeFactories,
-		adversaryGroups: adversary.NewGroups(),
+		adversaryGroups: NewAdversaryGroups(),
 		weightGenerator: weightGenerator,
 	}
 
@@ -136,7 +135,7 @@ func Nodes(nodeCount int, nodeFactories []NodeFactory, weightGenerator WeightGen
 type NodesSpecification struct {
 	nodeCount       int
 	nodeFactories   []NodeFactory
-	adversaryGroups adversary.Groups
+	adversaryGroups AdversaryGroups
 	weightGenerator WeightGenerator
 }
 

@@ -130,7 +130,7 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
 		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS, AdversaryErrorThreshold                            float64
 		TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                  string
 		AdversaryDelays, AdversaryTypes                                                                                                                                         []int
@@ -147,7 +147,7 @@ func dumpConfig(fileName string) {
 		TPS:                     config.TPS,
 		DecelerationFactor:      config.DecelerationFactor,
 		ConsensusMonitorTick:    config.ConsensusMonitorTick,
-		ReleventValidatorWeight: config.RelevantValidatorWeight,
+		RelevantValidatorWeight: config.RelevantValidatorWeight,
 		DoubleSpendDelay:        config.DoubleSpendDelay,
 		PayloadLoss:             config.PayloadLoss,
 		MinDelay:                config.MinDelay,

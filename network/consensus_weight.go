@@ -3,17 +3,16 @@ package network
 import (
 	"github.com/iotaledger/hive.go/crypto"
 	"github.com/iotaledger/hive.go/datastructure/set"
-	"github.com/iotaledger/multivers-simulation/adversary"
 	"github.com/iotaledger/multivers-simulation/config"
 	"math"
 )
 
-type WeightGenerator func(nodeCount int, adversaryGroups adversary.Groups) []uint64
+type WeightGenerator func(nodeCount int, adversaryGroups AdversaryGroups) []uint64
 
 // region ZIPFDistribution /////////////////////////////////////////////////////////////////////////////////////////////
 
 func ZIPFDistribution(s float64, totalWeight float64) WeightGenerator {
-	return func(nodeCount int, group adversary.Groups) (result []uint64) {
+	return func(nodeCount int, groups AdversaryGroups) (result []uint64) {
 		rawTotalWeight := uint64(0)
 		rawWeights := make([]uint64, nodeCount)
 		for i := 0; i < nodeCount; i++ {
@@ -33,16 +32,17 @@ func ZIPFDistribution(s float64, totalWeight float64) WeightGenerator {
 
 		result[0] += uint64(totalWeight) - normalizedTotalWeight
 
+		// TODO connect to choose index
 		return
 	}
 }
 
-func chooseAdversaryNodes(ZIPFDistribution []uint64, groups adversary.Groups, totalWeight float64, nodeCount int) {
+func chooseAdversaryNodes(ZIPFDistribution []uint64, groups AdversaryGroups, totalWeight float64, nodeCount int) {
 	// are there any adversary groups provided in the configuration?
 	if len(groups) == 0 {
 		return
 	}
-	manaPercentageProvided := make(adversary.Groups, 0)
+	manaPercentageProvided := make(AdversaryGroups, 0)
 	// check if adversary mana target provided
 	for _, group := range groups {
 		switch group.TargetMana {

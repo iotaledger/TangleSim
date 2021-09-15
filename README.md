@@ -53,7 +53,7 @@ Each message in the simulation can choose up to a configurable *k* other message
 They will usually pick parents that weren't referenced before, known as tips. 
 Tip selection plays a great deal with the way weights are distributed, and in the simulation we will implement various 
 tip-selection strategies, honest and malicious. Currently, only 2 tip selection strategies are implemented. 
-URTS (Uniform Random Tip Selection) and RURTS (Restrictedk URTS). URTS, as the name implies, randomly selects any tip.
+URTS (Uniform Random Tip Selection) and RURTS (Restricted URTS). URTS, as the name implies, randomly selects any tip.
 RURTS won't select tips that have aged above a configurable delta. All other tips will be selected uniformly.
 
 

@@ -63,7 +63,7 @@ func ParseFlags() {
 	adversaryMana :=
 		flag.String("adversaryMana", "", "Adversary nodes mana in %, e.g. '10 10' or 'random' if adversary nodes should be selected randomly")
 	adversaryErrorThreshold :=
-		flag.Float64("payloadLoss", config.AdversaryErrorThreshold, "The error threshold of q - percentage of mana held by adversary")
+		flag.Float64("adversaryErrorThreshold", config.AdversaryErrorThreshold, "The error threshold of q - percentage of mana held by adversary")
 
 	// Parse the flags
 	flag.Parse()

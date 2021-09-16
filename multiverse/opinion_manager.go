@@ -103,7 +103,6 @@ func (o *OpinionManager) UpdateWeights(messageID MessageID) (updated bool) {
 	if exist {
 		if o.colorConfirmed && float64(o.approvalWeights[lastOpinion.Color]) > float64(config.NodesTotalWeight)*config.MessageWeightThreshold {
 			o.colorConfirmed = false
-			o.events.ColorUnconfirmed.Trigger(lastOpinion.Color)
 			// Note that here we calculate the accumulated weights in our local tangle,
 			// so we accumulate the weight of node who is processing the booked message.
 			// Also note that the node has not voted for this branch yet.

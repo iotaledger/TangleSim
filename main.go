@@ -223,6 +223,9 @@ func dumpConfig(fileName string) {
 
 func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Writer) {
 	// TODO save how many adversary node was created
+	adversaryNodesCount := len(network.NodeIDToGroupIndexMap)
+	honestNodesCount := config.NodesCount - adversaryNodesCount
+
 	opinions[multiverse.UndefinedColor] = config.NodesCount
 	opinions[multiverse.Blue] = 0
 	opinions[multiverse.Red] = 0
@@ -233,9 +236,6 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	opinionsWeights[multiverse.Green] = 0
 
 	mostLikedColor = multiverse.UndefinedColor
-
-	adversaryNodesCount := len(network.NodeIDToGroupIndexMap)
-	honestNodesCount := config.NodesCount - adversaryNodesCount
 
 	// The simulation start time
 	simulationStartTime = time.Now()
@@ -311,10 +311,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	}
 
 	for _, peer := range testNetwork.Peers {
-		if _, ok := network.NodeIDToGroupIndexMap[int(peer.ID)]; ok {
-			// skip adversary nodes
-			continue
-		}
+
 		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color, weight int64) {
 			opinionMutex.Lock()
 			defer opinionMutex.Unlock()
@@ -328,6 +325,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			}
 
 		}))
+		//if _, ok := network.NodeIDToGroupIndexMap[int(peer.ID)]; ok {
+		//	// skip adversary nodes
+		//	continue
+		//}
 		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color, weight int64) {
 			confirmationMutex.Lock()
 			defer confirmationMutex.Unlock()

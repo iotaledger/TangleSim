@@ -191,15 +191,15 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	allColors := []multiverse.Color{multiverse.UndefinedColor, multiverse.Red, multiverse.Green, multiverse.Blue}
 
-	colorCounters.CreateCounter("opinions", allColors, true, []int64{int64(config.NodesCount), 0, 0, 0})
-	colorCounters.CreateCounter("confirmedNodes", allColors, true, []int64{0, 0, 0, 0})
-	colorCounters.CreateCounter("opinionsWeights", allColors, true, []int64{0, 0, 0, 0})
-	colorCounters.CreateCounter("likeAccumulatedWeight", allColors, true, []int64{0, 0, 0, 0})
-	colorCounters.CreateCounter("processedMessages", allColors, true, []int64{0, 0, 0, 0})
-	colorCounters.CreateCounter("tipPoolSizes", allColors, true, []int64{0, 0, 0, 0})
-	colorCounters.CreateCounter("colorUnconfirmed", allColors[1:], true, []int64{0, 0, 0})
-	colorCounters.CreateCounter("confirmedAccumulatedWeight", allColors[1:], true, []int64{0, 0, 0})
-	colorCounters.CreateCounter("unconfirmedAccumulatedWeight", allColors[1:], true, []int64{0, 0, 0})
+	colorCounters.CreateCounter("opinions", allColors, []int64{int64(config.NodesCount), 0, 0, 0})
+	colorCounters.CreateCounter("confirmedNodes", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("opinionsWeights", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("likeAccumulatedWeight", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("processedMessages", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("tipPoolSizes", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("colorUnconfirmed", allColors[1:], []int64{0, 0, 0})
+	colorCounters.CreateCounter("confirmedAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
+	colorCounters.CreateCounter("unconfirmedAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
 
 	atomicCounters.CreateAtomicCounter("flips", 0)
 	atomicCounters.CreateAtomicCounter("tps", 0)

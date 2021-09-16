@@ -55,19 +55,20 @@ func (ac *AtomicCounters) Set(counterKey string, value int64) {
 // region ColorCounters ////////////////////////////////////////////////////////////////////////////////////////////////
 
 type ColorCounters struct {
-	counts  map[string]map[multiverse.Color]int64
-	mutexes map[string]sync.RWMutex
+	counts map[string]map[multiverse.Color]int64
+	mu     sync.RWMutex
 }
 
 func NewColorCounters() *ColorCounters {
 	return &ColorCounters{
-		counts:  make(map[string]map[multiverse.Color]int64),
-		mutexes: make(map[string]sync.RWMutex),
+		counts: make(map[string]map[multiverse.Color]int64),
 	}
 }
 
 // CreateCounter Adds new counter with key and provided initial conditions.
-func (c *ColorCounters) CreateCounter(counterKey string, colors []multiverse.Color, mutexEnabled bool, initValues []int64) {
+func (c *ColorCounters) CreateCounter(counterKey string, colors []multiverse.Color, initValues []int64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if len(initValues) == 0 {
 		return
 	}
@@ -78,19 +79,12 @@ func (c *ColorCounters) CreateCounter(counterKey string, colors []multiverse.Col
 			innerMap[color] = initValues[i]
 		}
 		c.counts[counterKey] = innerMap
-		log.Info("int64 Counter created ", counterKey)
-	}
-
-	if mutexEnabled {
-		c.mutexes[counterKey] = sync.RWMutex{}
 	}
 }
 
 func (c *ColorCounters) Add(counterKey string, value int64, color multiverse.Color) {
-	if mu, ok := c.mutexes[counterKey]; ok {
-		mu.Lock()
-		defer mu.Unlock()
-	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	innerMap, ok := c.counts[counterKey]
 	if !ok {
 		panic(fmt.Sprintf("Trying add to not initiated counter, key: %s, color: %s", counterKey, color))
@@ -99,10 +93,8 @@ func (c *ColorCounters) Add(counterKey string, value int64, color multiverse.Col
 }
 
 func (c *ColorCounters) Set(counterKey string, value int64, color multiverse.Color) {
-	if mu, ok := c.mutexes[counterKey]; ok {
-		mu.Lock()
-		defer mu.Unlock()
-	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	innerMap, ok := c.counts[counterKey]
 	if !ok {
 		panic(fmt.Sprintf("Trying set the not initiated counter value, key: %s, color: %s", counterKey, color))
@@ -112,10 +104,8 @@ func (c *ColorCounters) Set(counterKey string, value int64, color multiverse.Col
 
 // Get gets the counter value for provided key and color.
 func (c *ColorCounters) Get(counterKey string, color multiverse.Color) int64 {
-	if mu, ok := c.mutexes[counterKey]; ok {
-		mu.RLock()
-		defer mu.RUnlock()
-	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	innerMap, ok := c.counts[counterKey]
 	if !ok {
 		panic(fmt.Sprintf("Trying get value for not initiated counter, key: %s, color: %s", counterKey, color))

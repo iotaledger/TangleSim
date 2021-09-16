@@ -370,14 +370,14 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	go func() {
 		for range dumpingTicker.C {
-			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter)
+			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, honestNodesCount, adversaryNodesCount)
 		}
 	}()
 
 	return
 }
 
-func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer) {
+func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer, honestNodesCount int, adversaryNodesCount int) {
 	simulationWg.Add(1)
 	simulationWg.Done()
 

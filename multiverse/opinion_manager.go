@@ -122,7 +122,6 @@ func (o *OpinionManager) UpdateWeights(messageID MessageID) (updated bool) {
 
 	if !o.colorConfirmed && float64(o.approvalWeights[lastOpinion.Color]) > float64(config.NodesTotalWeight)*config.MessageWeightThreshold {
 		o.colorConfirmed = true
-		o.events.ColorConfirmed.Trigger(lastOpinion.Color)
 		// Here we accumulate the approval weights in our local tangle.
 		o.events.ColorConfirmed.Trigger(lastOpinion.Color, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
 	}
@@ -140,7 +139,7 @@ func (o *OpinionManager) SetOpinion(opinion Color) {
 
 // Update the opinions counter and ownOpinion based on the highest peer color value and maxApprovalWeight
 // Each Color has approvalWeight. The Color with maxApprovalWeight determines the ownOpinion
-func (o *OpinionManager) WeightsUpdated(peerID network.PeerID) {
+func (o *OpinionManager) WeightsUpdated() {
 	maxApprovalWeight := uint64(0)
 	maxOpinion := UndefinedColor
 	for color, approvalWeight := range o.approvalWeights {
@@ -152,7 +151,7 @@ func (o *OpinionManager) WeightsUpdated(peerID network.PeerID) {
 
 	if oldOpinion := o.ownOpinion; maxOpinion != oldOpinion {
 		o.ownOpinion = maxOpinion
-		o.events.OpinionChanged.Trigger(oldOpinion, maxOpinion, int64(o.tangle.WeightDistribution.Weight(peerID)))
+		o.events.OpinionChanged.Trigger(oldOpinion, maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
 	}
 }
 

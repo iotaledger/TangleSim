@@ -78,9 +78,9 @@ func main() {
 	simulation.ParseFlags()
 
 	nodeFactories := map[network.AdversaryType]network.NodeFactory{
-		network.HonestNode:   network.NodeClosure(multiverse.NewNode),
-		network.ShiftOpinion: network.NodeClosure(adversary.NewShiftingOpinionNode),
-		//network.TheSameOpinion: network.NodeClosure(multiverse.NewSameOpinionNode),
+		network.HonestNode:     network.NodeClosure(multiverse.NewNode),
+		network.ShiftOpinion:   network.NodeClosure(adversary.NewShiftingOpinionNode),
+		network.TheSameOpinion: network.NodeClosure(adversary.NewSameOpinionNode),
 	}
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
@@ -100,14 +100,22 @@ func main() {
 
 	// To simulate the confirmation time w/o any double spendings, the colored msgs are not to be sent
 
-	// TODO attackers should be created based on provided config
 	// Here we simulate the double spending
 	if config.SimulationTarget == "DS" {
 		time.Sleep(time.Duration(config.DoubleSpendDelay*config.DecelerationFactor) * time.Second)
-		attackers := testNetwork.RandomPeers(3)
 		dsIssuanceTime = time.Now()
-		sendMessage(attackers[0], multiverse.Blue)
-		sendMessage(attackers[1], multiverse.Red)
+		for groupIndex, group := range testNetwork.AdversaryGroups {
+			color := multiverse.ColorFromInt(groupIndex + 1)
+			// honest node does not implement adversary behavior interface
+			if group.AdversaryType != network.HonestNode {
+				for _, nodeID := range group.NodeIDs {
+					node := adversary.CastAdversary(testNetwork.Peer(nodeID).Node)
+					node.AssignColor(color)
+				}
+			}
+			// only one node from the group needs to issue message
+			sendMessage(testNetwork.Peer(group.NodeIDs[0]), color)
+		}
 	}
 
 	// Here three peers are randomly selected with defined Colors
@@ -187,8 +195,7 @@ func dumpConfig(fileName string) {
 }
 
 func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Writer) {
-	// TODO we should skip adversary nodes when collecting metrics
-	// TODO and save somehow how many adversary node was created
+	// TODO save how many adversary node was created
 	opinions[multiverse.UndefinedColor] = config.NodesCount
 	opinions[multiverse.Blue] = 0
 	opinions[multiverse.Red] = 0
@@ -199,6 +206,9 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	opinionsWeights[multiverse.Green] = 0
 
 	mostLikedColor = multiverse.UndefinedColor
+
+	adversaryNodesCount := len(network.NodeIDToGroupIndexMap)
+	honestNodesCount := config.NodesCount - adversaryNodesCount
 
 	// The simulation start time
 	simulationStartTime := time.Now()
@@ -274,6 +284,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	}
 
 	for _, peer := range testNetwork.Peers {
+		if _, ok := network.NodeIDToGroupIndexMap[int(peer.ID)]; ok {
+			// skip adversary nodes
+			continue
+		}
 		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color) {
 			opinionMutex.Lock()
 			defer opinionMutex.Unlock()
@@ -330,13 +344,14 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				opinions[multiverse.Red],
 				opinions[multiverse.Green],
 			)
-			log.Infof("Network Status: %3d TPS :: Consensus[ %3d Undefined / %3d Blue / %3d Red / %3d Green ] :: %d Nodes :: %d Validators",
+			log.Infof("Network Status: %3d TPS :: Consensus[ %3d Undefined / %3d Blue / %3d Red / %3d Green ] :: %d Honest Nodes :: %d Adversary Nodes :: %d Validators",
 				atomic.LoadUint64(&tpsCounter),
 				confirmedNodesCounter[multiverse.UndefinedColor],
 				confirmedNodesCounter[multiverse.Blue],
 				confirmedNodesCounter[multiverse.Red],
 				confirmedNodesCounter[multiverse.Green],
-				config.NodesCount,
+				honestNodesCount,
+				adversaryNodesCount,
 				relevantValidators,
 			)
 			opinionWeightMutex.RLock()
@@ -414,7 +429,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				log.Fatal(err)
 			}
 
-			if Max(Max(confirmedNodesCounter[multiverse.Blue], confirmedNodesCounter[multiverse.Red]), confirmedNodesCounter[multiverse.Green]) >= int(config.SimulationStopThreshold*float64(config.NodesCount)) {
+			if Max(Max(confirmedNodesCounter[multiverse.Blue], confirmedNodesCounter[multiverse.Red]), confirmedNodesCounter[multiverse.Green]) >= int(config.SimulationStopThreshold*float64(honestNodesCount)) {
 				shutdownSignal <- types.Void
 			}
 			atomic.StoreUint64(&tpsCounter, 0)

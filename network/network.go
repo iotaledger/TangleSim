@@ -16,6 +16,7 @@ var log = logger.New("Network")
 type Network struct {
 	Peers              []*Peer
 	WeightDistribution *ConsensusWeightDistribution
+	AdversaryGroups    AdversaryGroups
 }
 
 func New(option ...Option) (network *Network) {
@@ -23,7 +24,8 @@ func New(option ...Option) (network *Network) {
 	defer log.Info("Creating Network ... [DONE]")
 
 	network = &Network{
-		Peers: make([]*Peer, 0),
+		Peers:           make([]*Peer, 0),
+		AdversaryGroups: NewAdversaryGroups(),
 	}
 
 	configuration := NewConfiguration(option...)
@@ -54,6 +56,10 @@ func (n *Network) Shutdown() {
 	for _, peer := range n.Peers {
 		peer.Shutdown()
 	}
+}
+
+func (n *Network) Peer(index int) *Peer {
+	return n.Peers[index]
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,13 +99,13 @@ func (c *Configuration) CreatePeers(network *Network) {
 	network.WeightDistribution = NewConsensusWeightDistribution()
 	for _, nodesSpecification := range c.nodes {
 		nodeWeights := nodesSpecification.weightGenerator(nodesSpecification.nodeCount)
-		nodesSpecification.adversaryGroups.ChooseAdversaryNodes(nodeWeights, float64(config.NodesTotalWeight), nodesSpecification.nodeCount)
+		network.AdversaryGroups.ChooseAdversaryNodes(nodeWeights, float64(config.NodesTotalWeight), nodesSpecification.nodeCount)
 
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
 			// this is adversary node
 			if groupIndex, ok := NodeIDToGroupIndexMap[i]; ok {
-				nodeType = nodesSpecification.adversaryGroups[groupIndex].AdversaryType
+				nodeType = network.AdversaryGroups[groupIndex].AdversaryType
 			}
 			nodeFactory := nodesSpecification.nodeFactories[nodeType]
 
@@ -130,7 +136,6 @@ func Nodes(nodeCount int, nodeFactories map[AdversaryType]NodeFactory, weightGen
 	nodeSpecs := &NodesSpecification{
 		nodeCount:       nodeCount,
 		nodeFactories:   nodeFactories,
-		adversaryGroups: NewAdversaryGroups(),
 		weightGenerator: weightGenerator,
 	}
 
@@ -142,7 +147,6 @@ func Nodes(nodeCount int, nodeFactories map[AdversaryType]NodeFactory, weightGen
 type NodesSpecification struct {
 	nodeCount       int
 	nodeFactories   map[AdversaryType]NodeFactory
-	adversaryGroups AdversaryGroups
 	weightGenerator WeightGenerator
 }
 

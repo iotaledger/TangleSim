@@ -14,6 +14,7 @@ type OpinionManagerInterface interface {
 	Setup()
 	FormOpinion(messageID MessageID)
 	Opinion() Color
+	SetOpinion(opinion Color)
 	WeightsUpdated()
 	UpdateWeights(messageID MessageID) (updated bool)
 	Tangle() *Tangle

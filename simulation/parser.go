@@ -3,10 +3,12 @@ package simulation
 import (
 	"flag"
 	"github.com/iotaledger/multivers-simulation/config"
-	"github.com/labstack/gommon/log"
+	"github.com/iotaledger/multivers-simulation/logger"
 	"strconv"
 	"strings"
 )
+
+var log = logger.New("Simulation")
 
 // Parse the flags and update the configuration
 func ParseFlags() {

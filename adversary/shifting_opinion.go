@@ -56,13 +56,16 @@ func (sm *ShiftingOpinionManager) weightsUpdated() {
 	for key, value := range sm.ApprovalWeights() {
 		aw[key] = value
 	}
-	maxOpinion := sm.getMaxOpinion(aw)
-	delete(aw, maxOpinion)
+	// more than one color present
+	if len(aw) > 1 {
+		maxOpinion := sm.getMaxOpinion(aw)
+		delete(aw, maxOpinion)
+	}
+
 	newOpinion := sm.getMaxOpinion(aw)
 
 	if oldOpinion := sm.Opinion(); newOpinion != oldOpinion {
 		sm.SetOpinion(newOpinion)
-		sm.Events().OpinionChanged.Trigger(oldOpinion, newOpinion, int64(sm.Tangle().WeightDistribution.Weight(sm.Tangle().Peer.ID)))
 	}
 }
 
@@ -70,7 +73,7 @@ func (sm *ShiftingOpinionManager) getMaxOpinion(aw map[multiverse.Color]uint64) 
 	maxApprovalWeight := uint64(0)
 	maxOpinion := multiverse.UndefinedColor
 	for color, approvalWeight := range aw {
-		if approvalWeight > maxApprovalWeight || approvalWeight == maxApprovalWeight && color < maxOpinion {
+		if approvalWeight > maxApprovalWeight || approvalWeight == maxApprovalWeight && color < maxOpinion || maxOpinion == multiverse.UndefinedColor {
 			maxApprovalWeight = approvalWeight
 			maxOpinion = color
 		}

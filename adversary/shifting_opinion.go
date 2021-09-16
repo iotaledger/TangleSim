@@ -61,6 +61,7 @@ func (sm *ShiftingOpinionManager) weightsUpdated() {
 	newOpinion := sm.getMaxOpinion(aw)
 
 	if oldOpinion := sm.Opinion(); newOpinion != oldOpinion {
+		sm.SetOpinion(newOpinion)
 		sm.Events().OpinionChanged.Trigger(oldOpinion, newOpinion, int64(sm.Tangle().WeightDistribution.Weight(sm.Tangle().Peer.ID)))
 	}
 }

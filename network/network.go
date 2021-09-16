@@ -99,7 +99,7 @@ func (c *Configuration) CreatePeers(network *Network) {
 	network.WeightDistribution = NewConsensusWeightDistribution()
 	for _, nodesSpecification := range c.nodes {
 		nodeWeights := nodesSpecification.weightGenerator(nodesSpecification.nodeCount)
-		network.AdversaryGroups.ChooseAdversaryNodes(nodeWeights, float64(config.NodesTotalWeight), nodesSpecification.nodeCount)
+		network.AdversaryGroups.ChooseAdversaryNodes(nodeWeights, float64(config.NodesTotalWeight))
 
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
@@ -124,6 +124,7 @@ func (c *Configuration) ConnectPeers(network *Network) {
 	defer log.Info("Connecting peers ... [DONE]")
 
 	c.peeringStrategy(network, c)
+	network.AdversaryGroups.ApplyNetworkDelayForAdversaryNodes(network)
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -172,7 +173,6 @@ func Topology(peeringStrategy PeeringStrategy) Option {
 
 type PeeringStrategy func(network *Network, options *Configuration)
 
-// TODO is it possible to Create AdversaryIncludedPeeringStrategy that will use this peering Strategy... the same for Zipf
 func WattsStrogatz(meanDegree int, randomness float64) PeeringStrategy {
 	if meanDegree%2 != 0 {
 		panic("Invalid argument: meanDegree needs to be even")
@@ -203,7 +203,6 @@ func WattsStrogatz(meanDegree int, randomness float64) PeeringStrategy {
 				}
 			}
 		}
-		// TODO modify it to use network delay provided by the config
 		totalNeighborCount := 0
 		for sourceNodeID, targetNodeIDs := range graph {
 			log.Debugf("Peer: %s: Number of neighbors: %d", network.Peers[sourceNodeID], len(targetNodeIDs))

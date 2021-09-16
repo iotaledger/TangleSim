@@ -76,7 +76,7 @@ func NewAdversaryGroups() (groups AdversaryGroups) {
 	return
 }
 
-func (g *AdversaryGroups) ChooseAdversaryNodes(ZIPFDistribution []uint64, totalWeight float64, nodeCount int) {
+func (g *AdversaryGroups) ChooseAdversaryNodes(ZIPFDistribution []uint64, totalWeight float64) {
 	// are there any adversary groups provided in the configuration?
 	if len(*g) == 0 {
 		return
@@ -132,6 +132,17 @@ func (g *AdversaryGroups) ChooseAdversaryNodes(ZIPFDistribution []uint64, totalW
 	for groupIndex, group := range *g {
 		log.Infof("GroupId: %d, AdversaryType: %d, Node count: %d, q: %.5f, adNodeList: %v", groupIndex, group.AdversaryType, len(group.NodeIDs),
 			group.GroupMana/totalWeight, group.NodeIDs)
+	}
+}
+
+func (g *AdversaryGroups) ApplyNetworkDelayForAdversaryNodes(network *Network) {
+	for _, adversaryGroup := range *g {
+		for _, nodeID := range adversaryGroup.NodeIDs {
+			peer := network.Peer(nodeID)
+			for _, neighbor := range peer.Neighbors {
+				neighbor.SetDelay(adversaryGroup.Delay)
+			}
+		}
 	}
 }
 

@@ -104,7 +104,7 @@ func (c *Configuration) CreatePeers(network *Network) {
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
 			// this is adversary node
-			if groupIndex, ok := NodeIDToGroupIndexMap[i]; ok {
+			if groupIndex, ok := AdversaryNodeIDToGroupIDMap[i]; ok {
 				nodeType = network.AdversaryGroups[groupIndex].AdversaryType
 			}
 			nodeFactory := nodesSpecification.nodeFactories[nodeType]

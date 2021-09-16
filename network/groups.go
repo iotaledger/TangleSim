@@ -34,7 +34,12 @@ func ToType(adv int) AdversaryType {
 
 // region AdversaryGroup ////////////////////////////////////////////////////////////////////////////////////////////////
 
-var NodeIDToGroupIndexMap = make(map[int]int)
+var AdversaryNodeIDToGroupIDMap = make(map[int]int)
+
+func IsAdversary(nodeID int) bool {
+	_, ok := AdversaryNodeIDToGroupIDMap[nodeID]
+	return ok
+}
 
 type AdversaryGroup struct {
 	NodeIDs       []int
@@ -46,7 +51,7 @@ type AdversaryGroup struct {
 
 func (g *AdversaryGroup) AddNodeID(id, groupId int) {
 	g.NodeIDs = append(g.NodeIDs, id)
-	NodeIDToGroupIndexMap[id] = groupId
+	AdversaryNodeIDToGroupIDMap[id] = groupId
 }
 
 type AdversaryGroups []*AdversaryGroup

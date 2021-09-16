@@ -37,6 +37,7 @@ var (
 		"Blue (Confirmed Accumulated Weight)", "Red (Confirmed Accumulated Weight)", "Green (Confirmed Accumulated Weight)",
 		"Blue (Like)", "Red (Like)", "Green (Like)",
 		"Blue (Like Accumulated Weight)", "Red (Like Accumulated Weight)", "Green (Like Accumulated Weight)",
+		"Blue (Adversary Liked AW)", "Red (Adversary Like AW)", "Green (Adversary Like AW)",
 		"Unconfirmed Blue", "Unconfirmed Red", "Unconfirmed Green",
 		"Unconfirmed Blue Accumulated Weight", "Unconfirmed Red Accumulated Weight", "Unconfirmed Green Accumulated Weight",
 		"Flips (Winning color changed)", "ns since start", "ns since issuance"}
@@ -55,8 +56,9 @@ var (
 	simulationStartTime time.Time
 
 	// counters
-	colorCounters  = simulation.NewColorCounters()
-	atomicCounters = simulation.NewAtomicCounters()
+	colorCounters     = simulation.NewColorCounters()
+	adversaryCounters = simulation.NewColorCounters()
+	atomicCounters    = simulation.NewAtomicCounters()
 
 	confirmedMessageCounter = make(map[network.PeerID]int64)
 	confirmedMessageMutex   sync.RWMutex
@@ -186,7 +188,7 @@ func dumpConfig(fileName string) {
 
 func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Writer) {
 	// TODO save how many adversary node was created
-	adversaryNodesCount := len(network.NodeIDToGroupIndexMap)
+	adversaryNodesCount := len(network.AdversaryNodeIDToGroupIDMap)
 	honestNodesCount := config.NodesCount - adversaryNodesCount
 
 	allColors := []multiverse.Color{multiverse.UndefinedColor, multiverse.Red, multiverse.Green, multiverse.Blue}
@@ -200,6 +202,8 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	colorCounters.CreateCounter("colorUnconfirmed", allColors[1:], []int64{0, 0, 0})
 	colorCounters.CreateCounter("confirmedAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
 	colorCounters.CreateCounter("unconfirmedAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
+
+	adversaryCounters.CreateCounter("likeAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
 
 	atomicCounters.CreateAtomicCounter("flips", 0)
 	atomicCounters.CreateAtomicCounter("tps", 0)
@@ -293,11 +297,13 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				atomicCounters.Add("flips", 1)
 			}
 
+			if network.IsAdversary(int(peer.ID)) {
+				log.Info("Adversary")
+				adversaryCounters.Add("likeAccumulatedWeight", -weight, oldOpinion)
+				adversaryCounters.Add("likeAccumulatedWeight", weight, newOpinion)
+			}
+
 		}))
-		//if _, ok := network.NodeIDToGroupIndexMap[int(peer.ID)]; ok {
-		//	// skip adversary nodes
-		//	continue
-		//}
 		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color, weight int64) {
 			colorCounters.Add("confirmedNodes", 1, confirmedColor)
 			colorCounters.Add("confirmedAccumulatedWeight", weight, confirmedColor)
@@ -418,6 +424,9 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 		strconv.FormatInt(colorCounters.Get("likeAccumulatedWeight", multiverse.Blue), 10),
 		strconv.FormatInt(colorCounters.Get("likeAccumulatedWeight", multiverse.Red), 10),
 		strconv.FormatInt(colorCounters.Get("likeAccumulatedWeight", multiverse.Green), 10),
+		strconv.FormatInt(adversaryCounters.Get("likeAccumulatedWeight", multiverse.Blue), 10),
+		strconv.FormatInt(adversaryCounters.Get("likeAccumulatedWeight", multiverse.Red), 10),
+		strconv.FormatInt(adversaryCounters.Get("likeAccumulatedWeight", multiverse.Green), 10),
 		strconv.FormatInt(colorCounters.Get("colorUnconfirmed", multiverse.Blue), 10),
 		strconv.FormatInt(colorCounters.Get("colorUnconfirmed", multiverse.Red), 10),
 		strconv.FormatInt(colorCounters.Get("colorUnconfirmed", multiverse.Green), 10),

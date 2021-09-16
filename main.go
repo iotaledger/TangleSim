@@ -40,13 +40,13 @@ var (
 		"Unconfirmed Blue Accumulated Weight", "Unconfirmed Red Accumulated Weight", "Unconfirmed Green Accumulated Weight",
 		"Flips (Winning color changed)", "ns since start", "ns since issuance"}
 
+	globalCounter = simulation.NewCounters()
+
 	csvMutex              sync.Mutex
 	shutdownSignal        = make(chan types.Empty)
 	maxSimulationDuration = time.Minute
 
 	tpsCounter = uint64(0)
-
-	opinions = make(map[multiverse.Color]int)
 
 	opinionsWeights = make(map[multiverse.Color]int64)
 
@@ -55,8 +55,6 @@ var (
 	processedMessageCounts = make(map[multiverse.Color]uint64)
 
 	issuedMessageCounter = int64(0)
-
-	confirmedNodesCounter = make(map[multiverse.Color]int)
 
 	colorUnconfirmedCounter = make(map[multiverse.Color]int)
 
@@ -137,12 +135,6 @@ func main() {
 			sendMessage(testNetwork.Peer(group.NodeIDs[0]), color)
 		}
 	}
-
-	// Here three peers are randomly selected with defined Colors
-	// attackers := testNetwork.RandomPeers(3)
-	// sendMessage(attackers[0], multiverse.Red)
-	// sendMessage(attackers[1], multiverse.Blue)
-	// sendMessage(attackers[2], multiverse.Green)
 
 	select {
 	case <-shutdownSignal:
@@ -226,10 +218,14 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	adversaryNodesCount := len(network.NodeIDToGroupIndexMap)
 	honestNodesCount := config.NodesCount - adversaryNodesCount
 
-	opinions[multiverse.UndefinedColor] = config.NodesCount
-	opinions[multiverse.Blue] = 0
-	opinions[multiverse.Red] = 0
-	opinions[multiverse.Green] = 0
+	allColors := []multiverse.Color{multiverse.UndefinedColor, multiverse.Red, multiverse.Green, multiverse.Blue}
+
+	globalCounter.CreateCounter("opinions", allColors, true, []int{config.NodesCount, 0, 0, 0})
+	globalCounter.CreateCounter("confirmedNodes", allColors, true, []int{0, 0, 0, 0})
+	//globalCounter.CreateCounter("opinionsWeights", allColors, true,[]int{ 0, 0, 0, 0})
+	//globalCounter.CreateCounter("likeAccumulatedWeight", allColors, true, []int{ 0, 0, 0, 0})
+	//globalCounter.CreateCounter("flips", []multiverse.Color{multiverse.UndefinedColor}, true, []int{ 0})
+
 	opinionsWeights[multiverse.UndefinedColor] = 0
 	opinionsWeights[multiverse.Blue] = 0
 	opinionsWeights[multiverse.Red] = 0
@@ -316,8 +312,9 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			opinionMutex.Lock()
 			defer opinionMutex.Unlock()
 
-			opinions[oldOpinion]--
-			opinions[newOpinion]++
+			globalCounter.Add("opinions", -1, oldOpinion)
+			globalCounter.Add("opinions", 1, newOpinion)
+
 			likeAccumulatedWeight[oldOpinion] -= weight
 			likeAccumulatedWeight[newOpinion] += weight
 			if mostLikedColorChanged() {
@@ -333,7 +330,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			confirmationMutex.Lock()
 			defer confirmationMutex.Unlock()
 
-			confirmedNodesCounter[confirmedColor]++
+			globalCounter.Add("confirmedNodes", 1, confirmedColor)
 			confirmedAccumulatedWeight[confirmedColor] += weight
 		}))
 
@@ -343,7 +340,8 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 			colorUnconfirmedCounter[unconfirmedColor]++
 			colorUnconfirmedAccumulatedWeight[unconfirmedColor] += weight
-			confirmedNodesCounter[unconfirmedColor]--
+			globalCounter.Add("confirmedNodes", -1, unconfirmedColor)
+
 			confirmedAccumulatedWeight[unconfirmedColor] -= weight
 		}))
 	}
@@ -353,7 +351,6 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	dsPeer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ApprovalWeightUpdated.Attach(events.NewClosure(func(opinion multiverse.Color, deltaWeight int64) {
 		opinionWeightMutex.Lock()
 		defer opinionWeightMutex.Unlock()
-
 		opinionsWeights[opinion] += deltaWeight
 	}))
 
@@ -382,18 +379,18 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 	simulationWg.Add(1)
 	simulationWg.Done()
 
-	log.Infof("Opinions[ %3d Undefined / %3d Blue / %3d Red / %3d Green ]",
-		opinions[multiverse.UndefinedColor],
-		opinions[multiverse.Blue],
-		opinions[multiverse.Red],
-		opinions[multiverse.Green],
+	log.Infof("New opinions counter[ %3d Undefined / %3d Blue / %3d Red / %3d Green ]",
+		globalCounter.Get("opinions", multiverse.UndefinedColor),
+		globalCounter.Get("opinions", multiverse.Blue),
+		globalCounter.Get("opinions", multiverse.Red),
+		globalCounter.Get("opinions", multiverse.Green),
 	)
 	log.Infof("Network Status: %3d TPS :: Consensus[ %3d Undefined / %3d Blue / %3d Red / %3d Green ] :: %d  Honest Nodes :: %d Adversary Nodes :: %d Validators",
 		atomic.LoadUint64(&tpsCounter),
-		confirmedNodesCounter[multiverse.UndefinedColor],
-		confirmedNodesCounter[multiverse.Blue],
-		confirmedNodesCounter[multiverse.Red],
-		confirmedNodesCounter[multiverse.Green],
+		globalCounter.Get("confirmedNodes", multiverse.UndefinedColor),
+		globalCounter.Get("confirmedNodes", multiverse.Blue),
+		globalCounter.Get("confirmedNodes", multiverse.Red),
+		globalCounter.Get("confirmedNodes", multiverse.Green),
 		honestNodesCount,
 		adversaryNodesCount,
 		relevantValidators,
@@ -451,15 +448,15 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 
 	// Dump the opinion and confirmation counters
 	record = []string{
-		strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Blue]), 10),
-		strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Red]), 10),
-		strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Green]), 10),
+		strconv.FormatInt(int64(globalCounter.Get("confirmedNodes", multiverse.Blue)), 10),
+		strconv.FormatInt(int64(globalCounter.Get("confirmedNodes", multiverse.Red)), 10),
+		strconv.FormatInt(int64(globalCounter.Get("confirmedNodes", multiverse.Green)), 10),
 		strconv.FormatInt(int64(confirmedAccumulatedWeight[multiverse.Blue]), 10),
 		strconv.FormatInt(int64(confirmedAccumulatedWeight[multiverse.Red]), 10),
 		strconv.FormatInt(int64(confirmedAccumulatedWeight[multiverse.Green]), 10),
-		strconv.FormatInt(int64(opinions[multiverse.Blue]), 10),
-		strconv.FormatInt(int64(opinions[multiverse.Red]), 10),
-		strconv.FormatInt(int64(opinions[multiverse.Green]), 10),
+		strconv.FormatInt(int64(globalCounter.Get("opinions", multiverse.Blue)), 10),
+		strconv.FormatInt(int64(globalCounter.Get("opinions", multiverse.Red)), 10),
+		strconv.FormatInt(int64(globalCounter.Get("opinions", multiverse.Green)), 10),
 		strconv.FormatInt(int64(likeAccumulatedWeight[multiverse.Blue]), 10),
 		strconv.FormatInt(int64(likeAccumulatedWeight[multiverse.Red]), 10),
 		strconv.FormatInt(int64(likeAccumulatedWeight[multiverse.Green]), 10),
@@ -482,7 +479,7 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 		log.Fatal(err)
 	}
 
-	if Max(Max(confirmedNodesCounter[multiverse.Blue], confirmedNodesCounter[multiverse.Red]), confirmedNodesCounter[multiverse.Green]) >= int(config.SimulationStopThreshold*float64(honestNodesCount)) {
+	if Max(Max(globalCounter.Get("confirmedNodes", multiverse.Blue), globalCounter.Get("confirmedNodes", multiverse.Red)), globalCounter.Get("confirmedNodes", multiverse.Green)) >= int(config.SimulationStopThreshold*float64(honestNodesCount)) {
 		shutdownSignal <- types.Void
 	}
 	atomic.StoreUint64(&tpsCounter, 0)
@@ -584,13 +581,14 @@ func ArgMax(x []int64) int {
 
 func mostLikedColorChanged() bool {
 	currentMostLikedColor := multiverse.UndefinedColor
-	if opinions[multiverse.Green] > 0 {
+	if globalCounter.Get("opinions", multiverse.Green) > 0 {
 		currentMostLikedColor = multiverse.Green
 	}
-	if opinions[multiverse.Blue] > opinions[multiverse.Green] {
+	if globalCounter.Get("opinions", multiverse.Blue) > globalCounter.Get("opinions", multiverse.Green) {
 		currentMostLikedColor = multiverse.Blue
 	}
-	if opinions[multiverse.Red] > opinions[multiverse.Blue] && opinions[multiverse.Red] > opinions[multiverse.Green] {
+	if globalCounter.Get("opinions", multiverse.Red) > globalCounter.Get("opinions", multiverse.Blue) &&
+		globalCounter.Get("opinions", multiverse.Red) > globalCounter.Get("opinions", multiverse.Green) {
 		currentMostLikedColor = multiverse.Red
 	}
 	// color selected

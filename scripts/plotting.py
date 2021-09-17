@@ -229,7 +229,7 @@ class FigurePlotter:
             12, 5), dpi=500, constrained_layout=True)
 
         for i, (v, d) in enumerate(sorted(variation_data.items())):
-            (nodes, ct, *_, x_axis) = d
+            (weights, ct, *_, x_axis) = d
             r_loc = i // cc
             c_loc = i % cc
 
@@ -237,15 +237,17 @@ class FigurePlotter:
                 ax = axs[c_loc]
             else:
                 ax = axs[r_loc, c_loc]
-            for j, n in enumerate(nodes.columns):
-                ax.plot(x_axis, nodes[n], label=n,
+            for j, n in enumerate(weights.columns):
+
+                # TODO: divide total weight
+                ax.plot(x_axis, weights[n], label=n,
                         color=self.ds_clr_list[j], ls=self.ds_sty_list[j], linewidth=1)
 
             # Only put the legend on the first figures
             if i == 0:
                 ax.legend()
             ax.set(
-                xlabel='Time (s)', ylabel='Node Count', title=f'{self.var_dict[var]} = {v}, {ct:.1f}(s)')
+                xlabel='Time (s)', ylabel='Accumulated Weight', title=f'{self.var_dict[var]} = {v}, {ct:.1f}(s)')
 
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent)

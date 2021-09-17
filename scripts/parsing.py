@@ -118,6 +118,7 @@ class FileParser:
             flips: The flips count.
             unconfirming_blue: The unconfirming count of blue branch.
             unconfirming_red: The unconfirming count of red branch.
+            # TODO: add total weight
             x_axis: The scaled x axis.
         """
         logging.info(f'Parsing {fn}...')
@@ -152,4 +153,5 @@ class FileParser:
         x_axis = ((data['ns since start']) /
                   float(self.one_second * float(c["DecelerationFactor"])))
 
+        # TODO: add total weight
         return v, (colored_node_counts, convergence_time, flips, unconfirming_blue, unconfirming_red, x_axis)

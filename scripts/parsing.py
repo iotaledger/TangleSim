@@ -141,7 +141,7 @@ class FileParser:
 
         # Unconfirmed Blue,Unconfirmed Red
         unconfirming_blue = data['Unconfirmed Blue'].iloc[-1]
-        unconfirming_red = data['Unconfirmed Blue'].iloc[-1]
+        unconfirming_red = data['Unconfirmed Red'].iloc[-1]
         convergence_time = data['ns since issuance'].iloc[-1]
         convergence_time /= self.one_second
         convergence_time /= float(c["DecelerationFactor"])

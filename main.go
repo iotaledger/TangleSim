@@ -40,7 +40,7 @@ var (
 		"Blue (Adversary Liked AW)", "Red (Adversary Like AW)", "Green (Adversary Like AW)",
 		"Unconfirmed Blue", "Unconfirmed Red", "Unconfirmed Green",
 		"Unconfirmed Blue Accumulated Weight", "Unconfirmed Red Accumulated Weight", "Unconfirmed Green Accumulated Weight",
-		"Flips (Winning color changed)", "ns since start", "ns since issuance"}
+		"Flips (Winning color changed)", "Honest nodes Flips", "ns since start", "ns since issuance"}
 	adHeader = []string{"AdversaryGroupID", "Strategy", "AdversaryCount", "q", "ns since issuance"}
 
 	csvMutex sync.Mutex
@@ -52,9 +52,10 @@ var (
 	shutdownSignal        = make(chan types.Empty)
 
 	// global declarations
-	dsIssuanceTime      time.Time
-	mostLikedColor      multiverse.Color
-	simulationStartTime time.Time
+	dsIssuanceTime           time.Time
+	mostLikedColor           multiverse.Color
+	honestOnlyMostLikedColor multiverse.Color
+	simulationStartTime      time.Time
 
 	// counters
 	colorCounters     = simulation.NewColorCounters()
@@ -204,8 +205,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	colorCounters.CreateCounter("unconfirmedAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
 
 	adversaryCounters.CreateCounter("likeAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
+	adversaryCounters.CreateCounter("opinions", allColors, []int64{int64(config.NodesCount), 0, 0, 0})
 
 	atomicCounters.CreateAtomicCounter("flips", 0)
+	atomicCounters.CreateAtomicCounter("honestFlips", 0)
 	atomicCounters.CreateAtomicCounter("tps", 0)
 	atomicCounters.CreateAtomicCounter("relevantValidators", 0)
 	atomicCounters.CreateAtomicCounter("issuedMessages", 0)
@@ -277,12 +280,22 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 			colorCounters.Add("likeAccumulatedWeight", -weight, oldOpinion)
 			colorCounters.Add("likeAccumulatedWeight", weight, newOpinion)
-			if mostLikedColorChanged() {
+
+			r, g, b := getLikesPerRGB(colorCounters, "opinions")
+			if mostLikedColorChanged(r, g, b, mostLikedColor) {
 				atomicCounters.Add("flips", 1)
 			}
 			if network.IsAdversary(int(peerID)) {
 				adversaryCounters.Add("likeAccumulatedWeight", -weight, oldOpinion)
 				adversaryCounters.Add("likeAccumulatedWeight", weight, newOpinion)
+				adversaryCounters.Add("opinions", -1, oldOpinion)
+				adversaryCounters.Add("opinions", 1, newOpinion)
+			}
+
+			ar, ag, ab := getLikesPerRGB(adversaryCounters, "opinions")
+			// honest nodes likes status only, flips
+			if mostLikedColorChanged(r-ar, g-ag, b-ab, honestOnlyMostLikedColor) {
+				atomicCounters.Add("honestFlips", 1)
 			}
 		}))
 		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color, weight int64) {
@@ -419,6 +432,7 @@ func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {
 		strconv.FormatInt(colorCounters.Get("unconfirmedAccumulatedWeight", multiverse.Red), 10),
 		strconv.FormatInt(colorCounters.Get("unconfirmedAccumulatedWeight", multiverse.Green), 10),
 		strconv.FormatInt(atomicCounters.Get("flips"), 10),
+		strconv.FormatInt(atomicCounters.Get("honestFlips"), 10),
 		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 		sinceIssuance,
 	}
@@ -428,7 +442,6 @@ func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {
 
 func dumpResultsAD(adResultsWriter *csv.Writer, net *network.Network) {
 	adHeader = []string{"AdversaryGroupID", "Strategy", "AdversaryCount", "q"}
-	log.Info("ad writer")
 	for groupID, group := range net.AdversaryGroups {
 		record := []string{
 			strconv.FormatInt(int64(groupID), 10),
@@ -437,7 +450,6 @@ func dumpResultsAD(adResultsWriter *csv.Writer, net *network.Network) {
 			strconv.FormatFloat(float64(group.GroupMana)/float64(config.NodesTotalWeight), 'f', 6, 64),
 			strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 		}
-		log.Info("ad write ", record)
 		writeLine(adResultsWriter, record)
 	}
 }
@@ -551,26 +563,30 @@ func ArgMax(x []int64) int {
 	return maxLocation
 }
 
-func mostLikedColorChanged() bool {
+func getLikesPerRGB(counter *simulation.ColorCounters, flag string) (int64, int64, int64) {
+	return counter.Get(flag, multiverse.Red), counter.Get(flag, multiverse.Green), counter.Get(flag, multiverse.Blue)
+}
+
+func mostLikedColorChanged(r, g, b int64, mostLikedColorVar multiverse.Color) bool {
+
 	currentMostLikedColor := multiverse.UndefinedColor
-	if colorCounters.Get("opinions", multiverse.Green) > 0 {
+	if g > 0 {
 		currentMostLikedColor = multiverse.Green
 	}
-	if colorCounters.Get("opinions", multiverse.Blue) > colorCounters.Get("opinions", multiverse.Green) {
+	if b > g {
 		currentMostLikedColor = multiverse.Blue
 	}
-	if colorCounters.Get("opinions", multiverse.Red) > colorCounters.Get("opinions", multiverse.Blue) &&
-		colorCounters.Get("opinions", multiverse.Red) > colorCounters.Get("opinions", multiverse.Green) {
+	if r > b && r > g {
 		currentMostLikedColor = multiverse.Red
 	}
 	// color selected
-	if mostLikedColor != currentMostLikedColor {
+	if mostLikedColorVar != currentMostLikedColor {
 		// color selected for the first time, it not counts
-		if mostLikedColor == multiverse.UndefinedColor {
-			mostLikedColor = currentMostLikedColor
+		if mostLikedColorVar == multiverse.UndefinedColor {
+			mostLikedColorVar = currentMostLikedColor
 			return false
 		}
-		mostLikedColor = currentMostLikedColor
+		mostLikedColorVar = currentMostLikedColor
 		return true
 	}
 	return false

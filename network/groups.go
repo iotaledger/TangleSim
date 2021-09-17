@@ -38,8 +38,6 @@ func AdversaryTypeToString(adv AdversaryType) string {
 		return "ShiftingOpinion"
 	case TheSameOpinion:
 		return "TheSameOpinion"
-	case AdjustOpinion:
-		return "AdjustOpinion"
 	}
 	return ""
 }

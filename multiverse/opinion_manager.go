@@ -134,7 +134,7 @@ func (o *OpinionManager) Opinion() Color {
 
 func (o *OpinionManager) SetOpinion(opinion Color) {
 	if oldOpinion := o.ownOpinion; oldOpinion != opinion {
-		o.events.OpinionChanged.Trigger(oldOpinion, opinion, int64(o.Tangle().WeightDistribution.Weight(o.Tangle().Peer.ID)))
+		o.events.OpinionChanged.Trigger(oldOpinion, opinion, int64(o.Tangle().WeightDistribution.Weight(o.Tangle().Peer.ID)), o.tangle.Peer.ID)
 	}
 	o.ownOpinion = opinion
 }
@@ -153,7 +153,7 @@ func (o *OpinionManager) WeightsUpdated() {
 
 	if oldOpinion := o.ownOpinion; maxOpinion != oldOpinion {
 		o.ownOpinion = maxOpinion
-		o.events.OpinionChanged.Trigger(oldOpinion, maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
+		o.events.OpinionChanged.Trigger(oldOpinion, maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)), o.tangle.Peer.ID)
 	}
 }
 
@@ -180,7 +180,7 @@ type OpinionManagerEvents struct {
 }
 
 func opinionChangedEventHandler(handler interface{}, params ...interface{}) {
-	handler.(func(Color, Color, int64))(params[0].(Color), params[1].(Color), params[2].(int64))
+	handler.(func(Color, Color, int64, network.PeerID))(params[0].(Color), params[1].(Color), params[2].(int64), params[3].(network.PeerID))
 }
 func colorEventHandler(handler interface{}, params ...interface{}) {
 	handler.(func(Color, int64))(params[0].(Color), params[1].(int64))

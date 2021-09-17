@@ -41,6 +41,7 @@ var (
 		"Unconfirmed Blue", "Unconfirmed Red", "Unconfirmed Green",
 		"Unconfirmed Blue Accumulated Weight", "Unconfirmed Red Accumulated Weight", "Unconfirmed Green Accumulated Weight",
 		"Flips (Winning color changed)", "ns since start", "ns since issuance"}
+	adHeader = []string{"AdversaryGroupID", "Strategy", "AdversaryCount", "q", "ns since issuance"}
 
 	csvMutex sync.Mutex
 
@@ -187,7 +188,6 @@ func dumpConfig(fileName string) {
 }
 
 func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Writer) {
-	// TODO save how many adversary node was created
 	adversaryNodesCount := len(network.AdversaryNodeIDToGroupIDMap)
 	honestNodesCount := config.NodesCount - adversaryNodesCount
 
@@ -219,30 +219,18 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	// Dump the configuration of this simulation
 	dumpConfig(fmt.Sprint("aw-", simulationStartTimeStr, ".config"))
 
+	// Dump the info about adversary nodes
+	adResultsWriter := createWriter(fmt.Sprintf("ad-%s.csv", simulationStartTimeStr), adHeader, &resultsWriters)
+	dumpResultsAD(adResultsWriter, testNetwork)
+
 	// Dump the double spending result
-	dsResultsWriter := createWriter(fmt.Sprintf("ds-%s.csv", simulationStartTimeStr))
+	dsResultsWriter := createWriter(fmt.Sprintf("ds-%s.csv", simulationStartTimeStr), dsHeader, &resultsWriters)
 
 	// Dump the tip pool and processed message (throughput) results
-	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", simulationStartTimeStr))
+	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", simulationStartTimeStr), tpHeader, &resultsWriters)
 
 	// Dump the info about how many nodes have confirmed and liked a certain color
-	ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", simulationStartTimeStr))
-
-	// Check the result writers
-	resultsWriters = append(resultsWriters, dsResultsWriter)
-	resultsWriters = append(resultsWriters, tpResultsWriter)
-	resultsWriters = append(resultsWriters, ccResultsWriter)
-
-	// Write the headers
-	if err := dsResultsWriter.Write(dsHeader); err != nil {
-		panic(err)
-	}
-	if err := tpResultsWriter.Write(tpHeader); err != nil {
-		panic(err)
-	}
-	if err := ccResultsWriter.Write(ccHeader); err != nil {
-		panic(err)
-	}
+	ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", simulationStartTimeStr), ccHeader, &resultsWriters)
 
 	for _, id := range config.MonitoredAWPeers {
 		awPeer := testNetwork.Peers[id]
@@ -250,11 +238,8 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			panic(fmt.Sprintf("unknowm peer with id %d", id))
 		}
 		// Define the file name of the aw results
-		awResultsWriter := createWriter(fmt.Sprintf("aw%d-%s.csv", id, simulationStartTimeStr))
-		if err := awResultsWriter.Write(awHeader); err != nil {
-			panic(err)
-		}
-		resultsWriters = append(resultsWriters, awResultsWriter)
+		awResultsWriter := createWriter(fmt.Sprintf("aw%d-%s.csv", id, simulationStartTimeStr), awHeader, &resultsWriters)
+
 		awPeer.Node.(multiverse.NodeInterface).Tangle().ApprovalManager.Events.MessageConfirmed.Attach(
 			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64, messageIDCounter int64) {
 				confirmedMessageMutex.Lock()
@@ -286,8 +271,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	}
 
 	for _, peer := range testNetwork.Peers {
-
-		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color, weight int64) {
+		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color, weight int64, peerID network.PeerID) {
 			colorCounters.Add("opinions", -1, oldOpinion)
 			colorCounters.Add("opinions", 1, newOpinion)
 
@@ -296,13 +280,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			if mostLikedColorChanged() {
 				atomicCounters.Add("flips", 1)
 			}
-
-			if network.IsAdversary(int(peer.ID)) {
-				log.Info("Adversary")
+			if network.IsAdversary(int(peerID)) {
 				adversaryCounters.Add("likeAccumulatedWeight", -weight, oldOpinion)
 				adversaryCounters.Add("likeAccumulatedWeight", weight, newOpinion)
 			}
-
 		}))
 		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color, weight int64) {
 			colorCounters.Add("confirmedNodes", 1, confirmedColor)
@@ -336,14 +317,14 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	go func() {
 		for range dumpingTicker.C {
-			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, honestNodesCount, adversaryNodesCount)
+			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, honestNodesCount, adversaryNodesCount)
 		}
 	}()
 
 	return
 }
 
-func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer, honestNodesCount int, adversaryNodesCount int) {
+func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer, adResultsWriter *csv.Writer, honestNodesCount int, adversaryNodesCount int) {
 	simulationWg.Add(1)
 	simulationWg.Done()
 
@@ -370,6 +351,18 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 
 	}
 
+	dumpResultDS(dsResultsWriter, sinceIssuance)
+	dumpResultsTP(tpResultsWriter)
+	dumpResultsCC(ccResultsWriter, sinceIssuance)
+
+	// determines whether consensus has been reached and simulation is over
+	if Max(Max(colorCounters.GetInt("confirmedNodes", multiverse.Blue), colorCounters.GetInt("confirmedNodes", multiverse.Red)), colorCounters.GetInt("confirmedNodes", multiverse.Green)) >= int(config.SimulationStopThreshold*float64(honestNodesCount)) {
+		shutdownSignal <- types.Void
+	}
+	atomicCounters.Set("tps", 0)
+}
+
+func dumpResultDS(dsResultsWriter *csv.Writer, sinceIssuance string) {
 	// Dump the double spending results
 	record := []string{
 		strconv.FormatInt(colorCounters.Get("opinionsWeights", multiverse.UndefinedColor), 10),
@@ -380,16 +373,12 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 		sinceIssuance,
 	}
 
-	if err := dsResultsWriter.Write(record); err != nil {
-		log.Fatal("error writing record to csv:", err)
-	}
+	writeLine(dsResultsWriter, record)
+}
 
-	if err := dsResultsWriter.Error(); err != nil {
-		log.Fatal(err)
-	}
-
+func dumpResultsTP(tpResultsWriter *csv.Writer) {
 	// Dump the tip pool sizes
-	record = []string{
+	record := []string{
 		strconv.FormatInt(colorCounters.Get("tipPoolSizes", multiverse.UndefinedColor), 10),
 		strconv.FormatInt(colorCounters.Get("tipPoolSizes", multiverse.Blue), 10),
 		strconv.FormatInt(colorCounters.Get("tipPoolSizes", multiverse.Red), 10),
@@ -402,16 +391,12 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 	}
 
-	if err := tpResultsWriter.Write(record); err != nil {
-		log.Fatal("error writing record to csv:", err)
-	}
+	writeLine(tpResultsWriter, record)
+}
 
-	if err := tpResultsWriter.Error(); err != nil {
-		log.Fatal(err)
-	}
-
+func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {
 	// Dump the opinion and confirmation counters
-	record = []string{
+	record := []string{
 		strconv.FormatInt(colorCounters.Get("confirmedNodes", multiverse.Blue), 10),
 		strconv.FormatInt(colorCounters.Get("confirmedNodes", multiverse.Red), 10),
 		strconv.FormatInt(colorCounters.Get("confirmedNodes", multiverse.Green), 10),
@@ -438,27 +423,51 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 		sinceIssuance,
 	}
 
-	if err := ccResultsWriter.Write(record); err != nil {
+	writeLine(ccResultsWriter, record)
+}
+
+func dumpResultsAD(adResultsWriter *csv.Writer, net *network.Network) {
+	adHeader = []string{"AdversaryGroupID", "Strategy", "AdversaryCount", "q"}
+	log.Info("ad writer")
+	for groupID, group := range net.AdversaryGroups {
+		record := []string{
+			strconv.FormatInt(int64(groupID), 10),
+			network.AdversaryTypeToString(group.AdversaryType),
+			strconv.FormatInt(int64(len(group.NodeIDs)), 10),
+			strconv.FormatFloat(float64(group.GroupMana)/float64(config.NodesTotalWeight), 'f', 6, 64),
+			strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+		}
+		log.Info("ad write ", record)
+		writeLine(adResultsWriter, record)
+	}
+}
+
+func writeLine(writer *csv.Writer, record []string) {
+	if err := writer.Write(record); err != nil {
 		log.Fatal("error writing record to csv:", err)
 	}
 
-	if err := ccResultsWriter.Error(); err != nil {
+	if err := writer.Error(); err != nil {
 		log.Fatal(err)
 	}
-
-	if Max(Max(colorCounters.GetInt("confirmedNodes", multiverse.Blue), colorCounters.GetInt("confirmedNodes", multiverse.Red)), colorCounters.GetInt("confirmedNodes", multiverse.Green)) >= int(config.SimulationStopThreshold*float64(honestNodesCount)) {
-		shutdownSignal <- types.Void
-	}
-	atomicCounters.Set("tps", 0)
 }
 
-func createWriter(fileName string) *csv.Writer {
+func createWriter(fileName string, header []string, resultsWriters *[]*csv.Writer) *csv.Writer {
 	file, err := os.Create(path.Join(config.ResultDir, fileName))
 	if err != nil {
 		panic(err)
 	}
-	tpResultsWriter := csv.NewWriter(file)
-	return tpResultsWriter
+	resultsWriter := csv.NewWriter(file)
+
+	// Check the result writers
+	if resultsWriters != nil {
+		*resultsWriters = append(*resultsWriters, resultsWriter)
+	}
+	// Write the headers
+	if err := resultsWriter.Write(header); err != nil {
+		panic(err)
+	}
+	return resultsWriter
 }
 
 func secureNetwork(testNetwork *network.Network) {

@@ -19,7 +19,7 @@ const (
 	TheSameOpinion
 )
 
-func ToType(adv int) AdversaryType {
+func ToAdversaryType(adv int) AdversaryType {
 	switch adv {
 	case int(ShiftOpinion):
 		return ShiftOpinion
@@ -28,6 +28,20 @@ func ToType(adv int) AdversaryType {
 	default:
 		return HonestNode
 	}
+}
+
+func AdversaryTypeToString(adv AdversaryType) string {
+	switch adv {
+	case HonestNode:
+		return "Honest"
+	case ShiftOpinion:
+		return "ShiftingOpinion"
+	case TheSameOpinion:
+		return "TheSameOpinion"
+	case AdjustOpinion:
+		return "AdjustOpinion"
+	}
+	return ""
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -75,7 +89,7 @@ func NewAdversaryGroups() (groups AdversaryGroups) {
 			NodeIDs:       make([]int, 0),
 			TargetMana:    targetMana,
 			Delay:         time.Millisecond * time.Duration(delay),
-			AdversaryType: ToType(configAdvType),
+			AdversaryType: ToAdversaryType(configAdvType),
 		})
 	}
 	return

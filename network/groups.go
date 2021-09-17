@@ -38,8 +38,6 @@ func AdversaryTypeToString(adv AdversaryType) string {
 		return "ShiftingOpinion"
 	case TheSameOpinion:
 		return "TheSameOpinion"
-	case AdjustOpinion:
-		return "AdjustOpinion"
 	}
 	return ""
 }
@@ -135,13 +133,13 @@ func (g *AdversaryGroups) ChooseAdversaryNodes(ZIPFDistribution []uint64, totalW
 	for _, groupIndex := range manaPercentageGroupIds {
 		groupIndexQueue.Offer(groupIndex)
 	}
-	for index, v := range ZIPFDistribution[1:] {
+	for index, v := range ZIPFDistribution[config.AdversaryIndexStart:] {
 		for i := 0; i < groupIndexQueue.Size(); i++ {
 			elem, _ := groupIndexQueue.Poll()
 			groupIndex := elem.(int)
 			if (*g)[groupIndex].GroupMana < (*g)[groupIndex].TargetMana && (*g)[groupIndex].GroupMana+float64(v) < (*g)[groupIndex].TargetMana+errorThreshold {
 				(*g)[groupIndex].GroupMana += float64(v)
-				(*g)[groupIndex].AddNodeID(index+1, groupIndex)
+				(*g)[groupIndex].AddNodeID(index+config.AdversaryIndexStart, groupIndex)
 				groupIndexQueue.Offer(groupIndex)
 				break
 			}

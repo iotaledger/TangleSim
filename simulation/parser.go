@@ -66,6 +66,8 @@ func ParseFlags() {
 		flag.String("adversaryMana", "", "Adversary nodes mana in %, e.g. '10 10' or 'random' if adversary nodes should be selected randomly")
 	adversaryErrorThreshold :=
 		flag.Float64("adversaryErrorThreshold", config.AdversaryErrorThreshold, "The error threshold of q - percentage of mana held by adversary")
+	adversaryIndexStart :=
+		flag.Int("adversaryIndexStart", config.AdversaryIndexStart, "Skipping wealthiest nodes in zipfs distribution, during adversary groups creation.  A way to increase number of adversary nodes in groups when percentage of mana is given in AdversaryMana")
 
 	// Parse the flags
 	flag.Parse()
@@ -95,6 +97,7 @@ func ParseFlags() {
 	config.NeighbourCountWS = *neighbourCountWS
 	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana)
 	config.AdversaryErrorThreshold = *adversaryErrorThreshold
+	config.AdversaryIndexStart = *adversaryIndexStart
 
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
@@ -123,6 +126,7 @@ func ParseFlags() {
 	log.Info("AdversaryTypes: ", config.AdversaryTypes)
 	log.Info("AdversaryMana: ", config.AdversaryMana)
 	log.Info("AdversaryErrorThreshold: ", config.AdversaryErrorThreshold)
+	log.Info("AdversaryIndexStart: ", config.AdversaryIndexStart)
 }
 
 func parseAdversaryConfig(adversaryDelays *string, adversaryTypes *string, adversaryMana *string) {

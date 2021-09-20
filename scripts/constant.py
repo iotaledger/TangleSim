@@ -18,7 +18,8 @@ VAR_DICT = {'TipsCount': 'k', 'ZipfParameter': 's',
 
 # Items for double spending figures
 COLORED_CONFIRMED_LIKE_ITEMS = [
-    'Blue (Like Accumulated Weight)', 'Red (Like Accumulated Weight)', 'Blue (Adversary Liked AW)', 'Red (Adversary Like AW)']
+    'Blue (Confirmed Accumulated Weight)', 'Red (Confirmed Accumulated Weight)', 'Blue (Like Accumulated Weight)',
+    'Red (Like Accumulated Weight)']
 
 # The color list for the double spending figures
 DS_CLR_LIST = ['b', 'r', 'b', 'r', 'b', 'r']
@@ -33,7 +34,8 @@ FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node
                             "Convergence Time v.s. Different Node Counts", "Flips v.s. Different Node Counts",
                             "Unconfirming Counts v.s. Different Node Counts"),
                       'S': ("ZipfParameter", "Confirmation Time v.s. Different Zipf's Parameters",
-                            "Convergence Time v.s. Different Zipf's Parameters", "Flips v.s. Different Zipf's Parameters",
+                            "Convergence Time v.s. Different Zipf's Parameters",
+                            "Flips v.s. Different Zipf's Parameters",
                             "Unconfirming Counts v.s. Different Zipf's Parameters"),
                       'K': ("TipsCount", "Confirmation Time v.s. Different Parents Counts",
                             "Convergence Time v.s. Different Parents Counts", "Flips v.s. Different Parents Counts",

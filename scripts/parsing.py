@@ -4,9 +4,10 @@
 import json
 import logging
 import re
-import numpy as np
-import constant as c
+
 import pandas as pd
+
+import constant as c
 
 
 class FileParser:
@@ -118,7 +119,7 @@ class FileParser:
             flips: The flips count.
             unconfirming_blue: The unconfirming count of blue branch.
             unconfirming_red: The unconfirming count of red branch.
-            # TODO: add total weight
+            total_weight: Total weight of all nodes in the network.
             x_axis: The scaled x axis.
         """
         logging.info(f'Parsing {fn}...')
@@ -137,21 +138,38 @@ class FileParser:
                     self.x_axis_begin * float(c["DecelerationFactor"])]
 
         # Get the throughput details
-        colored_node_counts = data[self.colored_confirmed_like_items]
+        colored_node_aw = data[self.colored_confirmed_like_items]
         flips = data['Flips (Winning color changed)'].iloc[-1]
 
         # Unconfirmed Blue,Unconfirmed Red
         unconfirming_blue = data['Unconfirmed Blue'].iloc[-1]
         unconfirming_red = data['Unconfirmed Red'].iloc[-1]
+
+        adversary_liked_aw_blue = data['Blue (Adversary Liked AW)']
+        adversary_liked_aw_red = data['Red (Adversary Like AW)']
+        adversary_confirmed_aw_blue = data['Blue (Adversary Confirmed AW)']
+        adversary_confirmed_aw_red = data['Red (Adversary Confirmed AW)']
+
         convergence_time = data['ns since issuance'].iloc[-1]
         convergence_time /= self.one_second
         convergence_time /= float(c["DecelerationFactor"])
 
+        colored_node_aw["Blue (Like Accumulated Weight)"] = colored_node_aw[
+                                                                "Blue (Like Accumulated Weight)"] - adversary_liked_aw_blue
+        colored_node_aw["Red (Like Accumulated Weight)"] = colored_node_aw[
+                                                               "Red (Like Accumulated Weight)"] - adversary_liked_aw_red
+        colored_node_aw["Blue (Confirmed Accumulated Weight)"] = colored_node_aw[
+                                                                     "Blue (Confirmed Accumulated Weight)"] - adversary_confirmed_aw_red
+        colored_node_aw["Red (Confirmed Accumulated Weight)"] = colored_node_aw[
+                                                                    "Red (Confirmed Accumulated Weight)"] - adversary_confirmed_aw_blue
         v = c[var]
+
+        honest_total_weight = c["NodesTotalWeight"] - adversary_liked_aw_blue.iloc[-1] - adversary_liked_aw_red.iloc[-1]
 
         # Return the scaled x axis
         x_axis = ((data['ns since start']) /
                   float(self.one_second * float(c["DecelerationFactor"])))
 
-        # TODO: add total weight
-        return v, (colored_node_counts, convergence_time, flips, unconfirming_blue, unconfirming_red, x_axis)
+        return v, (
+            colored_node_aw, convergence_time, flips, unconfirming_blue, unconfirming_red, honest_total_weight,
+            x_axis)

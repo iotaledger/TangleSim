@@ -1,16 +1,13 @@
 """The plotting module to plot the figures.
 """
 import glob
+
 import matplotlib
 import matplotlib.pyplot as plt
-import json
-import logging
-import re
-import numpy as np
 
 import constant as c
-from utils import *
 from parsing import FileParser
+from utils import *
 
 
 class FigurePlotter:
@@ -56,7 +53,7 @@ class FigurePlotter:
 
             for f in glob.glob(fs):
 
-                # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
+                # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
                 v, (cc, ct, flips, *_,
                     x) = self.parser.parse_confirmed_color_file(f, var)
 
@@ -83,7 +80,7 @@ class FigurePlotter:
         plt.boxplot(data)
         plt.xlabel(var)
         plt.title(title)
-        plt.xticks(ticks=list(range(1, 1+len(variations))), labels=variations)
+        plt.xticks(ticks=list(range(1, 1 + len(variations))), labels=variations)
         if target == 'convergence_time':
             plt.ylabel('Convergence Time (s)')
         elif target == 'flips':
@@ -131,6 +128,7 @@ class FigurePlotter:
             iters: The number of iteration.
             title: The figure title.
         """
+
         def set_box_color(bp, color):
             """The helper functions to set colors of the unconfirming boxplot.
             """
@@ -180,11 +178,11 @@ class FigurePlotter:
             box_location += 1
             xticks.append(box_location + 0.5)
             bp = plt.boxplot(data_blue[i], positions=[
-                             box_location], sym='o', widths=0.6)
+                box_location], sym='o', widths=0.6)
             set_box_color(bp, 'b')
             box_location += 1
             bp = plt.boxplot(data_red[i], positions=[
-                             box_location], sym='x', widths=0.6)
+                box_location], sym='x', widths=0.6)
             box_location += 1
             set_box_color(bp, 'r')
 
@@ -220,16 +218,16 @@ class FigurePlotter:
 
         variation_data = {}
         for f in glob.glob(fs):
-            # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
-            v, cc_ct_flips_x = self.parser.parse_confirmed_color_file(f, var)
-            variation_data[v] = cc_ct_flips_x
+            # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
+            v, cc_ct_flips_total_aw_x = self.parser.parse_confirmed_color_file(f, var)
+            variation_data[v] = cc_ct_flips_total_aw_x
 
         rc, cc = get_row_col_counts(fc)
         fig, axs = plt.subplots(rc, cc, figsize=(
             12, 5), dpi=500, constrained_layout=True)
 
         for i, (v, d) in enumerate(sorted(variation_data.items())):
-            (weights, ct, *_, x_axis) = d
+            (weights, ct, *_, total_aw, x_axis) = d
             r_loc = i // cc
             c_loc = i % cc
 
@@ -238,9 +236,8 @@ class FigurePlotter:
             else:
                 ax = axs[r_loc, c_loc]
             for j, n in enumerate(weights.columns):
-
-                # TODO: divide total weight
-                ax.plot(x_axis, weights[n], label=n,
+                aw_percentage = weights[n] / total_aw
+                ax.plot(x_axis, aw_percentage, label=n,
                         color=self.ds_clr_list[j], ls=self.ds_sty_list[j], linewidth=1)
 
             # Only put the legend on the first figures

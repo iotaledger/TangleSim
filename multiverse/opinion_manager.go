@@ -25,7 +25,7 @@ func NewOpinionManager(tangle *Tangle) (opinionManager *OpinionManager) {
 			OpinionChanged:        events.NewEvent(opinionChangedEventHandler),
 			ApprovalWeightUpdated: events.NewEvent(approvalWeightUpdatedHandler),
 			ColorConfirmed:        events.NewEvent(colorEventHandler),
-			ColorUnconfirmed:      events.NewEvent(colorEventHandler),
+			ColorUnconfirmed:      events.NewEvent(reorgEventHandler),
 		},
 
 		tangle:          tangle,
@@ -69,8 +69,6 @@ func (o *OpinionManager) FormOpinion(messageID MessageID) {
 	}
 
 	if exist {
-		// how deep the AW can fall during normal simulation/adversary simulation
-
 		// We calculate the approval weight of the branch based on the node who issued the message to the branch (i.e., it already voted for the branch).
 		o.approvalWeights[lastOpinion.Color] -= o.tangle.WeightDistribution.Weight(message.Issuer)
 		o.Events.ApprovalWeightUpdated.Trigger(lastOpinion.Color, int64(-o.tangle.WeightDistribution.Weight(message.Issuer)))
@@ -83,11 +81,12 @@ func (o *OpinionManager) FormOpinion(messageID MessageID) {
 	if o.checkColorConfirmed(messageMetadata.InheritedColor()) {
 		// count reorgs
 		if o.colorConfirmed {
-			//o.colorConfirmed = false
 			// Note that here we calculate the accumulated weights in our local tangle,
 			// so we accumulate the weight of node who is processing the booked message.
 			// Also note that the node has not voted for this branch yet.
-			o.Events.ColorUnconfirmed.Trigger(lastOpinion.Color, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
+			o.Events.ColorUnconfirmed.Trigger(messageMetadata.InheritedColor(), int64(o.approvalWeights[o.ownOpinion]), int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
+			// reorg event was triggered, color confirmed, node will no longer change it's opinion
+			return
 		}
 
 		o.colorConfirmed = true
@@ -176,6 +175,9 @@ func opinionChangedEventHandler(handler interface{}, params ...interface{}) {
 }
 func colorEventHandler(handler interface{}, params ...interface{}) {
 	handler.(func(Color, int64))(params[0].(Color), params[1].(int64))
+}
+func reorgEventHandler(handler interface{}, params ...interface{}) {
+	handler.(func(Color, int64, int64))(params[0].(Color), params[1].(int64), params[2].(int64))
 }
 
 func approvalWeightUpdatedHandler(handler interface{}, params ...interface{}) {

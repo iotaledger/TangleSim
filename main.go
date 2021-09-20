@@ -413,9 +413,12 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			confirmedAccumulatedWeight[confirmedColor] += weight
 		}))
 
-		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, weight int64) {
+		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, unconfirmedSupport int64, weight int64) {
 			confirmationMutex.Lock()
 			defer confirmationMutex.Unlock()
+
+			// we want to know how deep the support for our once confirmed color could fall
+			// TODO after merging counters add counter colorCounters["unconfirmedDepth"] that will save min(colorCounters["unconfirmedDepth"], unconfirmedSupport)
 
 			colorUnconfirmedCounter[unconfirmedColor]++
 			colorUnconfirmedAccumulatedWeight[unconfirmedColor] += weight

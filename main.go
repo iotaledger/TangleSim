@@ -102,8 +102,10 @@ func parseFlags() {
 		flag.Int("nodesTotalWeight", config.NodesTotalWeight, "The total weight of nodes")
 	zipfParameterPtr :=
 		flag.Float64("zipfParameter", config.ZipfParameter, "The zipf's parameter")
-	messageWeightThresholdPtr :=
-		flag.Float64("messageWeightThreshold", config.MessageWeightThreshold, "The messageWeightThreshold of confirmed messages")
+	weightThresholdPtr :=
+		flag.Float64("weightThreshold", config.WeightThreshold, "The weightThreshold of confirmed messages/color")
+	weightThresholdAbsolutePtr :=
+		flag.Bool("weightThresholdAbsolute", config.WeightThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
 	tipsCountPtr :=
 		flag.Int("tipsCount", config.TipsCount, "The tips count for a message")
 	weakTipsRatioPtr :=
@@ -148,7 +150,8 @@ func parseFlags() {
 	config.NodesCount = *nodesCountPtr
 	config.NodesTotalWeight = *nodesTotalWeightPtr
 	config.ZipfParameter = *zipfParameterPtr
-	config.MessageWeightThreshold = *messageWeightThresholdPtr
+	config.WeightThreshold = *weightThresholdPtr
+	config.WeightThresholdAbsolute = *weightThresholdAbsolutePtr
 	config.TipsCount = *tipsCountPtr
 	config.WeakTipsRatio = *weakTipsRatioPtr
 	config.TSA = *tsaPtr
@@ -172,7 +175,8 @@ func parseFlags() {
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
 	log.Info("ZipfParameter: ", config.ZipfParameter)
-	log.Info("MessageWeightThreshold: ", config.MessageWeightThreshold)
+	log.Info("WeightThreshold: ", config.WeightThreshold)
+	log.Info("WeightThresholdAbsolute: ", config.WeightThresholdAbsolute)
 	log.Info("TipsCount: ", config.TipsCount)
 	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
 	log.Info("TSA: ", config.TSA)
@@ -266,7 +270,7 @@ func dumpConfig(fileName string) {
 		NodesCount:              config.NodesCount,
 		NodesTotalWeight:        config.NodesTotalWeight,
 		ZipfParameter:           config.ZipfParameter,
-		MessageWeightThreshold:  config.MessageWeightThreshold,
+		MessageWeightThreshold:  config.WeightThreshold,
 		TipsCount:               config.TipsCount,
 		WeakTipsRatio:           config.WeakTipsRatio,
 		TSA:                     config.TSA,

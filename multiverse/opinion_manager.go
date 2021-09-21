@@ -17,6 +17,7 @@ type OpinionManagerInterface interface {
 	SetOpinion(opinion Color)
 	WeightsUpdated()
 	UpdateWeights(messageID MessageID) (updated bool)
+	UpdateConfirmation(oldOpinion Color, maxOpinion Color)
 	Tangle() *Tangle
 }
 
@@ -126,18 +127,10 @@ func (o *OpinionManager) SetOpinion(opinion Color) {
 	o.ownOpinion = opinion
 }
 
-// Update the opinions counter and ownOpinion based on the highest peer color value and maxApprovalWeight
-// Each Color has approvalWeight. The Color with maxApprovalWeight determines the ownOpinion
-func (o *OpinionManager) WeightsUpdated() {
-	maxOpinion := getMaxOpinion(o.approvalWeights)
-
-	if oldOpinion := o.ownOpinion; maxOpinion != oldOpinion {
-		o.ownOpinion = maxOpinion
-		o.Events().OpinionChanged.Trigger(oldOpinion, maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
-		if o.colorConfirmed {
-			o.colorConfirmed = false
-			o.Events().ColorUnconfirmed.Trigger(oldOpinion, int64(o.approvalWeights[o.ownOpinion]), int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
-		}
+func (o *OpinionManager) UpdateConfirmation(oldOpinion Color, maxOpinion Color) {
+	if o.colorConfirmed && maxOpinion != oldOpinion {
+		o.colorConfirmed = false
+		o.Events().ColorUnconfirmed.Trigger(oldOpinion, int64(o.approvalWeights[o.ownOpinion]), int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
 	}
 
 	if o.checkColorConfirmed(maxOpinion) && !o.colorConfirmed {
@@ -145,6 +138,18 @@ func (o *OpinionManager) WeightsUpdated() {
 		o.Events().ColorConfirmed.Trigger(maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
 		o.colorConfirmed = true
 	}
+}
+
+// Update the opinions counter and ownOpinion based on the highest peer color value and maxApprovalWeight
+// Each Color has approvalWeight. The Color with maxApprovalWeight determines the ownOpinion
+func (o *OpinionManager) WeightsUpdated() {
+	maxOpinion := getMaxOpinion(o.approvalWeights)
+	oldOpinion := o.ownOpinion
+	if maxOpinion != oldOpinion {
+		o.ownOpinion = maxOpinion
+		o.Events().OpinionChanged.Trigger(oldOpinion, maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
+	}
+	o.UpdateConfirmation(oldOpinion, maxOpinion)
 }
 
 func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {

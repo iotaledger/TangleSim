@@ -197,7 +197,7 @@ type OpinionManagerEvents struct {
 }
 
 func opinionChangedEventHandler(handler interface{}, params ...interface{}) {
-	handler.(func(Color, Color, int64, network.PeerID))(params[0].(Color), params[1].(Color), params[2].(int64), params[3].(network.PeerID))
+	handler.(func(Color, Color, int64))(params[0].(Color), params[1].(Color), params[2].(int64))
 }
 func colorEventHandler(handler interface{}, params ...interface{}) {
 	handler.(func(Color, int64))(params[0].(Color), params[1].(int64))
@@ -205,7 +205,6 @@ func colorEventHandler(handler interface{}, params ...interface{}) {
 func reorgEventHandler(handler interface{}, params ...interface{}) {
 	handler.(func(Color, int64, int64))(params[0].(Color), params[1].(int64), params[2].(int64))
 }
-
 func approvalWeightUpdatedHandler(handler interface{}, params ...interface{}) {
 	handler.(func(Color, int64))(params[0].(Color), params[1].(int64))
 }

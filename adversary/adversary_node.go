@@ -23,5 +23,3 @@ func CastAdversary(node network.Node) NodeInterface {
 	}
 	return nil
 }
-
-// TODO implement honest node to reuse some adversary logic and use adversary node interface

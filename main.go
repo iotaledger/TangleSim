@@ -139,8 +139,8 @@ func flushWriters(writers []*csv.Writer) {
 func dumpConfig(fileName string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS, AdversaryIndexStart int
-		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS, AdversaryErrorThreshold                                                 float64
-		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                                       string
+		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS, AdversaryErrorThreshold                                                                         float64
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                      string
 		AdversaryDelays, AdversaryTypes                                                                                                                                                              []int
 		AdversaryMana                                                                                                                                                                                []float64
 	}
@@ -275,7 +275,9 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	}
 
 	for _, peer := range testNetwork.Peers {
-		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color, weight int64, peerID network.PeerID) {
+		peerID := peer.ID
+
+		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color, weight int64) {
 			colorCounters.Add("opinions", -1, oldOpinion)
 			colorCounters.Add("opinions", 1, newOpinion)
 
@@ -304,7 +306,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			colorCounters.Add("confirmedAccumulatedWeight", weight, confirmedColor)
 		}))
 
-		peer.Node.(*multiverse.Node).Tangle().OpinionManager.Events().ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, unconfirmedSupport int64, weight int64) {
+		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, unconfirmedSupport int64, weight int64) {
 			colorCounters.Add("colorUnconfirmed", 1, unconfirmedColor)
 			colorCounters.Add("confirmedNodes", -1, unconfirmedColor)
 

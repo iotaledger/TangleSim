@@ -63,13 +63,13 @@ func ParseFlags() {
 	adversaryDelays :=
 		flag.String("adversaryDelays", "", "Delays in ms of adversary nodes, eg '50 100 200'")
 	adversaryTypes :=
-		flag.String("adversaryType", "", "Defines attack strategy, one of the following: 'shift', 'same'")
+		flag.String("adversaryType", "", "Defines group attack strategy, one of the following: 0 - honest node behavior, 1 - shifts opinion, 2 - keeps the same opinion. SimulationTarget must be 'DS'")
+	adversaryNodeCounts :=
+		flag.String("adversaryNodeCounts", "", "Defines number of adversary nodes in the group. Leave empty for default value: 1. SimulationTarget must be 'DS'")
+	adversaryInitColors :=
+		flag.String("adversaryInitColors", "", "Defines initial color for adversary group, one of following: 'R', 'G', 'B'. Mandatory for each group. SimulationTarget must be 'DS'")
 	adversaryMana :=
-		flag.String("adversaryMana", "", "Adversary nodes mana in %, e.g. '10 10' or 'random' if adversary nodes should be selected randomly")
-	adversaryErrorThreshold :=
-		flag.Float64("adversaryErrorThreshold", config.AdversaryErrorThreshold, "The error threshold of q - percentage of mana held by adversary")
-	adversaryIndexStart :=
-		flag.Int("adversaryIndexStart", config.AdversaryIndexStart, "Skipping wealthiest nodes in zipfs distribution, during adversary groups creation.  A way to increase number of adversary nodes in groups when percentage of mana is given in AdversaryMana")
+		flag.String("adversaryMana", "", "Adversary nodes mana in %, e.g. '10 10' Special values: -1 nodes should be selected randomly from weight distribution, 0 weight=min(weightDistribution), 100 weight=max(weightDistribution). SimulationTarget must be 'DS'")
 
 	// Parse the flags
 	flag.Parse()
@@ -98,9 +98,7 @@ func ParseFlags() {
 	config.IMIF = *imif
 	config.RandomnessWS = *randomnessWS
 	config.NeighbourCountWS = *neighbourCountWS
-	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana)
-	config.AdversaryErrorThreshold = *adversaryErrorThreshold
-	config.AdversaryIndexStart = *adversaryIndexStart
+	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors)
 
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
@@ -129,11 +127,8 @@ func ParseFlags() {
 	log.Info("AdversaryDelays: ", config.AdversaryDelays)
 	log.Info("AdversaryTypes: ", config.AdversaryTypes)
 	log.Info("AdversaryMana: ", config.AdversaryMana)
-	log.Info("AdversaryErrorThreshold: ", config.AdversaryErrorThreshold)
-	log.Info("AdversaryIndexStart: ", config.AdversaryIndexStart)
 }
-
-func parseAdversaryConfig(adversaryDelays *string, adversaryTypes *string, adversaryMana *string) {
+func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors *string) {
 	if *adversaryDelays != "" {
 		config.AdversaryDelays = parseStrToInt(*adversaryDelays)
 	}
@@ -143,23 +138,32 @@ func parseAdversaryConfig(adversaryDelays *string, adversaryTypes *string, adver
 	if *adversaryMana != "" {
 		config.AdversaryMana = parseStrToFloat64(*adversaryMana)
 	}
+	if *adversaryMana != "" {
+		config.AdversaryNodeCounts = parseStrToInt(*adversaryNodeCounts)
+	}
+	if *adversaryMana != "" {
+		config.AdversaryInitColors = parseStr(*adversaryInitColors)
+	}
 
 	// no adversary if simulation target is not DS
 	if config.SimulationTarget != "DS" {
 		config.AdversaryTypes = []int{}
 	}
 
-	// maximum 3 adversary types allowed for one simulation, one per color
-	if len(config.AdversaryTypes) > 3 {
+	// no adversary if colors are not provided
+	if len(config.AdversaryNodeCounts) != len(config.AdversaryTypes) {
 		config.AdversaryTypes = []int{}
 	}
 
-	// make sure mana and delays are only defined when adversary type is provided and have the same length
+	// make sure mana, nodeCounts and delays are only defined when adversary type is provided and have the same length
 	if len(config.AdversaryDelays) != 0 && len(config.AdversaryDelays) != len(config.AdversaryTypes) {
 		config.AdversaryDelays = []int{}
 	}
 	if len(config.AdversaryMana) != 0 && len(config.AdversaryMana) != len(config.AdversaryTypes) {
 		config.AdversaryMana = []float64{}
+	}
+	if len(config.AdversaryNodeCounts) != 0 && len(config.AdversaryNodeCounts) != len(config.AdversaryTypes) {
+		config.AdversaryNodeCounts = []int{}
 	}
 }
 
@@ -171,6 +175,11 @@ func parseStrToInt(strList string) []int {
 		parsed[i] = num
 	}
 	return parsed
+}
+
+func parseStr(strList string) []string {
+	split := strings.Split(strList, " ")
+	return split
 }
 
 func parseStrToFloat64(strList string) []float64 {

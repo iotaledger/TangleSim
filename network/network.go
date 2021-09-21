@@ -1,7 +1,6 @@
 package network
 
 import (
-	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
 	"time"
 
@@ -97,9 +96,11 @@ func (c *Configuration) CreatePeers(network *Network) {
 	defer log.Info("Creating peers ... [DONE]")
 
 	network.WeightDistribution = NewConsensusWeightDistribution()
+	nodesCount, nodesTotalWeight := network.AdversaryGroups.CalculateWeightTotalConfig()
 	for _, nodesSpecification := range c.nodes {
-		nodeWeights := nodesSpecification.weightGenerator(nodesSpecification.nodeCount)
-		network.AdversaryGroups.ChooseAdversaryNodes(nodeWeights, float64(config.NodesTotalWeight))
+		nodeWeights := nodesSpecification.weightGenerator(nodesCount, nodesTotalWeight)
+		// update adversary groups and get new mana distribution with adversary nodes included
+		newWeights := network.AdversaryGroups.UpdateAdversaryNodes(nodeWeights)
 
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
@@ -113,7 +114,10 @@ func (c *Configuration) CreatePeers(network *Network) {
 			network.Peers = append(network.Peers, peer)
 			log.Debugf("Created %s ... [DONE]", peer)
 
-			network.WeightDistribution.SetWeight(peer.ID, nodeWeights[i])
+			// TODO need to add adversary weights to weight distribution
+			log.Info("old weights ", nodeWeights)
+			log.Info("weights ", newWeights)
+			network.WeightDistribution.SetWeight(peer.ID, newWeights[i])
 			peer.SetupNode(network.WeightDistribution)
 		}
 	}

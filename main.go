@@ -78,7 +78,7 @@ func main() {
 	}
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
-			config.ZipfParameter, float64(config.NodesTotalWeight))),
+			config.ZipfParameter)),
 		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
 			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
 		network.PacketLoss(0, config.PayloadLoss),
@@ -138,11 +138,12 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS, AdversaryIndexStart int
-		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS, AdversaryErrorThreshold                                                                         float64
-		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                      string
-		AdversaryDelays, AdversaryTypes                                                                                                                                                              []int
-		AdversaryMana                                                                                                                                                                                []float64
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
+		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget                                                                                                                 string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                    []int
+		AdversaryMana                                                                                                                                                           []float64
+		AdversaryInitColor                                                                                                                                                      []string
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -170,8 +171,8 @@ func dumpConfig(fileName string) {
 		AdversaryTypes:          config.AdversaryTypes,
 		AdversaryDelays:         config.AdversaryDelays,
 		AdversaryMana:           config.AdversaryMana,
-		AdversaryErrorThreshold: config.AdversaryErrorThreshold,
-		AdversaryIndexStart:     config.AdversaryIndexStart,
+		AdversaryNodeCounts:     config.AdversaryNodeCounts,
+		AdversaryInitColor:      config.AdversaryInitColors,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")

@@ -179,6 +179,21 @@ func (c Color) String() string {
 	}
 }
 
+func ColorFromInt(i int) Color {
+	switch i {
+	case 0:
+		return UndefinedColor
+	case 1:
+		return Blue
+	case 2:
+		return Red
+	case 3:
+		return Green
+	default:
+		return UndefinedColor
+	}
+}
+
 var (
 	UndefinedColor Color
 	Blue           = Color(1)

@@ -122,6 +122,10 @@ func (c *Connection) Send(message interface{}) {
 	}, c.networkDelay)
 }
 
+func (c *Connection) SetDelay(delay time.Duration) {
+	c.networkDelay = delay
+}
+
 func (c *Connection) Shutdown() {
 	c.shutdownOnce.Do(func() {
 		c.timedExecutor.Shutdown(timedexecutor.CancelPendingTasks)

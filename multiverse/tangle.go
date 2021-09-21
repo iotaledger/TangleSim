@@ -13,7 +13,7 @@ type Tangle struct {
 	ApprovalManager    *ApprovalManager
 	Requester          *Requester
 	Booker             *Booker
-	OpinionManager     *OpinionManager
+	OpinionManager     OpinionManagerInterface
 	TipManager         *TipManager
 	MessageFactory     *MessageFactory
 	Utils              *Utils

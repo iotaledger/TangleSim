@@ -6,6 +6,8 @@ import (
 
 type WeightGenerator func(nodeCount int) []uint64
 
+// region ZIPFDistribution /////////////////////////////////////////////////////////////////////////////////////////////
+
 func ZIPFDistribution(s float64, totalWeight float64) WeightGenerator {
 	return func(nodeCount int) (result []uint64) {
 		rawTotalWeight := uint64(0)
@@ -30,6 +32,10 @@ func ZIPFDistribution(s float64, totalWeight float64) WeightGenerator {
 		return
 	}
 }
+
+// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// region ConsensusWeightDistribution //////////////////////////////////////////////////////////////////////////////////
 
 type ConsensusWeightDistribution struct {
 	weights       map[PeerID]uint64
@@ -80,3 +86,5 @@ func (c *ConsensusWeightDistribution) rescanForLargestWeight() {
 		}
 	}
 }
+
+// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

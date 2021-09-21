@@ -1,20 +1,22 @@
 package network
 
 import (
+	"github.com/iotaledger/multivers-simulation/config"
+	"github.com/iotaledger/multivers-simulation/logger"
 	"time"
 
 	"github.com/iotaledger/hive.go/crypto"
 	"github.com/iotaledger/hive.go/datastructure/set"
-	"github.com/iotaledger/hive.go/logger"
 )
 
-var log = logger.NewLogger("Network")
+var log = logger.New("Network")
 
 // region Network //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Network struct {
 	Peers              []*Peer
 	WeightDistribution *ConsensusWeightDistribution
+	AdversaryGroups    AdversaryGroups
 }
 
 func New(option ...Option) (network *Network) {
@@ -22,12 +24,13 @@ func New(option ...Option) (network *Network) {
 	defer log.Info("Creating Network ... [DONE]")
 
 	network = &Network{
-		Peers: make([]*Peer, 0),
+		Peers:           make([]*Peer, 0),
+		AdversaryGroups: NewAdversaryGroups(),
 	}
 
-	config := NewConfiguration(option...)
-	config.CreatePeers(network)
-	config.ConnectPeers(network)
+	configuration := NewConfiguration(option...)
+	configuration.CreatePeers(network)
+	configuration.ConnectPeers(network)
 
 	return
 }
@@ -53,6 +56,10 @@ func (n *Network) Shutdown() {
 	for _, peer := range n.Peers {
 		peer.Shutdown()
 	}
+}
+
+func (n *Network) Peer(index int) *Peer {
+	return n.Peers[index]
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,9 +99,17 @@ func (c *Configuration) CreatePeers(network *Network) {
 	network.WeightDistribution = NewConsensusWeightDistribution()
 	for _, nodesSpecification := range c.nodes {
 		nodeWeights := nodesSpecification.weightGenerator(nodesSpecification.nodeCount)
+		network.AdversaryGroups.ChooseAdversaryNodes(nodeWeights, float64(config.NodesTotalWeight))
 
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
-			peer := NewPeer(nodesSpecification.nodeFactory())
+			nodeType := HonestNode
+			// this is adversary node
+			if groupIndex, ok := AdversaryNodeIDToGroupIDMap[i]; ok {
+				nodeType = network.AdversaryGroups[groupIndex].AdversaryType
+			}
+			nodeFactory := nodesSpecification.nodeFactories[nodeType]
+
+			peer := NewPeer(nodeFactory())
 			network.Peers = append(network.Peers, peer)
 			log.Debugf("Created %s ... [DONE]", peer)
 
@@ -109,6 +124,7 @@ func (c *Configuration) ConnectPeers(network *Network) {
 	defer log.Info("Connecting peers ... [DONE]")
 
 	c.peeringStrategy(network, c)
+	network.AdversaryGroups.ApplyNetworkDelayForAdversaryNodes(network)
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,19 +133,21 @@ func (c *Configuration) ConnectPeers(network *Network) {
 
 type Option func(*Configuration)
 
-func Nodes(nodeCount int, nodeFactory NodeFactory, weightGenerator WeightGenerator) Option {
+func Nodes(nodeCount int, nodeFactories map[AdversaryType]NodeFactory, weightGenerator WeightGenerator) Option {
+	nodeSpecs := &NodesSpecification{
+		nodeCount:       nodeCount,
+		nodeFactories:   nodeFactories,
+		weightGenerator: weightGenerator,
+	}
+
 	return func(config *Configuration) {
-		config.nodes = append(config.nodes, &NodesSpecification{
-			nodeCount:       nodeCount,
-			nodeFactory:     nodeFactory,
-			weightGenerator: weightGenerator,
-		})
+		config.nodes = append(config.nodes, nodeSpecs)
 	}
 }
 
 type NodesSpecification struct {
 	nodeCount       int
-	nodeFactory     NodeFactory
+	nodeFactories   map[AdversaryType]NodeFactory
 	weightGenerator WeightGenerator
 }
 
@@ -185,7 +203,6 @@ func WattsStrogatz(meanDegree int, randomness float64) PeeringStrategy {
 				}
 			}
 		}
-
 		totalNeighborCount := 0
 		for sourceNodeID, targetNodeIDs := range graph {
 			log.Debugf("Peer: %s: Number of neighbors: %d", network.Peers[sourceNodeID], len(targetNodeIDs))

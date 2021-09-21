@@ -3,15 +3,15 @@ package main
 import (
 	"encoding/csv"
 	"encoding/json"
-	"flag"
 	"fmt"
+	"github.com/iotaledger/multivers-simulation/adversary"
+	"github.com/iotaledger/multivers-simulation/simulation"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/iotaledger/hive.go/types"
@@ -25,7 +25,9 @@ import (
 )
 
 var (
-	log      = logger.New("Simulation")
+	log = logger.New("Simulation")
+
+	// csv
 	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages",
 		"# of Issued Messages", "ns since start"}
 	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green", "ns since start", "ns since issuance"}
@@ -35,176 +37,47 @@ var (
 		"Blue (Confirmed Accumulated Weight)", "Red (Confirmed Accumulated Weight)", "Green (Confirmed Accumulated Weight)",
 		"Blue (Like)", "Red (Like)", "Green (Like)",
 		"Blue (Like Accumulated Weight)", "Red (Like Accumulated Weight)", "Green (Like Accumulated Weight)",
+		"Blue (Adversary Liked AW)", "Red (Adversary Like AW)", "Green (Adversary Like AW)",
 		"Unconfirmed Blue", "Unconfirmed Red", "Unconfirmed Green",
 		"Unconfirmed Blue Accumulated Weight", "Unconfirmed Red Accumulated Weight", "Unconfirmed Green Accumulated Weight",
-		"Flips (Winning color changed)", "ns since start", "ns since issuance"}
+		"Flips (Winning color changed)", "Honest nodes Flips", "ns since start", "ns since issuance"}
+	adHeader = []string{"AdversaryGroupID", "Strategy", "AdversaryCount", "q", "ns since issuance"}
 
-	csvMutex              sync.Mutex
-	shutdownSignal        = make(chan types.Empty)
+	csvMutex sync.Mutex
+
+	// simulation variables
+	dumpingTicker         = time.NewTicker(time.Duration(config.DecelerationFactor*config.ConsensusMonitorTick) * time.Millisecond)
+	simulationWg          = sync.WaitGroup{}
 	maxSimulationDuration = time.Minute
+	shutdownSignal        = make(chan types.Empty)
 
-	tpsCounter = uint64(0)
+	// global declarations
+	dsIssuanceTime           time.Time
+	mostLikedColor           multiverse.Color
+	honestOnlyMostLikedColor multiverse.Color
+	simulationStartTime      time.Time
 
-	opinions = make(map[multiverse.Color]int)
-
-	opinionsWeights = make(map[multiverse.Color]int64)
-
-	tipPoolSizes = make(map[multiverse.Color]int)
-
-	processedMessageCounts = make(map[multiverse.Color]uint64)
-
-	issuedMessageCounter = int64(0)
-
-	confirmedNodesCounter = make(map[multiverse.Color]int)
-
-	colorUnconfirmedCounter = make(map[multiverse.Color]int)
-
-	confirmedAccumulatedWeight = make(map[multiverse.Color]int64)
-
-	colorUnconfirmedAccumulatedWeight = make(map[multiverse.Color]int64)
-
-	likeAccumulatedWeight = make(map[multiverse.Color]int64)
+	// counters
+	colorCounters     = simulation.NewColorCounters()
+	adversaryCounters = simulation.NewColorCounters()
+	atomicCounters    = simulation.NewAtomicCounters()
 
 	confirmedMessageCounter = make(map[network.PeerID]int64)
-
-	confirmedMessageMutex sync.RWMutex
-
-	opinionMutex sync.RWMutex
-
-	confirmationMutex sync.RWMutex
-
-	opinionWeightMutex sync.RWMutex
-
-	processedMessageMutex sync.RWMutex
-
-	relevantValidators int
-
-	dsIssuanceTime time.Time
-
-	mostLikedColor multiverse.Color
-
-	flipsCounter int
-
-	simulationStartTime time.Time
-
-	simulationWg = sync.WaitGroup{}
-
-	dumpingTicker = time.NewTicker(time.Duration(config.DecelerationFactor*config.ConsensusMonitorTick) * time.Millisecond)
+	confirmedMessageMutex   sync.RWMutex
 )
-
-// Parse the flags and update the configuration
-func parseFlags() {
-
-	// Define the configuration flags
-	nodesCountPtr :=
-		flag.Int("nodesCount", config.NodesCount, "The number of nodes")
-	nodesTotalWeightPtr :=
-		flag.Int("nodesTotalWeight", config.NodesTotalWeight, "The total weight of nodes")
-	zipfParameterPtr :=
-		flag.Float64("zipfParameter", config.ZipfParameter, "The zipf's parameter")
-	weightThresholdPtr :=
-		flag.Float64("weightThreshold", config.WeightThreshold, "The weightThreshold of confirmed messages/color")
-	weightThresholdAbsolutePtr :=
-		flag.Bool("weightThresholdAbsolute", config.WeightThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
-	tipsCountPtr :=
-		flag.Int("tipsCount", config.TipsCount, "The tips count for a message")
-	weakTipsRatioPtr :=
-		flag.Float64("weakTipsRatio", config.WeakTipsRatio, "The ratio of weak tips")
-	tsaPtr :=
-		flag.String("tsa", config.TSA, "The tip selection algorithm")
-	tpsPtr :=
-		flag.Int("tps", config.TPS, "the tips per seconds")
-	decelerationFactorPtr :=
-		flag.Int("decelerationFactor", config.DecelerationFactor, "The factor to control the speed in the simulation")
-	consensusMonitorTickPtr :=
-		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
-	doubleSpendDelayPtr :=
-		flag.Int("doubleSpendDelay", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
-	relevantValidatorWeightPtr :=
-		flag.Int("releventValidatorWeight", config.RelevantValidatorWeight, "The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages")
-	payloadLoss :=
-		flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
-	minDelay :=
-		flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
-	maxDelay :=
-		flag.Int("maxDelay", config.MaxDelay, "The maximum network delay in ms")
-	deltaURTS :=
-		flag.Float64("deltaURTS", config.DeltaURTS, "in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199")
-	simulationStopThreshold :=
-		flag.Float64("simulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when >= SimulationStopThreshold * NodesCount have reached the same opinion")
-	simulationTarget :=
-		flag.String("simulationTarget", config.SimulationTarget, "The simulation target, CT: Confirmation Time, DS: Double Spending")
-	resultDirPtr :=
-		flag.String("resultDir", config.ResultDir, "Directory where the results will be stored")
-	imif :=
-		flag.String("IMIF", config.IMIF, "Inter Message Issuing Function for time delay between activity messages: poisson or uniform")
-	randomnessWS :=
-		flag.Float64("WattsStrogatzRandomness", config.RandomnessWS, "WattsStrogatz randomness parameter")
-	neighbourCountWS :=
-		flag.Int("WattsStrogatzNeighborCount", config.NeighbourCountWS, "Number of neighbors node is connected to in WattsStrogatz network topology")
-
-	// Parse the flags
-	flag.Parse()
-
-	// Update the configuration parameters
-	config.NodesCount = *nodesCountPtr
-	config.NodesTotalWeight = *nodesTotalWeightPtr
-	config.ZipfParameter = *zipfParameterPtr
-	config.WeightThreshold = *weightThresholdPtr
-	config.WeightThresholdAbsolute = *weightThresholdAbsolutePtr
-	config.TipsCount = *tipsCountPtr
-	config.WeakTipsRatio = *weakTipsRatioPtr
-	config.TSA = *tsaPtr
-	config.TPS = *tpsPtr
-	config.DecelerationFactor = *decelerationFactorPtr
-	config.ConsensusMonitorTick = *consensusMonitorTickPtr
-	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
-	config.DoubleSpendDelay = *doubleSpendDelayPtr
-	config.PayloadLoss = *payloadLoss
-	config.MinDelay = *minDelay
-	config.MaxDelay = *maxDelay
-	config.DeltaURTS = *deltaURTS
-	config.SimulationStopThreshold = *simulationStopThreshold
-	config.SimulationTarget = *simulationTarget
-	config.ResultDir = *resultDirPtr
-	config.IMIF = *imif
-	config.RandomnessWS = *randomnessWS
-	config.NeighbourCountWS = *neighbourCountWS
-
-	log.Info("Current configuration:")
-	log.Info("NodesCount: ", config.NodesCount)
-	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
-	log.Info("ZipfParameter: ", config.ZipfParameter)
-	log.Info("WeightThreshold: ", config.WeightThreshold)
-	log.Info("WeightThresholdAbsolute: ", config.WeightThresholdAbsolute)
-	log.Info("TipsCount: ", config.TipsCount)
-	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
-	log.Info("TSA: ", config.TSA)
-	log.Info("TPS: ", config.TPS)
-	log.Info("DecelerationFactor: ", config.DecelerationFactor)
-	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
-	log.Info("RelevantValidatorWeight: ", config.RelevantValidatorWeight)
-	log.Info("DoubleSpendDelay: ", config.DoubleSpendDelay)
-	log.Info("PayloadLoss: ", config.PayloadLoss)
-	log.Info("MinDelay: ", config.MinDelay)
-	log.Info("MaxDelay: ", config.MaxDelay)
-	log.Info("DeltaURTS:", config.DeltaURTS)
-	log.Info("SimulationStopThreshold:", config.SimulationStopThreshold)
-	log.Info("SimulationTarget:", config.SimulationTarget)
-	log.Info("ResultDir:", config.ResultDir)
-	log.Info("IMIF: ", config.IMIF)
-	log.Info("WattsStrogatzRandomness: ", config.RandomnessWS)
-	log.Info("WattsStrogatzNeighborCount: ", config.NeighbourCountWS)
-
-}
 
 func main() {
 	log.Info("Starting simulation ... [DONE]")
 	defer log.Info("Shutting down simulation ... [DONE]")
+	simulation.ParseFlags()
 
-	parseFlags()
+	nodeFactories := map[network.AdversaryType]network.NodeFactory{
+		network.HonestNode:     network.NodeClosure(multiverse.NewNode),
+		network.ShiftOpinion:   network.NodeClosure(adversary.NewShiftingOpinionNode),
+		network.TheSameOpinion: network.NodeClosure(adversary.NewSameOpinionNode),
+	}
 	testNetwork := network.New(
-		network.Nodes(config.NodesCount, multiverse.NewNode, network.ZIPFDistribution(
+		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
 			config.ZipfParameter, float64(config.NodesTotalWeight))),
 		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
 			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
@@ -223,17 +96,20 @@ func main() {
 	// Here we simulate the double spending
 	if config.SimulationTarget == "DS" {
 		time.Sleep(time.Duration(config.DoubleSpendDelay*config.DecelerationFactor) * time.Second)
-		attackers := testNetwork.RandomPeers(3)
 		dsIssuanceTime = time.Now()
-		sendMessage(attackers[0], multiverse.Blue)
-		sendMessage(attackers[1], multiverse.Red)
+		for groupIndex, group := range testNetwork.AdversaryGroups {
+			color := multiverse.ColorFromInt(groupIndex + 1)
+			// honest node does not implement adversary behavior interface
+			if group.AdversaryType != network.HonestNode {
+				for _, nodeID := range group.NodeIDs {
+					node := adversary.CastAdversary(testNetwork.Peer(nodeID).Node)
+					node.AssignColor(color)
+				}
+			}
+			// only one node from the group needs to issue message
+			sendMessage(testNetwork.Peer(group.NodeIDs[0]), color)
+		}
 	}
-
-	// Here three peers are randomly selected with defined Colors
-	// attackers := testNetwork.RandomPeers(3)
-	// sendMessage(attackers[0], multiverse.Red)
-	// sendMessage(attackers[1], multiverse.Blue)
-	// sendMessage(attackers[2], multiverse.Green)
 
 	select {
 	case <-shutdownSignal:
@@ -262,9 +138,11 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
-		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget                                                                                                                 string
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS, AdversaryIndexStart int
+		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS, AdversaryErrorThreshold                                                                         float64
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                      string
+		AdversaryDelays, AdversaryTypes                                                                                                                                                              []int
+		AdversaryMana                                                                                                                                                                                []float64
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -277,7 +155,7 @@ func dumpConfig(fileName string) {
 		TPS:                     config.TPS,
 		DecelerationFactor:      config.DecelerationFactor,
 		ConsensusMonitorTick:    config.ConsensusMonitorTick,
-		ReleventValidatorWeight: config.RelevantValidatorWeight,
+		RelevantValidatorWeight: config.RelevantValidatorWeight,
 		DoubleSpendDelay:        config.DoubleSpendDelay,
 		PayloadLoss:             config.PayloadLoss,
 		MinDelay:                config.MinDelay,
@@ -289,6 +167,11 @@ func dumpConfig(fileName string) {
 		IMIF:                    config.IMIF,
 		RandomnessWS:            config.RandomnessWS,
 		NeighbourCountWS:        config.NeighbourCountWS,
+		AdversaryTypes:          config.AdversaryTypes,
+		AdversaryDelays:         config.AdversaryDelays,
+		AdversaryMana:           config.AdversaryMana,
+		AdversaryErrorThreshold: config.AdversaryErrorThreshold,
+		AdversaryIndexStart:     config.AdversaryIndexStart,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")
@@ -307,14 +190,29 @@ func dumpConfig(fileName string) {
 }
 
 func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Writer) {
-	opinions[multiverse.UndefinedColor] = config.NodesCount
-	opinions[multiverse.Blue] = 0
-	opinions[multiverse.Red] = 0
-	opinions[multiverse.Green] = 0
-	opinionsWeights[multiverse.UndefinedColor] = 0
-	opinionsWeights[multiverse.Blue] = 0
-	opinionsWeights[multiverse.Red] = 0
-	opinionsWeights[multiverse.Green] = 0
+	adversaryNodesCount := len(network.AdversaryNodeIDToGroupIDMap)
+	honestNodesCount := config.NodesCount - adversaryNodesCount
+
+	allColors := []multiverse.Color{multiverse.UndefinedColor, multiverse.Red, multiverse.Green, multiverse.Blue}
+
+	colorCounters.CreateCounter("opinions", allColors, []int64{int64(config.NodesCount), 0, 0, 0})
+	colorCounters.CreateCounter("confirmedNodes", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("opinionsWeights", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("likeAccumulatedWeight", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("processedMessages", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("tipPoolSizes", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("colorUnconfirmed", allColors[1:], []int64{0, 0, 0})
+	colorCounters.CreateCounter("confirmedAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
+	colorCounters.CreateCounter("unconfirmedAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
+
+	adversaryCounters.CreateCounter("likeAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
+	adversaryCounters.CreateCounter("opinions", allColors, []int64{int64(config.NodesCount), 0, 0, 0})
+
+	atomicCounters.CreateAtomicCounter("flips", 0)
+	atomicCounters.CreateAtomicCounter("honestFlips", 0)
+	atomicCounters.CreateAtomicCounter("tps", 0)
+	atomicCounters.CreateAtomicCounter("relevantValidators", 0)
+	atomicCounters.CreateAtomicCounter("issuedMessages", 0)
 
 	mostLikedColor = multiverse.UndefinedColor
 
@@ -325,30 +223,18 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	// Dump the configuration of this simulation
 	dumpConfig(fmt.Sprint("aw-", simulationStartTimeStr, ".config"))
 
+	// Dump the info about adversary nodes
+	adResultsWriter := createWriter(fmt.Sprintf("ad-%s.csv", simulationStartTimeStr), adHeader, &resultsWriters)
+	dumpResultsAD(adResultsWriter, testNetwork)
+
 	// Dump the double spending result
-	dsResultsWriter := createWriter(fmt.Sprintf("ds-%s.csv", simulationStartTimeStr))
+	dsResultsWriter := createWriter(fmt.Sprintf("ds-%s.csv", simulationStartTimeStr), dsHeader, &resultsWriters)
 
 	// Dump the tip pool and processed message (throughput) results
-	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", simulationStartTimeStr))
+	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", simulationStartTimeStr), tpHeader, &resultsWriters)
 
 	// Dump the info about how many nodes have confirmed and liked a certain color
-	ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", simulationStartTimeStr))
-
-	// Check the result writers
-	resultsWriters = append(resultsWriters, dsResultsWriter)
-	resultsWriters = append(resultsWriters, tpResultsWriter)
-	resultsWriters = append(resultsWriters, ccResultsWriter)
-
-	// Write the headers
-	if err := dsResultsWriter.Write(dsHeader); err != nil {
-		panic(err)
-	}
-	if err := tpResultsWriter.Write(tpHeader); err != nil {
-		panic(err)
-	}
-	if err := ccResultsWriter.Write(ccHeader); err != nil {
-		panic(err)
-	}
+	ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", simulationStartTimeStr), ccHeader, &resultsWriters)
 
 	for _, id := range config.MonitoredAWPeers {
 		awPeer := testNetwork.Peers[id]
@@ -356,12 +242,9 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			panic(fmt.Sprintf("unknowm peer with id %d", id))
 		}
 		// Define the file name of the aw results
-		awResultsWriter := createWriter(fmt.Sprintf("aw%d-%s.csv", id, simulationStartTimeStr))
-		if err := awResultsWriter.Write(awHeader); err != nil {
-			panic(err)
-		}
-		resultsWriters = append(resultsWriters, awResultsWriter)
-		awPeer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(
+		awResultsWriter := createWriter(fmt.Sprintf("aw%d-%s.csv", id, simulationStartTimeStr), awHeader, &resultsWriters)
+
+		awPeer.Node.(multiverse.NodeInterface).Tangle().ApprovalManager.Events.MessageConfirmed.Attach(
 			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64, messageIDCounter int64) {
 				confirmedMessageMutex.Lock()
 				confirmedMessageCounter[awPeer.ID] += 1
@@ -392,94 +275,94 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	}
 
 	for _, peer := range testNetwork.Peers {
-		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color, weight int64) {
-			opinionMutex.Lock()
-			defer opinionMutex.Unlock()
+		peerID := peer.ID
 
-			opinions[oldOpinion]--
-			opinions[newOpinion]++
-			likeAccumulatedWeight[oldOpinion] -= weight
-			likeAccumulatedWeight[newOpinion] += weight
-			if mostLikedColorChanged() {
-				flipsCounter++
+		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color, weight int64) {
+			colorCounters.Add("opinions", -1, oldOpinion)
+			colorCounters.Add("opinions", 1, newOpinion)
+
+			colorCounters.Add("likeAccumulatedWeight", -weight, oldOpinion)
+			colorCounters.Add("likeAccumulatedWeight", weight, newOpinion)
+
+			r, g, b := getLikesPerRGB(colorCounters, "opinions")
+			if mostLikedColorChanged(r, g, b, mostLikedColor) {
+				atomicCounters.Add("flips", 1)
+			}
+			if network.IsAdversary(int(peerID)) {
+				adversaryCounters.Add("likeAccumulatedWeight", -weight, oldOpinion)
+				adversaryCounters.Add("likeAccumulatedWeight", weight, newOpinion)
+				adversaryCounters.Add("opinions", -1, oldOpinion)
+				adversaryCounters.Add("opinions", 1, newOpinion)
 			}
 
+			ar, ag, ab := getLikesPerRGB(adversaryCounters, "opinions")
+			// honest nodes likes status only, flips
+			if mostLikedColorChanged(r-ar, g-ag, b-ab, honestOnlyMostLikedColor) {
+				atomicCounters.Add("honestFlips", 1)
+			}
 		}))
-		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color, weight int64) {
-			confirmationMutex.Lock()
-			defer confirmationMutex.Unlock()
-
-			confirmedNodesCounter[confirmedColor]++
-			confirmedAccumulatedWeight[confirmedColor] += weight
+		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color, weight int64) {
+			colorCounters.Add("confirmedNodes", 1, confirmedColor)
+			colorCounters.Add("confirmedAccumulatedWeight", weight, confirmedColor)
 		}))
 
-		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, unconfirmedSupport int64, weight int64) {
-			confirmationMutex.Lock()
-			defer confirmationMutex.Unlock()
+		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, unconfirmedSupport int64, weight int64) {
+			colorCounters.Add("colorUnconfirmed", 1, unconfirmedColor)
+			colorCounters.Add("confirmedNodes", -1, unconfirmedColor)
+
+			colorCounters.Add("unconfirmedAccumulatedWeight", weight, unconfirmedColor)
+			colorCounters.Add("confirmedAccumulatedWeight", -weight, unconfirmedColor)
 
 			// we want to know how deep the support for our once confirmed color could fall
 			// TODO after merging counters add counter colorCounters["unconfirmedDepth"] that will save min(colorCounters["unconfirmedDepth"], unconfirmedSupport)
-
-			colorUnconfirmedCounter[unconfirmedColor]++
-			colorUnconfirmedAccumulatedWeight[unconfirmedColor] += weight
-			confirmedNodesCounter[unconfirmedColor]--
-			confirmedAccumulatedWeight[unconfirmedColor] -= weight
 		}))
 	}
 
 	// Here we only monitor the opinion weight of node w/ the highest weight
 	dsPeer := testNetwork.Peers[0]
-	dsPeer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ApprovalWeightUpdated.Attach(events.NewClosure(func(opinion multiverse.Color, deltaWeight int64) {
-		opinionWeightMutex.Lock()
-		defer opinionWeightMutex.Unlock()
-
-		opinionsWeights[opinion] += deltaWeight
+	dsPeer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ApprovalWeightUpdated.Attach(events.NewClosure(func(opinion multiverse.Color, deltaWeight int64) {
+		colorCounters.Add("opinionsWeights", deltaWeight, opinion)
 	}))
 
 	// Here we only monitor the tip pool size of node w/ the highest weight
 	peer := testNetwork.Peers[0]
-	peer.Node.(*multiverse.Node).Tangle.TipManager.Events.MessageProcessed.Attach(events.NewClosure(
+	peer.Node.(multiverse.NodeInterface).Tangle().TipManager.Events.MessageProcessed.Attach(events.NewClosure(
 		func(opinion multiverse.Color, tipPoolSize int, processedMessages uint64, issuedMessages int64) {
-			processedMessageMutex.Lock()
-			defer processedMessageMutex.Unlock()
+			colorCounters.Set("tipPoolSizes", int64(tipPoolSize), opinion)
+			colorCounters.Set("processedMessages", int64(processedMessages), opinion)
 
-			tipPoolSizes[opinion] = tipPoolSize
-			processedMessageCounts[opinion] = processedMessages
-			atomic.StoreInt64(&issuedMessageCounter, issuedMessages)
+			atomicCounters.Set("issuedMessages", issuedMessages)
 		}))
 
 	go func() {
 		for range dumpingTicker.C {
-			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter)
+			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, honestNodesCount, adversaryNodesCount)
 		}
 	}()
 
 	return
 }
 
-func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer) {
+func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer, adResultsWriter *csv.Writer, honestNodesCount int, adversaryNodesCount int) {
 	simulationWg.Add(1)
 	simulationWg.Done()
 
-	log.Infof("Opinions[ %3d Undefined / %3d Blue / %3d Red / %3d Green ]",
-		opinions[multiverse.UndefinedColor],
-		opinions[multiverse.Blue],
-		opinions[multiverse.Red],
-		opinions[multiverse.Green],
+	log.Infof("New opinions counter[ %3d Undefined / %3d Blue / %3d Red / %3d Green ]",
+		colorCounters.Get("opinions", multiverse.UndefinedColor),
+		colorCounters.Get("opinions", multiverse.Blue),
+		colorCounters.Get("opinions", multiverse.Red),
+		colorCounters.Get("opinions", multiverse.Green),
 	)
-	log.Infof("Network Status: %3d TPS :: Consensus[ %3d Undefined / %3d Blue / %3d Red / %3d Green ] :: %d Nodes :: %d Validators",
-		atomic.LoadUint64(&tpsCounter),
-		confirmedNodesCounter[multiverse.UndefinedColor],
-		confirmedNodesCounter[multiverse.Blue],
-		confirmedNodesCounter[multiverse.Red],
-		confirmedNodesCounter[multiverse.Green],
-		config.NodesCount,
-		relevantValidators,
+	log.Infof("Network Status: %3d TPS :: Consensus[ %3d Undefined / %3d Blue / %3d Red / %3d Green ] :: %d  Honest Nodes :: %d Adversary Nodes :: %d Validators",
+		atomicCounters.Get("tps"),
+		colorCounters.Get("confirmedNodes", multiverse.UndefinedColor),
+		colorCounters.Get("confirmedNodes", multiverse.Blue),
+		colorCounters.Get("confirmedNodes", multiverse.Red),
+		colorCounters.Get("confirmedNodes", multiverse.Green),
+		honestNodesCount,
+		adversaryNodesCount,
+		atomicCounters.Get("relevantValidators"),
 	)
-	opinionWeightMutex.RLock()
-	processedMessageMutex.RLock()
-	confirmationMutex.RLock()
-	opinionMutex.RLock()
 
 	sinceIssuance := "0"
 	if !dsIssuanceTime.IsZero() {
@@ -487,96 +370,122 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 
 	}
 
-	// Dump the double spending results
-	record := []string{
-		strconv.FormatInt(opinionsWeights[multiverse.UndefinedColor], 10),
-		strconv.FormatInt(opinionsWeights[multiverse.Blue], 10),
-		strconv.FormatInt(opinionsWeights[multiverse.Red], 10),
-		strconv.FormatInt(opinionsWeights[multiverse.Green], 10),
-		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
-		sinceIssuance,
-	}
+	dumpResultDS(dsResultsWriter, sinceIssuance)
+	dumpResultsTP(tpResultsWriter)
+	dumpResultsCC(ccResultsWriter, sinceIssuance)
 
-	if err := dsResultsWriter.Write(record); err != nil {
-		log.Fatal("error writing record to csv:", err)
-	}
-
-	if err := dsResultsWriter.Error(); err != nil {
-		log.Fatal(err)
-	}
-
-	// Dump the tip pool sizes
-	record = []string{
-		strconv.FormatInt(int64(tipPoolSizes[multiverse.UndefinedColor]), 10),
-		strconv.FormatInt(int64(tipPoolSizes[multiverse.Blue]), 10),
-		strconv.FormatInt(int64(tipPoolSizes[multiverse.Red]), 10),
-		strconv.FormatInt(int64(tipPoolSizes[multiverse.Green]), 10),
-		strconv.FormatInt(int64(processedMessageCounts[multiverse.UndefinedColor]), 10),
-		strconv.FormatInt(int64(processedMessageCounts[multiverse.Blue]), 10),
-		strconv.FormatInt(int64(processedMessageCounts[multiverse.Red]), 10),
-		strconv.FormatInt(int64(processedMessageCounts[multiverse.Green]), 10),
-		strconv.FormatInt(atomic.LoadInt64(&issuedMessageCounter), 10),
-		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
-	}
-
-	if err := tpResultsWriter.Write(record); err != nil {
-		log.Fatal("error writing record to csv:", err)
-	}
-
-	if err := tpResultsWriter.Error(); err != nil {
-		log.Fatal(err)
-	}
-
-	// Dump the opinion and confirmation counters
-	record = []string{
-		strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Blue]), 10),
-		strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Red]), 10),
-		strconv.FormatInt(int64(confirmedNodesCounter[multiverse.Green]), 10),
-		strconv.FormatInt(int64(confirmedAccumulatedWeight[multiverse.Blue]), 10),
-		strconv.FormatInt(int64(confirmedAccumulatedWeight[multiverse.Red]), 10),
-		strconv.FormatInt(int64(confirmedAccumulatedWeight[multiverse.Green]), 10),
-		strconv.FormatInt(int64(opinions[multiverse.Blue]), 10),
-		strconv.FormatInt(int64(opinions[multiverse.Red]), 10),
-		strconv.FormatInt(int64(opinions[multiverse.Green]), 10),
-		strconv.FormatInt(int64(likeAccumulatedWeight[multiverse.Blue]), 10),
-		strconv.FormatInt(int64(likeAccumulatedWeight[multiverse.Red]), 10),
-		strconv.FormatInt(int64(likeAccumulatedWeight[multiverse.Green]), 10),
-		strconv.FormatInt(int64(colorUnconfirmedCounter[multiverse.Blue]), 10),
-		strconv.FormatInt(int64(colorUnconfirmedCounter[multiverse.Red]), 10),
-		strconv.FormatInt(int64(colorUnconfirmedCounter[multiverse.Green]), 10),
-		strconv.FormatInt(int64(colorUnconfirmedAccumulatedWeight[multiverse.Blue]), 10),
-		strconv.FormatInt(int64(colorUnconfirmedAccumulatedWeight[multiverse.Red]), 10),
-		strconv.FormatInt(int64(colorUnconfirmedAccumulatedWeight[multiverse.Green]), 10),
-		strconv.FormatInt(int64(flipsCounter), 10),
-		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
-		sinceIssuance,
-	}
-
-	if err := ccResultsWriter.Write(record); err != nil {
-		log.Fatal("error writing record to csv:", err)
-	}
-
-	if err := ccResultsWriter.Error(); err != nil {
-		log.Fatal(err)
-	}
-
-	if Max(Max(confirmedNodesCounter[multiverse.Blue], confirmedNodesCounter[multiverse.Red]), confirmedNodesCounter[multiverse.Green]) >= int(config.SimulationStopThreshold*float64(config.NodesCount)) {
+	// determines whether consensus has been reached and simulation is over
+	if Max(Max(colorCounters.GetInt("confirmedNodes", multiverse.Blue), colorCounters.GetInt("confirmedNodes", multiverse.Red)), colorCounters.GetInt("confirmedNodes", multiverse.Green)) >= int(config.SimulationStopThreshold*float64(honestNodesCount)) {
 		shutdownSignal <- types.Void
 	}
-	atomic.StoreUint64(&tpsCounter, 0)
-	opinionWeightMutex.RUnlock()
-	processedMessageMutex.RUnlock()
-	confirmationMutex.RUnlock()
-	opinionMutex.RUnlock()
+	atomicCounters.Set("tps", 0)
 }
 
-func createWriter(fileName string) *csv.Writer {
+func dumpResultDS(dsResultsWriter *csv.Writer, sinceIssuance string) {
+	// Dump the double spending results
+	record := []string{
+		strconv.FormatInt(colorCounters.Get("opinionsWeights", multiverse.UndefinedColor), 10),
+		strconv.FormatInt(colorCounters.Get("opinionsWeights", multiverse.Blue), 10),
+		strconv.FormatInt(colorCounters.Get("opinionsWeights", multiverse.Red), 10),
+		strconv.FormatInt(colorCounters.Get("opinionsWeights", multiverse.Green), 10),
+		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+		sinceIssuance,
+	}
+
+	writeLine(dsResultsWriter, record)
+}
+
+func dumpResultsTP(tpResultsWriter *csv.Writer) {
+	// Dump the tip pool sizes
+	record := []string{
+		strconv.FormatInt(colorCounters.Get("tipPoolSizes", multiverse.UndefinedColor), 10),
+		strconv.FormatInt(colorCounters.Get("tipPoolSizes", multiverse.Blue), 10),
+		strconv.FormatInt(colorCounters.Get("tipPoolSizes", multiverse.Red), 10),
+		strconv.FormatInt(colorCounters.Get("tipPoolSizes", multiverse.Green), 10),
+		strconv.FormatInt(colorCounters.Get("processedMessages", multiverse.UndefinedColor), 10),
+		strconv.FormatInt(colorCounters.Get("processedMessages", multiverse.Blue), 10),
+		strconv.FormatInt(colorCounters.Get("processedMessages", multiverse.Red), 10),
+		strconv.FormatInt(colorCounters.Get("processedMessages", multiverse.Green), 10),
+		strconv.FormatInt(atomicCounters.Get("issuedMessages"), 10),
+		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+	}
+
+	writeLine(tpResultsWriter, record)
+}
+
+func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {
+	// Dump the opinion and confirmation counters
+	record := []string{
+		strconv.FormatInt(colorCounters.Get("confirmedNodes", multiverse.Blue), 10),
+		strconv.FormatInt(colorCounters.Get("confirmedNodes", multiverse.Red), 10),
+		strconv.FormatInt(colorCounters.Get("confirmedNodes", multiverse.Green), 10),
+		strconv.FormatInt(colorCounters.Get("confirmedAccumulatedWeight", multiverse.Blue), 10),
+		strconv.FormatInt(colorCounters.Get("confirmedAccumulatedWeight", multiverse.Red), 10),
+		strconv.FormatInt(colorCounters.Get("confirmedAccumulatedWeight", multiverse.Green), 10),
+		strconv.FormatInt(colorCounters.Get("opinions", multiverse.Blue), 10),
+		strconv.FormatInt(colorCounters.Get("opinions", multiverse.Red), 10),
+		strconv.FormatInt(colorCounters.Get("opinions", multiverse.Green), 10),
+		strconv.FormatInt(colorCounters.Get("likeAccumulatedWeight", multiverse.Blue), 10),
+		strconv.FormatInt(colorCounters.Get("likeAccumulatedWeight", multiverse.Red), 10),
+		strconv.FormatInt(colorCounters.Get("likeAccumulatedWeight", multiverse.Green), 10),
+		strconv.FormatInt(adversaryCounters.Get("likeAccumulatedWeight", multiverse.Blue), 10),
+		strconv.FormatInt(adversaryCounters.Get("likeAccumulatedWeight", multiverse.Red), 10),
+		strconv.FormatInt(adversaryCounters.Get("likeAccumulatedWeight", multiverse.Green), 10),
+		strconv.FormatInt(colorCounters.Get("colorUnconfirmed", multiverse.Blue), 10),
+		strconv.FormatInt(colorCounters.Get("colorUnconfirmed", multiverse.Red), 10),
+		strconv.FormatInt(colorCounters.Get("colorUnconfirmed", multiverse.Green), 10),
+		strconv.FormatInt(colorCounters.Get("unconfirmedAccumulatedWeight", multiverse.Blue), 10),
+		strconv.FormatInt(colorCounters.Get("unconfirmedAccumulatedWeight", multiverse.Red), 10),
+		strconv.FormatInt(colorCounters.Get("unconfirmedAccumulatedWeight", multiverse.Green), 10),
+		strconv.FormatInt(atomicCounters.Get("flips"), 10),
+		strconv.FormatInt(atomicCounters.Get("honestFlips"), 10),
+		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+		sinceIssuance,
+	}
+
+	writeLine(ccResultsWriter, record)
+}
+
+func dumpResultsAD(adResultsWriter *csv.Writer, net *network.Network) {
+	adHeader = []string{"AdversaryGroupID", "Strategy", "AdversaryCount", "q"}
+	for groupID, group := range net.AdversaryGroups {
+		record := []string{
+			strconv.FormatInt(int64(groupID), 10),
+			network.AdversaryTypeToString(group.AdversaryType),
+			strconv.FormatInt(int64(len(group.NodeIDs)), 10),
+			strconv.FormatFloat(float64(group.GroupMana)/float64(config.NodesTotalWeight), 'f', 6, 64),
+			strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+		}
+		writeLine(adResultsWriter, record)
+	}
+}
+
+func writeLine(writer *csv.Writer, record []string) {
+	if err := writer.Write(record); err != nil {
+		log.Fatal("error writing record to csv:", err)
+	}
+
+	if err := writer.Error(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func createWriter(fileName string, header []string, resultsWriters *[]*csv.Writer) *csv.Writer {
 	file, err := os.Create(path.Join(config.ResultDir, fileName))
 	if err != nil {
 		panic(err)
 	}
-	tpResultsWriter := csv.NewWriter(file)
-	return tpResultsWriter
+	resultsWriter := csv.NewWriter(file)
+
+	// Check the result writers
+	if resultsWriters != nil {
+		*resultsWriters = append(*resultsWriters, resultsWriter)
+	}
+	// Write the headers
+	if err := resultsWriter.Write(header); err != nil {
+		panic(err)
+	}
+	return resultsWriter
 }
 
 func secureNetwork(testNetwork *network.Network) {
@@ -590,7 +499,7 @@ func secureNetwork(testNetwork *network.Network) {
 		// 	continue
 		// }
 
-		relevantValidators++
+		atomicCounters.Add("relevantValidators", 1)
 
 		// Each peer should send messages according to their mana: Fix TPS for example 1000;
 		// A node with a x% of mana will issue 1000*x% messages per second
@@ -630,13 +539,13 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 }
 
 func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
-	atomic.AddUint64(&tpsCounter, 1)
+	atomicCounters.Add("tps", 1)
 
 	if len(optionalColor) >= 1 {
-		peer.Node.(*multiverse.Node).IssuePayload(optionalColor[0])
+		peer.Node.(multiverse.NodeInterface).IssuePayload(optionalColor[0])
 	}
 
-	peer.Node.(*multiverse.Node).IssuePayload(multiverse.UndefinedColor)
+	peer.Node.(multiverse.NodeInterface).IssuePayload(multiverse.UndefinedColor)
 }
 
 // Max returns the larger of x or y.
@@ -660,25 +569,30 @@ func ArgMax(x []int64) int {
 	return maxLocation
 }
 
-func mostLikedColorChanged() bool {
+func getLikesPerRGB(counter *simulation.ColorCounters, flag string) (int64, int64, int64) {
+	return counter.Get(flag, multiverse.Red), counter.Get(flag, multiverse.Green), counter.Get(flag, multiverse.Blue)
+}
+
+func mostLikedColorChanged(r, g, b int64, mostLikedColorVar multiverse.Color) bool {
+
 	currentMostLikedColor := multiverse.UndefinedColor
-	if opinions[multiverse.Green] > 0 {
+	if g > 0 {
 		currentMostLikedColor = multiverse.Green
 	}
-	if opinions[multiverse.Blue] > opinions[multiverse.Green] {
+	if b > g {
 		currentMostLikedColor = multiverse.Blue
 	}
-	if opinions[multiverse.Red] > opinions[multiverse.Blue] && opinions[multiverse.Red] > opinions[multiverse.Green] {
+	if r > b && r > g {
 		currentMostLikedColor = multiverse.Red
 	}
 	// color selected
-	if mostLikedColor != currentMostLikedColor {
+	if mostLikedColorVar != currentMostLikedColor {
 		// color selected for the first time, it not counts
-		if mostLikedColor == multiverse.UndefinedColor {
-			mostLikedColor = currentMostLikedColor
+		if mostLikedColorVar == multiverse.UndefinedColor {
+			mostLikedColorVar = currentMostLikedColor
 			return false
 		}
-		mostLikedColor = currentMostLikedColor
+		mostLikedColorVar = currentMostLikedColor
 		return true
 	}
 	return false

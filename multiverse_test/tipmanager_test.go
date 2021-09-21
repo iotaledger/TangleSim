@@ -22,8 +22,11 @@ var (
 func TestTipManager(t *testing.T) {
 	log.Info("Starting TipManager Test ... [DONE]")
 	defer log.Info("Shutting down TipManager Test ... [DONE]")
+	nodeFactories := map[network.AdversaryType]network.NodeFactory{
+		network.HonestNode: network.NodeClosure(multiverse.NewNode),
+	}
 	testNetwork := network.New(
-		network.Nodes(nodeCount, multiverse.NewNode, network.ZIPFDistribution(config.ZipfParameter, float64(config.NodesTotalWeight))),
+		network.Nodes(nodeCount, nodeFactories, network.ZIPFDistribution(config.ZipfParameter, float64(config.NodesTotalWeight))),
 		network.Delay(30*time.Millisecond, 250*time.Millisecond),
 		network.PacketLoss(0, 0.05),
 		network.Topology(network.WattsStrogatz(4, 1)),
@@ -43,7 +46,7 @@ func monitorNetworkState(testNetwork *network.Network) {
 
 	for _, id := range config.MonitoredAWPeers {
 		awPeer := testNetwork.Peers[id]
-		awPeer.Node.(*multiverse.Node).Tangle.ApprovalManager.Events.MessageConfirmed.Attach(
+		awPeer.Node.(multiverse.NodeInterface).Tangle().ApprovalManager.Events.MessageConfirmed.Attach(
 			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64) {
 				atomic.AddInt64(&confirmedMessageCounter, 1)
 			}))
@@ -52,7 +55,7 @@ func monitorNetworkState(testNetwork *network.Network) {
 	return
 }
 
-func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
+func secureNetwork(testNetwork *network.Network, decelerationFactor int) {
 	largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
 
 	for _, peer := range testNetwork.Peers {
@@ -63,7 +66,7 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor float64) {
 		}
 
 		issuingPeriod := float64(config.NodesTotalWeight) / float64(config.TPS) / weightOfPeer
-		pace := time.Duration(issuingPeriod * decelerationFactor * float64(time.Second))
+		pace := time.Duration(issuingPeriod * float64(decelerationFactor) * float64(time.Second))
 		go startSecurityWorker(peer, pace)
 	}
 }

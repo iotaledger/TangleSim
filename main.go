@@ -102,8 +102,10 @@ func parseFlags() {
 		flag.Int("nodesTotalWeight", config.NodesTotalWeight, "The total weight of nodes")
 	zipfParameterPtr :=
 		flag.Float64("zipfParameter", config.ZipfParameter, "The zipf's parameter")
-	messageWeightThresholdPtr :=
-		flag.Float64("messageWeightThreshold", config.MessageWeightThreshold, "The messageWeightThreshold of confirmed messages")
+	weightThresholdPtr :=
+		flag.Float64("weightThreshold", config.WeightThreshold, "The weightThreshold of confirmed messages/color")
+	weightThresholdAbsolutePtr :=
+		flag.Bool("weightThresholdAbsolute", config.WeightThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
 	tipsCountPtr :=
 		flag.Int("tipsCount", config.TipsCount, "The tips count for a message")
 	weakTipsRatioPtr :=
@@ -148,7 +150,8 @@ func parseFlags() {
 	config.NodesCount = *nodesCountPtr
 	config.NodesTotalWeight = *nodesTotalWeightPtr
 	config.ZipfParameter = *zipfParameterPtr
-	config.MessageWeightThreshold = *messageWeightThresholdPtr
+	config.WeightThreshold = *weightThresholdPtr
+	config.WeightThresholdAbsolute = *weightThresholdAbsolutePtr
 	config.TipsCount = *tipsCountPtr
 	config.WeakTipsRatio = *weakTipsRatioPtr
 	config.TSA = *tsaPtr
@@ -172,7 +175,8 @@ func parseFlags() {
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
 	log.Info("ZipfParameter: ", config.ZipfParameter)
-	log.Info("MessageWeightThreshold: ", config.MessageWeightThreshold)
+	log.Info("WeightThreshold: ", config.WeightThreshold)
+	log.Info("WeightThresholdAbsolute: ", config.WeightThresholdAbsolute)
 	log.Info("TipsCount: ", config.TipsCount)
 	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
 	log.Info("TSA: ", config.TSA)
@@ -259,14 +263,14 @@ func flushWriters(writers []*csv.Writer) {
 func dumpConfig(fileName string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ReleventValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                     float64
-		TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                  string
+		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget                                                                                                                 string
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
 		NodesTotalWeight:        config.NodesTotalWeight,
 		ZipfParameter:           config.ZipfParameter,
-		MessageWeightThreshold:  config.MessageWeightThreshold,
+		WeightThreshold:         fmt.Sprintf("%.2f-%v", config.WeightThreshold, config.WeightThresholdAbsolute),
 		TipsCount:               config.TipsCount,
 		WeakTipsRatio:           config.WeakTipsRatio,
 		TSA:                     config.TSA,
@@ -409,9 +413,12 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			confirmedAccumulatedWeight[confirmedColor] += weight
 		}))
 
-		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, weight int64) {
+		peer.Node.(*multiverse.Node).Tangle.OpinionManager.Events.ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, unconfirmedSupport int64, weight int64) {
 			confirmationMutex.Lock()
 			defer confirmationMutex.Unlock()
+
+			// we want to know how deep the support for our once confirmed color could fall
+			// TODO after merging counters add counter colorCounters["unconfirmedDepth"] that will save min(colorCounters["unconfirmedDepth"], unconfirmedSupport)
 
 			colorUnconfirmedCounter[unconfirmedColor]++
 			colorUnconfirmedAccumulatedWeight[unconfirmedColor] += weight

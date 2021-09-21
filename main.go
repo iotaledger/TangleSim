@@ -139,8 +139,8 @@ func flushWriters(writers []*csv.Writer) {
 func dumpConfig(fileName string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS, AdversaryIndexStart int
-		ZipfParameter, MessageWeightThreshold, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS, AdversaryErrorThreshold                                                 float64
-		TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                                       string
+		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS, AdversaryErrorThreshold                                                 float64
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                                       string
 		AdversaryDelays, AdversaryTypes                                                                                                                                                              []int
 		AdversaryMana                                                                                                                                                                                []float64
 	}
@@ -148,7 +148,7 @@ func dumpConfig(fileName string) {
 		NodesCount:              config.NodesCount,
 		NodesTotalWeight:        config.NodesTotalWeight,
 		ZipfParameter:           config.ZipfParameter,
-		MessageWeightThreshold:  config.MessageWeightThreshold,
+		WeightThreshold:         fmt.Sprintf("%.2f-%v", config.WeightThreshold, config.WeightThresholdAbsolute),
 		TipsCount:               config.TipsCount,
 		WeakTipsRatio:           config.WeakTipsRatio,
 		TSA:                     config.TSA,
@@ -304,12 +304,15 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			colorCounters.Add("confirmedAccumulatedWeight", weight, confirmedColor)
 		}))
 
-		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, weight int64) {
+		peer.Node.(*multiverse.Node).Tangle().OpinionManager.Events().ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, unconfirmedSupport int64, weight int64) {
 			colorCounters.Add("colorUnconfirmed", 1, unconfirmedColor)
 			colorCounters.Add("confirmedNodes", -1, unconfirmedColor)
 
 			colorCounters.Add("unconfirmedAccumulatedWeight", weight, unconfirmedColor)
 			colorCounters.Add("confirmedAccumulatedWeight", -weight, unconfirmedColor)
+
+			// we want to know how deep the support for our once confirmed color could fall
+			// TODO after merging counters add counter colorCounters["unconfirmedDepth"] that will save min(colorCounters["unconfirmedDepth"], unconfirmedSupport)
 		}))
 	}
 

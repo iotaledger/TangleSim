@@ -37,7 +37,7 @@ func NewOpinionManager(tangle *Tangle) (opinionManager *OpinionManager) {
 			OpinionChanged:        events.NewEvent(opinionChangedEventHandler),
 			ApprovalWeightUpdated: events.NewEvent(approvalWeightUpdatedHandler),
 			ColorConfirmed:        events.NewEvent(colorEventHandler),
-			ColorUnconfirmed:      events.NewEvent(colorEventHandler),
+			ColorUnconfirmed:      events.NewEvent(reorgEventHandler),
 		},
 
 		tangle:          tangle,
@@ -63,7 +63,7 @@ func (o *OpinionManager) Setup() {
 	o.tangle.Booker.Events.MessageBooked.Attach(events.NewClosure(o.FormOpinion))
 }
 
-// Form the opinion of the current tangle.
+// FormOpinion of the current tangle.
 // The opinion is determined by the color with the most approvalWeight.
 func (o *OpinionManager) FormOpinion(messageID MessageID) {
 	defer o.events.OpinionFormed.Trigger(messageID)
@@ -101,29 +101,16 @@ func (o *OpinionManager) UpdateWeights(messageID MessageID) (updated bool) {
 	}
 
 	if exist {
-		if o.colorConfirmed && float64(o.approvalWeights[lastOpinion.Color]) > float64(config.NodesTotalWeight)*config.MessageWeightThreshold {
-			o.colorConfirmed = false
-			// Note that here we calculate the accumulated weights in our local tangle,
-			// so we accumulate the weight of node who is processing the booked message.
-			// Also note that the node has not voted for this branch yet.
-			o.events.ColorUnconfirmed.Trigger(lastOpinion.Color, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
-		}
-
 		// We calculate the approval weight of the branch based on the node who issued the message to the branch (i.e., it already voted for the branch).
 		o.approvalWeights[lastOpinion.Color] -= o.tangle.WeightDistribution.Weight(message.Issuer)
 		o.events.ApprovalWeightUpdated.Trigger(lastOpinion.Color, int64(-o.tangle.WeightDistribution.Weight(message.Issuer)))
 	}
-	lastOpinion.Color = messageMetadata.InheritedColor()
 
 	// We calculate the approval weight of the branch based on the node who issued the message to the branch (i.e., it already voted for the branch).
 	o.approvalWeights[messageMetadata.InheritedColor()] += o.tangle.WeightDistribution.Weight(message.Issuer)
 	o.events.ApprovalWeightUpdated.Trigger(messageMetadata.InheritedColor(), int64(o.tangle.WeightDistribution.Weight(message.Issuer)))
 
-	if !o.colorConfirmed && float64(o.approvalWeights[lastOpinion.Color]) > float64(config.NodesTotalWeight)*config.MessageWeightThreshold {
-		o.colorConfirmed = true
-		// Here we accumulate the approval weights in our local tangle.
-		o.events.ColorConfirmed.Trigger(lastOpinion.Color, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
-	}
+	lastOpinion.Color = messageMetadata.InheritedColor()
 	updated = true
 	return
 }
@@ -142,19 +129,49 @@ func (o *OpinionManager) SetOpinion(opinion Color) {
 // Update the opinions counter and ownOpinion based on the highest peer color value and maxApprovalWeight
 // Each Color has approvalWeight. The Color with maxApprovalWeight determines the ownOpinion
 func (o *OpinionManager) WeightsUpdated() {
+	maxOpinion := getMaxOpinion(o.approvalWeights)
+
+	if oldOpinion := o.ownOpinion; maxOpinion != oldOpinion {
+		o.ownOpinion = maxOpinion
+		o.Events().OpinionChanged.Trigger(oldOpinion, maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
+		if o.colorConfirmed {
+			o.colorConfirmed = false
+			o.Events().ColorUnconfirmed.Trigger(oldOpinion, int64(o.approvalWeights[o.ownOpinion]), int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
+		}
+	}
+
+	if o.checkColorConfirmed(maxOpinion) && !o.colorConfirmed {
+		// Here we accumulate the approval weights in our local tangle.
+		o.Events().ColorConfirmed.Trigger(maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
+		o.colorConfirmed = true
+	}
+}
+
+func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {
+	if config.WeightThresholdAbsolute {
+		return float64(o.approvalWeights[newOpinion]) > float64(config.NodesTotalWeight)*config.WeightThreshold
+	} else {
+		aw := make(map[Color]uint64)
+		for key, value := range o.approvalWeights {
+			if key != newOpinion {
+				aw[key] = value
+			}
+		}
+		alternativeOpinion := getMaxOpinion(aw)
+		return float64(o.approvalWeights[newOpinion])-float64(o.approvalWeights[alternativeOpinion]) > float64(config.NodesTotalWeight)*config.WeightThreshold
+	}
+}
+
+func getMaxOpinion(aw map[Color]uint64) Color {
 	maxApprovalWeight := uint64(0)
 	maxOpinion := UndefinedColor
-	for color, approvalWeight := range o.approvalWeights {
-		if approvalWeight > maxApprovalWeight || approvalWeight == maxApprovalWeight && color < maxOpinion {
+	for color, approvalWeight := range aw {
+		if approvalWeight > maxApprovalWeight || approvalWeight == maxApprovalWeight && color < maxOpinion || maxOpinion == UndefinedColor {
 			maxApprovalWeight = approvalWeight
 			maxOpinion = color
 		}
 	}
-
-	if oldOpinion := o.ownOpinion; maxOpinion != oldOpinion {
-		o.ownOpinion = maxOpinion
-		o.events.OpinionChanged.Trigger(oldOpinion, maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)), o.tangle.Peer.ID)
-	}
+	return maxOpinion
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -184,6 +201,9 @@ func opinionChangedEventHandler(handler interface{}, params ...interface{}) {
 }
 func colorEventHandler(handler interface{}, params ...interface{}) {
 	handler.(func(Color, int64))(params[0].(Color), params[1].(int64))
+}
+func reorgEventHandler(handler interface{}, params ...interface{}) {
+	handler.(func(Color, int64, int64))(params[0].(Color), params[1].(int64), params[2].(int64))
 }
 
 func approvalWeightUpdatedHandler(handler interface{}, params ...interface{}) {

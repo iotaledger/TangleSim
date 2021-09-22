@@ -92,23 +92,8 @@ func main() {
 	secureNetwork(testNetwork)
 
 	// To simulate the confirmation time w/o any double spendings, the colored msgs are not to be sent
-
-	// Here we simulate the double spending
 	if config.SimulationTarget == "DS" {
-		time.Sleep(time.Duration(config.DoubleSpendDelay*config.DecelerationFactor) * time.Second)
-		dsIssuanceTime = time.Now()
-		for groupIndex, group := range testNetwork.AdversaryGroups {
-			color := multiverse.ColorFromInt(groupIndex + 1)
-			// honest node does not implement adversary behavior interface
-			if group.AdversaryType != network.HonestNode {
-				for _, nodeID := range group.NodeIDs {
-					node := adversary.CastAdversary(testNetwork.Peer(nodeID).Node)
-					node.AssignColor(color)
-				}
-			}
-			// only one node from the group needs to issue message
-			sendMessage(testNetwork.Peer(group.NodeIDs[0]), color)
-		}
+		SimulateDoubleSpent(testNetwork)
 	}
 
 	select {
@@ -118,6 +103,36 @@ func main() {
 	case <-time.After(time.Duration(config.DecelerationFactor) * maxSimulationDuration):
 		shutdownSimulation()
 		log.Info("Shutting down simulation (simulation timed out) ... [DONE]")
+	}
+}
+
+func SimulateDoubleSpent(testNetwork *network.Network) {
+	time.Sleep(time.Duration(config.DoubleSpendDelay*config.DecelerationFactor) * time.Second)
+	// Here we simulate the double spending
+	dsIssuanceTime = time.Now()
+
+	switch config.SimulationMode {
+	case "Accidental":
+		for i, node := range network.GetAccidentalIssuers(testNetwork) {
+			color := multiverse.ColorFromInt(i + 1)
+			go sendMessage(node, color)
+			log.Infof("Peer %d sent double spend msg: %v", node.ID, color)
+		}
+	case "Adversary":
+		for _, group := range testNetwork.AdversaryGroups {
+			color := multiverse.ColorFromStr(group.InitColor)
+
+			for _, nodeID := range group.NodeIDs {
+				peer := testNetwork.Peer(nodeID)
+				// honest node does not implement adversary behavior interface
+				if group.AdversaryType != network.HonestNode {
+					node := adversary.CastAdversary(peer.Node)
+					node.AssignColor(color)
+				}
+				go sendMessage(peer, color)
+				log.Infof("Peer %d sent double spend msg: %v", peer.ID, color)
+			}
+		}
 	}
 }
 
@@ -494,12 +509,7 @@ func createWriter(fileName string, header []string, resultsWriters *[]*csv.Write
 func secureNetwork(testNetwork *network.Network) {
 	// In the simulation we let all nodes can send messages.
 	// largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
-	_, totalWeight := testNetwork.AdversaryGroups.CalculateWeightTotalConfig()
-	log.Info("totalWeight ", totalWeight)
 
-	adv1 := testNetwork.AdversaryGroups[0].NodeIDs[0]
-	adv2 := testNetwork.AdversaryGroups[1].NodeIDs[0]
-	log.Info("top honest holder ", testNetwork.WeightDistribution.Weight(0), "adversary ", testNetwork.WeightDistribution.Weight(network.GetPeerID(adv1)), " ", testNetwork.WeightDistribution.Weight(network.GetPeerID(adv2)))
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
 
@@ -517,7 +527,6 @@ func secureNetwork(testNetwork *network.Network) {
 		// Band widths summed up: 100000/121 + 20000/121 + 1000/121 = 1000
 
 		band := weightOfPeer * float64(config.TPS) / float64(config.NodesTotalWeight)
-
 		go startSecurityWorker(peer, band)
 	}
 }

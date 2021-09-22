@@ -71,7 +71,7 @@ func ParseFlags() {
 	adversaryMana :=
 		flag.String("adversaryMana", "", "Adversary nodes mana in %, e.g. '10 10' Special values: -1 nodes should be selected randomly from weight distribution, SimulationTarget must be 'DS'")
 	simulationMode :=
-		flag.String("simulationMode", "Accidental", "Mode for the DS simulations one of: 'Accidental' - accidental double spends sent by max, min or random weight node from Zipf distrib, 'Adversary' - need to use adversary groups (parameters starting with 'Adversary...')")
+		flag.String("simulationMode", config.SimulationMode, "Mode for the DS simulations one of: 'Accidental' - accidental double spends sent by max, min or random weight node from Zipf distrib, 'Adversary' - need to use adversary groups (parameters starting with 'Adversary...')")
 	accidentalMana :=
 		flag.String("accidentalMana", "", "Defines node which will be used: min, max or random")
 
@@ -129,13 +129,18 @@ func ParseFlags() {
 	log.Info("IMIF: ", config.IMIF)
 	log.Info("WattsStrogatzRandomness: ", config.RandomnessWS)
 	log.Info("WattsStrogatzNeighborCount: ", config.NeighbourCountWS)
-	log.Info("AdversaryDelays: ", config.AdversaryDelays)
+	log.Info("SimulationMode: ", config.SimulationMode)
 	log.Info("AdversaryTypes: ", config.AdversaryTypes)
+	log.Info("AdversaryInitColors: ", config.AdversaryInitColors)
 	log.Info("AdversaryMana: ", config.AdversaryMana)
+	log.Info("AdversaryNodeCounts: ", config.AdversaryNodeCounts)
+	log.Info("AdversaryDelays: ", config.AdversaryDelays)
+	log.Info("AccidentalMana: ", config.AccidentalMana)
+
 }
 
 func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors *string) {
-	if config.SimulationMode != "Adversary" {
+	if config.SimulationMode != "Adversary" || config.SimulationTarget != "DS" {
 		config.AdversaryTypes = []int{}
 		config.AdversaryNodeCounts = []int{}
 		config.AdversaryMana = []float64{}
@@ -153,20 +158,15 @@ func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, advers
 	if *adversaryMana != "" {
 		config.AdversaryMana = parseStrToFloat64(*adversaryMana)
 	}
-	if *adversaryMana != "" {
+	if *adversaryNodeCounts != "" {
 		config.AdversaryNodeCounts = parseStrToInt(*adversaryNodeCounts)
 	}
-	if *adversaryMana != "" {
+	if *adversaryInitColors != "" {
 		config.AdversaryInitColors = parseStr(*adversaryInitColors)
 	}
 
-	// no adversary if simulation target is not DS
-	if config.SimulationTarget != "DS" {
-		config.AdversaryTypes = []int{}
-	}
-
 	// no adversary if colors are not provided
-	if len(config.AdversaryNodeCounts) != len(config.AdversaryTypes) {
+	if len(config.AdversaryInitColors) != len(config.AdversaryTypes) {
 		config.AdversaryTypes = []int{}
 	}
 
@@ -183,12 +183,12 @@ func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, advers
 }
 
 func parseAccidentalConfig(accidentalMana *string) {
-	if config.SimulationMode != "Accidental" {
-		config.AdversaryInitColors = []string{}
+	if config.SimulationMode != "Accidental" || config.SimulationTarget != "DS" {
+		config.AccidentalMana = []string{}
 		return
 	}
 	if *accidentalMana != "" {
-		config.AdversaryInitColors = parseStr(*accidentalMana)
+		config.AccidentalMana = parseStr(*accidentalMana)
 	}
 }
 

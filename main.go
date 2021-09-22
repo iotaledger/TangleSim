@@ -140,10 +140,10 @@ func dumpConfig(fileName string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
 		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
-		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget                                                                                                                 string
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                 string
 		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                    []int
 		AdversaryMana                                                                                                                                                           []float64
-		AdversaryInitColor                                                                                                                                                      []string
+		AdversaryInitColor, AccidentalMana                                                                                                                                      []string
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -173,6 +173,8 @@ func dumpConfig(fileName string) {
 		AdversaryMana:           config.AdversaryMana,
 		AdversaryNodeCounts:     config.AdversaryNodeCounts,
 		AdversaryInitColor:      config.AdversaryInitColors,
+		SimulationMode:          config.SimulationMode,
+		AccidentalMana:          config.AccidentalMana,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")
@@ -492,7 +494,12 @@ func createWriter(fileName string, header []string, resultsWriters *[]*csv.Write
 func secureNetwork(testNetwork *network.Network) {
 	// In the simulation we let all nodes can send messages.
 	// largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
+	_, totalWeight := testNetwork.AdversaryGroups.CalculateWeightTotalConfig()
+	log.Info("totalWeight ", totalWeight)
 
+	adv1 := testNetwork.AdversaryGroups[0].NodeIDs[0]
+	adv2 := testNetwork.AdversaryGroups[1].NodeIDs[0]
+	log.Info("top honest holder ", testNetwork.WeightDistribution.Weight(0), "adversary ", testNetwork.WeightDistribution.Weight(network.GetPeerID(adv1)), " ", testNetwork.WeightDistribution.Weight(network.GetPeerID(adv2)))
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
 

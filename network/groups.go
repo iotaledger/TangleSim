@@ -145,7 +145,7 @@ func (g *AdversaryGroups) updateAdvIDAndWeights(advIndex int, newWeights []uint6
 
 func (g *AdversaryGroups) updateGroupMana() {
 	for _, group := range *g {
-		group.GroupMana = group.TargetManaPercentage * float64(config.NodesTotalWeight)
+		group.GroupMana = group.TargetManaPercentage * float64(config.NodesTotalWeight) / 100.0
 	}
 }
 

@@ -172,12 +172,15 @@ func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, advers
 
 	// make sure mana, nodeCounts and delays are only defined when adversary type is provided and have the same length
 	if len(config.AdversaryDelays) != 0 && len(config.AdversaryDelays) != len(config.AdversaryTypes) {
+		log.Warnf("The AdversaryDelays count is not equal to the AdversaryTypes count!")	
 		config.AdversaryDelays = []int{}
 	}
 	if len(config.AdversaryMana) != 0 && len(config.AdversaryMana) != len(config.AdversaryTypes) {
+		log.Warnf("The AdversaryMana count is not equal to the AdversaryTypes count!")
 		config.AdversaryMana = []float64{}
 	}
 	if len(config.AdversaryNodeCounts) != 0 && len(config.AdversaryNodeCounts) != len(config.AdversaryTypes) {
+		log.Warnf("The AdversaryNodeCounts count is not equal to the AdversaryTypes count!")	
 		config.AdversaryNodeCounts = []int{}
 	}
 }

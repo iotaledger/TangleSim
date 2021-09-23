@@ -48,7 +48,7 @@ class FileParser:
         with open(config_fn) as f:
             c = json.load(f)
 
-        v = c[variation]
+        v = str(c[variation])
 
         data = pd.read_csv(fn)
 
@@ -86,7 +86,7 @@ class FileParser:
         with open(config_fn) as f:
             c = json.load(f)
 
-        v = c[var]
+        v = str(c[var])
 
         data = pd.read_csv(fn)
 
@@ -146,7 +146,7 @@ class FileParser:
         convergence_time /= self.one_second
         convergence_time /= float(c["DecelerationFactor"])
 
-        v = c[var]
+        v = str(c[var])
 
         # Return the scaled x axis
         x_axis = ((data['ns since start']) /

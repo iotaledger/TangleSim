@@ -4,6 +4,7 @@ import glob
 
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 
 import constant as c
 from parsing import FileParser
@@ -80,7 +81,8 @@ class FigurePlotter:
         plt.boxplot(data)
         plt.xlabel(var)
         plt.title(title)
-        plt.xticks(ticks=list(range(1, 1 + len(variations))), labels=variations)
+        plt.xticks(ticks=list(range(1, 1 + len(variations))),
+                   labels=variations)
         if target == 'convergence_time':
             plt.ylabel('Convergence Time (s)')
         elif target == 'flips':
@@ -219,7 +221,8 @@ class FigurePlotter:
         variation_data = {}
         for f in glob.glob(fs):
             # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
-            v, cc_ct_flips_total_aw_x = self.parser.parse_confirmed_color_file(f, var)
+            v, cc_ct_flips_total_aw_x = self.parser.parse_confirmed_color_file(
+                f, var)
             variation_data[v] = cc_ct_flips_total_aw_x
 
         rc, cc = get_row_col_counts(fc)
@@ -236,15 +239,16 @@ class FigurePlotter:
             else:
                 ax = axs[r_loc, c_loc]
             for j, n in enumerate(weights.columns):
-                aw_percentage = weights[n] / total_aw
+                aw_percentage = 100.0 * weights[n] / total_aw
                 ax.plot(x_axis, aw_percentage, label=n,
                         color=self.ds_clr_list[j], ls=self.ds_sty_list[j], linewidth=1)
 
             # Only put the legend on the first figures
             if i == 0:
                 ax.legend()
-            ax.set(
-                xlabel='Time (s)', ylabel='Accumulated Weight', title=f'{self.var_dict[var]} = {v}, {ct:.1f}(s)')
+            ax.yaxis.set_major_formatter(mtick.PercentFormatter())
+            ax.set(xlabel='Time (s)', ylabel='Accumulated Weight Percentage',
+                   title=f'{self.var_dict[var]} = {v}, {ct:.1f}(s)')
 
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent)
@@ -328,9 +332,10 @@ class FigurePlotter:
 
             ct_series = np.array(sorted(d[0].values))
             confirmed_msg_counts = np.array(list(d[0].index))
-            plt.plot(ct_series / d[1], confirmed_msg_counts / len(confirmed_msg_counts),
+            plt.plot(ct_series / d[1], 100.0 * confirmed_msg_counts / len(confirmed_msg_counts),
                      label=f'{label} = {v}', color=clr, ls=sty)
 
+        plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
         plt.xlabel('Confirmation Time (s)')
         plt.ylabel('Cumulative Confirmed Message Percentage')
         plt.legend()

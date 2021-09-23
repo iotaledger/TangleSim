@@ -97,9 +97,9 @@ func (c *Configuration) CreatePeers(network *Network) {
 	defer log.Info("Creating peers ... [DONE]")
 
 	network.WeightDistribution = NewConsensusWeightDistribution()
+
 	for _, nodesSpecification := range c.nodes {
-		nodeWeights := nodesSpecification.weightGenerator(nodesSpecification.nodeCount)
-		network.AdversaryGroups.ChooseAdversaryNodes(nodeWeights, float64(config.NodesTotalWeight))
+		nodeWeights := nodesSpecification.ConfigureWeights(network)
 
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
@@ -149,6 +149,28 @@ type NodesSpecification struct {
 	nodeCount       int
 	nodeFactories   map[AdversaryType]NodeFactory
 	weightGenerator WeightGenerator
+}
+
+func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
+	var nodesCount int
+	var totalWeight float64
+	var nodeWeights []uint64
+
+	if config.SimulationTarget == "DS" {
+		switch config.SimulationMode {
+		case "Adversary":
+			nodesCount, totalWeight = network.AdversaryGroups.CalculateWeightTotalConfig()
+			nodeWeights = n.weightGenerator(nodesCount, totalWeight)
+			// update adversary groups and get new mana distribution with adversary nodes included
+			nodeWeights = network.AdversaryGroups.UpdateAdversaryNodes(nodeWeights)
+		case "Accidental":
+			nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+		}
+	} else {
+		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+	}
+
+	return nodeWeights
 }
 
 func Delay(minDelay time.Duration, maxDelay time.Duration) Option {

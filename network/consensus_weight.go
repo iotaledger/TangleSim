@@ -4,12 +4,12 @@ import (
 	"math"
 )
 
-type WeightGenerator func(nodeCount int) []uint64
+type WeightGenerator func(nodeCount int, nodeTotalWeight float64) []uint64
 
 // region ZIPFDistribution /////////////////////////////////////////////////////////////////////////////////////////////
 
-func ZIPFDistribution(s float64, totalWeight float64) WeightGenerator {
-	return func(nodeCount int) (result []uint64) {
+func ZIPFDistribution(s float64) WeightGenerator {
+	return func(nodeCount int, totalWeight float64) (result []uint64) {
 		rawTotalWeight := uint64(0)
 		rawWeights := make([]uint64, nodeCount)
 		for i := 0; i < nodeCount; i++ {

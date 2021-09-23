@@ -78,7 +78,7 @@ func main() {
 	}
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
-			config.ZipfParameter, float64(config.NodesTotalWeight))),
+			config.ZipfParameter)),
 		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
 			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
 		network.PacketLoss(0, config.PayloadLoss),
@@ -92,23 +92,8 @@ func main() {
 	secureNetwork(testNetwork)
 
 	// To simulate the confirmation time w/o any double spendings, the colored msgs are not to be sent
-
-	// Here we simulate the double spending
 	if config.SimulationTarget == "DS" {
-		time.Sleep(time.Duration(config.DoubleSpendDelay*config.DecelerationFactor) * time.Second)
-		dsIssuanceTime = time.Now()
-		for groupIndex, group := range testNetwork.AdversaryGroups {
-			color := multiverse.ColorFromInt(groupIndex + 1)
-			// honest node does not implement adversary behavior interface
-			if group.AdversaryType != network.HonestNode {
-				for _, nodeID := range group.NodeIDs {
-					node := adversary.CastAdversary(testNetwork.Peer(nodeID).Node)
-					node.AssignColor(color)
-				}
-			}
-			// only one node from the group needs to issue message
-			sendMessage(testNetwork.Peer(group.NodeIDs[0]), color)
-		}
+		SimulateDoubleSpent(testNetwork)
 	}
 
 	select {
@@ -118,6 +103,36 @@ func main() {
 	case <-time.After(time.Duration(config.DecelerationFactor) * maxSimulationDuration):
 		shutdownSimulation()
 		log.Info("Shutting down simulation (simulation timed out) ... [DONE]")
+	}
+}
+
+func SimulateDoubleSpent(testNetwork *network.Network) {
+	time.Sleep(time.Duration(config.DoubleSpendDelay*config.DecelerationFactor) * time.Second)
+	// Here we simulate the double spending
+	dsIssuanceTime = time.Now()
+
+	switch config.SimulationMode {
+	case "Accidental":
+		for i, node := range network.GetAccidentalIssuers(testNetwork) {
+			color := multiverse.ColorFromInt(i + 1)
+			go sendMessage(node, color)
+			log.Infof("Peer %d sent double spend msg: %v", node.ID, color)
+		}
+	case "Adversary":
+		for _, group := range testNetwork.AdversaryGroups {
+			color := multiverse.ColorFromStr(group.InitColor)
+
+			for _, nodeID := range group.NodeIDs {
+				peer := testNetwork.Peer(nodeID)
+				// honest node does not implement adversary behavior interface
+				if group.AdversaryType != network.HonestNode {
+					node := adversary.CastAdversary(peer.Node)
+					node.AssignColor(color)
+				}
+				go sendMessage(peer, color)
+				log.Infof("Peer %d sent double spend msg: %v", peer.ID, color)
+			}
+		}
 	}
 }
 
@@ -138,11 +153,12 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS, AdversaryIndexStart int
-		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS, AdversaryErrorThreshold                                                                         float64
-		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget                                                                                                                                      string
-		AdversaryDelays, AdversaryTypes                                                                                                                                                              []int
-		AdversaryMana                                                                                                                                                                                []float64
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
+		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                 string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                    []int
+		AdversaryMana                                                                                                                                                           []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                      []string
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -170,8 +186,10 @@ func dumpConfig(fileName string) {
 		AdversaryTypes:          config.AdversaryTypes,
 		AdversaryDelays:         config.AdversaryDelays,
 		AdversaryMana:           config.AdversaryMana,
-		AdversaryErrorThreshold: config.AdversaryErrorThreshold,
-		AdversaryIndexStart:     config.AdversaryIndexStart,
+		AdversaryNodeCounts:     config.AdversaryNodeCounts,
+		AdversaryInitColor:      config.AdversaryInitColors,
+		SimulationMode:          config.SimulationMode,
+		AccidentalMana:          config.AccidentalMana,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")
@@ -509,7 +527,6 @@ func secureNetwork(testNetwork *network.Network) {
 		// Band widths summed up: 100000/121 + 20000/121 + 1000/121 = 1000
 
 		band := weightOfPeer * float64(config.TPS) / float64(config.NodesTotalWeight)
-
 		go startSecurityWorker(peer, band)
 	}
 }

@@ -112,7 +112,7 @@ func NewConnection(socket chan<- interface{}, networkDelay time.Duration, packet
 	return
 }
 
-func (c *Connection) GetNetworkDelay() time.Duration {
+func (c *Connection) NetworkDelay() time.Duration {
 	return c.networkDelay
 }
 

@@ -207,7 +207,7 @@ func dumpNetwork(net *network.Network, fileName string) {
 			record := []string{
 				strconv.FormatInt(int64(peer.ID), 10),
 				strconv.FormatInt(int64(neighbor), 10),
-				strconv.FormatInt(connection.GetNetworkDelay().Nanoseconds(), 10),
+				strconv.FormatInt(connection.NetworkDelay().Nanoseconds(), 10),
 				strconv.FormatInt(int64(connection.GetPacketLoss()*100), 10),
 				strconv.FormatInt(int64(net.WeightDistribution.Weight(peer.ID)), 10),
 			}

@@ -4,8 +4,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/iotaledger/multivers-simulation/adversary"
-	"github.com/iotaledger/multivers-simulation/simulation"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -13,6 +11,9 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/iotaledger/multivers-simulation/adversary"
+	"github.com/iotaledger/multivers-simulation/simulation"
 
 	"github.com/iotaledger/hive.go/types"
 
@@ -48,7 +49,7 @@ var (
 	// simulation variables
 	dumpingTicker         = time.NewTicker(time.Duration(config.DecelerationFactor*config.ConsensusMonitorTick) * time.Millisecond)
 	simulationWg          = sync.WaitGroup{}
-	maxSimulationDuration = time.Minute
+	maxSimulationDuration = 1 * time.Second // time.Minute
 	shutdownSignal        = make(chan types.Empty)
 
 	// global declarations
@@ -189,6 +190,34 @@ func dumpConfig(fileName string) {
 	}
 }
 
+func dumpNetwork(net *network.Network, fileName string) {
+	nwHeader := []string{"Peer ID", "Neighbor ID", "Network Delay (ns)", "Packet Loss (%)", "Weight"}
+
+	file, err := os.Create(path.Join(config.ResultDir, fileName))
+	if err != nil {
+		panic(err)
+	}
+	writer := csv.NewWriter(file)
+	if err := writer.Write(nwHeader); err != nil {
+		panic(err)
+	}
+
+	for _, peer := range net.Peers {
+		for neighbor, connection := range peer.Neighbors {
+			record := []string{
+				strconv.FormatInt(int64(peer.ID), 10),
+				strconv.FormatInt(int64(neighbor), 10),
+				strconv.FormatInt(connection.GetNetworkDelay().Nanoseconds(), 10),
+				strconv.FormatInt(int64(connection.GetPacketLoss()*100), 10),
+				strconv.FormatInt(int64(net.WeightDistribution.Weight(peer.ID)), 10),
+			}
+			writeLine(writer, record)
+		}
+		// Flush the writers, or the data will be truncated for high node count
+		writer.Flush()
+	}
+}
+
 func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Writer) {
 	adversaryNodesCount := len(network.AdversaryNodeIDToGroupIDMap)
 	honestNodesCount := config.NodesCount - adversaryNodesCount
@@ -222,6 +251,9 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	// Dump the configuration of this simulation
 	dumpConfig(fmt.Sprint("aw-", simulationStartTimeStr, ".config"))
+
+	// Dump the network information
+	dumpNetwork(testNetwork, fmt.Sprint("nw-", simulationStartTimeStr, ".csv"))
 
 	// Dump the info about adversary nodes
 	adResultsWriter := createWriter(fmt.Sprintf("ad-%s.csv", simulationStartTimeStr), adHeader, &resultsWriters)

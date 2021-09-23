@@ -96,8 +96,8 @@ def get_diameter(fn, ofn, plot=False, transparent=False):
     g = nx.Graph()
     g.add_weighted_edges_from(weighted_edges)
 
+    diameter = nx.algorithms.distance_measures.diameter(g)
     if plot == False:
-        diameter = nx.algorithms.distance_measures.diameter(g)
         return diameter
 
     lengths = {}

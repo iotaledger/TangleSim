@@ -49,7 +49,7 @@ var (
 	// simulation variables
 	dumpingTicker         = time.NewTicker(time.Duration(config.DecelerationFactor*config.ConsensusMonitorTick) * time.Millisecond)
 	simulationWg          = sync.WaitGroup{}
-	maxSimulationDuration = 1 * time.Second // time.Minute
+	maxSimulationDuration = time.Minute
 	shutdownSignal        = make(chan types.Empty)
 
 	// global declarations

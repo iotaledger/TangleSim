@@ -4,6 +4,7 @@ import (
 	"github.com/iotaledger/hive.go/crypto"
 	"github.com/iotaledger/hive.go/datastructure/set"
 	"github.com/iotaledger/multivers-simulation/config"
+	"strconv"
 	"time"
 )
 
@@ -183,8 +184,15 @@ func GetAccidentalIssuers(network *Network) []*Peer {
 			peers = append(peers, network.Peer(0))
 		case "min":
 			peers = append(peers, network.Peer(len(network.WeightDistribution.weights)-1))
-		default:
+		case "random":
 			randomCount++
+		default:
+			customId, err := strconv.Atoi(config.AccidentalMana[i])
+			if err != nil || config.NodesCount-1 < customId || customId < 0 {
+				log.Warnf("AccidentalMana parameter: %s is incorrect, so not processed", config.AccidentalMana[i])
+			} else {
+				peers = append(peers, network.Peer(customId))
+			}
 		}
 	}
 	if randomCount > 0 {

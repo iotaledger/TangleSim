@@ -116,7 +116,7 @@ func (c *Connection) NetworkDelay() time.Duration {
 	return c.networkDelay
 }
 
-func (c *Connection) GetPacketLoss() float64 {
+func (c *Connection) PacketLoss() float64 {
 	return c.packetLoss
 }
 

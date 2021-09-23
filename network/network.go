@@ -1,9 +1,10 @@
 package network
 
 import (
+	"time"
+
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
-	"time"
 
 	"github.com/iotaledger/hive.go/crypto"
 	"github.com/iotaledger/hive.go/datastructure/set"
@@ -203,10 +204,7 @@ func WattsStrogatz(meanDegree int, randomness float64) PeeringStrategy {
 				}
 			}
 		}
-		totalNeighborCount := 0
 		for sourceNodeID, targetNodeIDs := range graph {
-			log.Debugf("Peer: %s: Number of neighbors: %d", network.Peers[sourceNodeID], len(targetNodeIDs))
-			totalNeighborCount += len(targetNodeIDs)
 			for targetNodeID := range targetNodeIDs {
 				randomNetworkDelay := configuration.RandomNetworkDelay()
 				randomPacketLoss := configuration.RandomPacketLoss()
@@ -225,6 +223,11 @@ func WattsStrogatz(meanDegree int, randomness float64) PeeringStrategy {
 
 				log.Debugf("Connecting %s <-> %s [network delay (%s), packet loss (%0.4f%%)] ... [DONE]", network.Peers[sourceNodeID], network.Peers[targetNodeID], randomNetworkDelay, randomPacketLoss*100)
 			}
+		}
+		totalNeighborCount := 0
+		for _, peer := range network.Peers {
+			log.Debugf("%d %d", peer.ID, len(peer.Neighbors))
+			totalNeighborCount += len(peer.Neighbors)
 		}
 		log.Infof("Average number of neighbors: %.1f", float64(totalNeighborCount)/float64(nodeCount))
 	}

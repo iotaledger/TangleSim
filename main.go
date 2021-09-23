@@ -355,7 +355,6 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				atomicCounters.Add("honestFlips", 1)
 			}
 		}))
-		peerID := peer.ID
 		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color, weight int64) {
 			colorCounters.Add("confirmedNodes", 1, confirmedColor)
 			colorCounters.Add("confirmedAccumulatedWeight", weight, confirmedColor)

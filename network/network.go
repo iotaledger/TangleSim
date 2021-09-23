@@ -1,9 +1,10 @@
 package network
 
 import (
+	"time"
+
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
-	"time"
 
 	"github.com/iotaledger/hive.go/crypto"
 	"github.com/iotaledger/hive.go/datastructure/set"
@@ -97,9 +98,9 @@ func (c *Configuration) CreatePeers(network *Network) {
 	defer log.Info("Creating peers ... [DONE]")
 
 	network.WeightDistribution = NewConsensusWeightDistribution()
+
 	for _, nodesSpecification := range c.nodes {
-		nodeWeights := nodesSpecification.weightGenerator(nodesSpecification.nodeCount)
-		network.AdversaryGroups.ChooseAdversaryNodes(nodeWeights, float64(config.NodesTotalWeight))
+		nodeWeights := nodesSpecification.ConfigureWeights(network)
 
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
@@ -149,6 +150,28 @@ type NodesSpecification struct {
 	nodeCount       int
 	nodeFactories   map[AdversaryType]NodeFactory
 	weightGenerator WeightGenerator
+}
+
+func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
+	var nodesCount int
+	var totalWeight float64
+	var nodeWeights []uint64
+
+	if config.SimulationTarget == "DS" {
+		switch config.SimulationMode {
+		case "Adversary":
+			nodesCount, totalWeight = network.AdversaryGroups.CalculateWeightTotalConfig()
+			nodeWeights = n.weightGenerator(nodesCount, totalWeight)
+			// update adversary groups and get new mana distribution with adversary nodes included
+			nodeWeights = network.AdversaryGroups.UpdateAdversaryNodes(nodeWeights)
+		case "Accidental":
+			nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+		}
+	} else {
+		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+	}
+
+	return nodeWeights
 }
 
 func Delay(minDelay time.Duration, maxDelay time.Duration) Option {
@@ -203,10 +226,7 @@ func WattsStrogatz(meanDegree int, randomness float64) PeeringStrategy {
 				}
 			}
 		}
-		totalNeighborCount := 0
 		for sourceNodeID, targetNodeIDs := range graph {
-			log.Debugf("Peer: %s: Number of neighbors: %d", network.Peers[sourceNodeID], len(targetNodeIDs))
-			totalNeighborCount += len(targetNodeIDs)
 			for targetNodeID := range targetNodeIDs {
 				randomNetworkDelay := configuration.RandomNetworkDelay()
 				randomPacketLoss := configuration.RandomPacketLoss()
@@ -225,6 +245,11 @@ func WattsStrogatz(meanDegree int, randomness float64) PeeringStrategy {
 
 				log.Debugf("Connecting %s <-> %s [network delay (%s), packet loss (%0.4f%%)] ... [DONE]", network.Peers[sourceNodeID], network.Peers[targetNodeID], randomNetworkDelay, randomPacketLoss*100)
 			}
+		}
+		totalNeighborCount := 0
+		for _, peer := range network.Peers {
+			log.Debugf("%d %d", peer.ID, len(peer.Neighbors))
+			totalNeighborCount += len(peer.Neighbors)
 		}
 		log.Infof("Average number of neighbors: %.1f", float64(totalNeighborCount)/float64(nodeCount))
 	}

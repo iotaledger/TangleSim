@@ -112,6 +112,14 @@ func NewConnection(socket chan<- interface{}, networkDelay time.Duration, packet
 	return
 }
 
+func (c *Connection) NetworkDelay() time.Duration {
+	return c.networkDelay
+}
+
+func (c *Connection) PacketLoss() float64 {
+	return c.packetLoss
+}
+
 func (c *Connection) Send(message interface{}) {
 	if crypto.Randomness.Float64() <= c.packetLoss {
 		return

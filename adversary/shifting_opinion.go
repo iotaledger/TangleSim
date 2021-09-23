@@ -63,10 +63,11 @@ func (sm *ShiftingOpinionManager) weightsUpdated() {
 	}
 
 	newOpinion := sm.getMaxOpinion(aw)
-
-	if oldOpinion := sm.Opinion(); newOpinion != oldOpinion {
+	oldOpinion := sm.Opinion()
+	if newOpinion != oldOpinion {
 		sm.SetOpinion(newOpinion)
 	}
+	sm.UpdateConfirmation(oldOpinion, newOpinion)
 }
 
 func (sm *ShiftingOpinionManager) getMaxOpinion(aw map[multiverse.Color]uint64) multiverse.Color {

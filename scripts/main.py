@@ -1,16 +1,12 @@
 """The simulation script to run multiverse-simulation in batch.
 """
-import argparse
-import textwrap
-import logging
-import os
 import sys
+import textwrap
 
 import constant as c
-from utils import *
-from plotting import FigurePlotter
-from parsing import FileParser
 from config import Configuration
+from plotting import FigurePlotter
+from utils import *
 
 
 def parse_arg():
@@ -168,6 +164,10 @@ if __name__ == '__main__':
                 for i, v in vv:
                     os.system(
                         f'{exec} --simulationTarget={target} --MinDelay={v} --maxDelay={v} -decelerationFactor={df[i]}')
+            elif var == 'AW':
+                for i, v in enumerate([(0.66, True), (0.75, True), (0.5, False), (0.5, True)]):
+                    os.system(
+                        f'{exec} --simulationTarget={target} --weightThreshold={v[0]} --weightThresholdAbsolute={v[1]} -decelerationFactor={df[i]}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)

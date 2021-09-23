@@ -47,7 +47,7 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 			messageMetadata.weightSlice[int(byteIndex)] = weightByte
 			messageMetadata.weight += weight
 			a.Events.MessageWeightUpdated.Trigger(message, messageMetadata, messageMetadata.weight)
-			if float64(messageMetadata.weight) >= config.MessageWeightThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) &&
+			if float64(messageMetadata.weight) >= config.WeightThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) &&
 				messageMetadata.confirmationTime.IsZero() {
 				messageMetadata.confirmationTime = time.Now()
 				a.Events.MessageConfirmed.Trigger(message, messageMetadata, messageMetadata.weight, messageIDCounter)

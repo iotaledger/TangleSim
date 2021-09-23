@@ -14,7 +14,7 @@ ISSUED_MESSAGE = "# of Issued Messages"
 
 # Rename the parameters
 VAR_DICT = {'TipsCount': 'k', 'ZipfParameter': 's',
-            'NodesCount': 'N', 'MinDelay': 'D'}
+            'NodesCount': 'N', 'MinDelay': 'D', 'WeightThreshold': 'AW'}
 
 # Items for double spending figures
 COLORED_CONFIRMED_LIKE_ITEMS = [
@@ -27,7 +27,8 @@ DS_STY_LIST = ['-', '-', '--', '--', "-.", "-."]
 
 # The simulation mapping
 SIMULATION_VAR_DICT = {'N': 'nodesCount',
-                       'S': 'zipfParameter', 'K': 'tipsCount'}
+                       'S': 'zipfParameter',
+                       'K': 'tipsCount'}
 
 # The figure naming mapping
 FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node Counts",
@@ -42,4 +43,7 @@ FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node
                             "Unconfirming Counts v.s. Different Parents Counts"),
                       'D': ("MinDelay", "Confirmation Time v.s. Different Delays",
                             "Convergence Time v.s. Different Delays", "Flips v.s. Different Delays",
-                            "Unconfirming Counts v.s. Different Delays")}
+                            "Unconfirming Counts v.s. Different Delays"),
+                      'AW': ("WeightThreshold", "Confirmation Time v.s. Different Thresholds",
+                             "Convergence Time v.s. Different Threshold", "Flips v.s. Different Thresholds",
+                             "Unconfirming Counts v.s. Different Thresholds")}

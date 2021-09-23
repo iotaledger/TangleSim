@@ -2,10 +2,9 @@ package network
 
 import (
 	"github.com/iotaledger/hive.go/crypto"
-	"github.com/iotaledger/hive.go/datastructure/queue"
 	"github.com/iotaledger/hive.go/datastructure/set"
-	"github.com/iotaledger/hive.go/types"
 	"github.com/iotaledger/multivers-simulation/config"
+	"strconv"
 	"time"
 )
 
@@ -54,11 +53,13 @@ func IsAdversary(nodeID int) bool {
 }
 
 type AdversaryGroup struct {
-	NodeIDs       []int
-	GroupMana     float64
-	TargetMana    float64
-	Delay         time.Duration
-	AdversaryType AdversaryType
+	NodeIDs              []int
+	GroupMana            float64
+	TargetManaPercentage float64
+	Delay                time.Duration
+	AdversaryType        AdversaryType
+	InitColor            string
+	NodeCount            int
 }
 
 func (g *AdversaryGroup) AddNodeID(id, groupId int) {
@@ -71,9 +72,10 @@ type AdversaryGroups []*AdversaryGroup
 func NewAdversaryGroups() (groups AdversaryGroups) {
 	groups = make(AdversaryGroups, 0, len(config.AdversaryTypes))
 	for i, configAdvType := range config.AdversaryTypes {
-		// -1 indicates that there is no target mana provided, adversary will be selected randomly
-		targetMana := float64(-1)
+		targetMana := float64(1)
 		delay := config.MinDelay
+		color := ""
+		nCount := 1
 
 		if len(config.AdversaryMana) > 0 {
 			targetMana = config.AdversaryMana[i]
@@ -83,72 +85,68 @@ func NewAdversaryGroups() (groups AdversaryGroups) {
 			delay = config.AdversaryDelays[i]
 		}
 
-		groups = append(groups, &AdversaryGroup{
-			NodeIDs:       make([]int, 0),
-			TargetMana:    targetMana,
-			Delay:         time.Millisecond * time.Duration(delay),
-			AdversaryType: ToAdversaryType(configAdvType),
-		})
+		if len(config.AdversaryNodeCounts) > 0 {
+			nCount = config.AdversaryNodeCounts[i]
+		}
+
+		color = config.AdversaryInitColors[i]
+		group := &AdversaryGroup{
+			NodeIDs:              make([]int, 0, nCount),
+			TargetManaPercentage: targetMana,
+			Delay:                time.Millisecond * time.Duration(delay),
+			AdversaryType:        ToAdversaryType(configAdvType),
+			InitColor:            color,
+			NodeCount:            nCount,
+		}
+		groups = append(groups, group)
 	}
+
 	return
 }
 
-func (g *AdversaryGroups) ChooseAdversaryNodes(ZIPFDistribution []uint64, totalWeight float64) {
-	// are there any adversary groups provided in the configuration?
-	if len(*g) == 0 {
-		return
-	}
-	manaPercentageGroupIds := make([]int, 0)
-	usedWeights := make(map[int]types.Empty)
-	// check if adversary mana target is provided
-	for groupIndex, group := range *g {
-		switch group.TargetMana {
-		case 100: // node has max
-			idx := selectMaxWeightIndex(ZIPFDistribution, usedWeights)
-			group.AddNodeID(idx, groupIndex)
-			group.GroupMana = float64(ZIPFDistribution[idx])
-			usedWeights[idx] = types.Void
-		case 0:
-			idx := selectMinWeightIndex(ZIPFDistribution, usedWeights)
-			group.AddNodeID(idx, groupIndex)
-			group.GroupMana = float64(ZIPFDistribution[idx])
-			usedWeights[idx] = types.Void
-		case -1:
-			// all weights are chosen randomly
-			for i, idx := range randomWeightIndex(ZIPFDistribution, len(*g)) {
-				(*g)[i].GroupMana = float64(ZIPFDistribution[idx])
-				(*g)[i].AddNodeID(idx, i)
-			}
-			return
-		default:
-			group.TargetMana = totalWeight * group.TargetMana / 100
-			manaPercentageGroupIds = append(manaPercentageGroupIds, groupIndex)
-		}
-	}
+// CalculateWeightTotalConfig returns how many nodes will be used for weight distribution and their total weight
+// after excluding all adversary nodes that will not be selected randomly
+func (g *AdversaryGroups) CalculateWeightTotalConfig() (int, float64) {
+	totalAdv := 0
+	totalAdvManaPercentage := float64(0)
 
-	// We define this because the adversary nodes' weights might not exactly occupy totalWeight * q
-	errorThreshold := totalWeight * config.AdversaryErrorThreshold
-	groupIndexQueue := queue.New(len(manaPercentageGroupIds))
-	// to choose indexes alternately and keep the balance between adversary groups
-	for _, groupIndex := range manaPercentageGroupIds {
-		groupIndexQueue.Offer(groupIndex)
+	for _, group := range *g {
+		totalAdv += group.NodeCount
+		totalAdvManaPercentage += group.TargetManaPercentage
 	}
-	for index, v := range ZIPFDistribution[config.AdversaryIndexStart:] {
-		for i := 0; i < groupIndexQueue.Size(); i++ {
-			elem, _ := groupIndexQueue.Poll()
-			groupIndex := elem.(int)
-			if (*g)[groupIndex].GroupMana < (*g)[groupIndex].TargetMana && (*g)[groupIndex].GroupMana+float64(v) < (*g)[groupIndex].TargetMana+errorThreshold {
-				(*g)[groupIndex].GroupMana += float64(v)
-				(*g)[groupIndex].AddNodeID(index+config.AdversaryIndexStart, groupIndex)
-				groupIndexQueue.Offer(groupIndex)
-				break
-			}
-			groupIndexQueue.Offer(groupIndex)
+	totalCount := config.NodesCount - totalAdv
+	totalWeight := float64(config.NodesTotalWeight) * (1 - totalAdvManaPercentage/100)
+	return totalCount, totalWeight
+}
+
+// UpdateAdversaryNodes assigns adversary nodes in AdversaryGroups to correct nodeIDs and updates their mana
+func (g *AdversaryGroups) UpdateAdversaryNodes(weightDistribution []uint64) []uint64 {
+	g.updateGroupMana()
+
+	// Adversary nodes are taking indexes from the end, excluded randomly chosen nodes
+	advIndex := len(weightDistribution)
+	// weight distribution with adversary weights appended at the ned
+	newWeights := g.updateAdvIDAndWeights(advIndex, weightDistribution)
+
+	return newWeights
+}
+
+func (g *AdversaryGroups) updateAdvIDAndWeights(advIndex int, newWeights []uint64) []uint64 {
+	for groupIndex, group := range *g {
+		for i := 0; i < group.NodeCount; i++ {
+			group.AddNodeID(advIndex, groupIndex)
+			advIndex++
+			// append adversary weight at the end of weight distribution
+			nodeWeight := uint64(group.GroupMana / float64(group.NodeCount))
+			newWeights = append(newWeights, nodeWeight)
 		}
 	}
-	for groupIndex, group := range *g {
-		log.Infof("GroupId: %d, AdversaryType: %d, Node count: %d, q: %.5f, adNodeList: %v", groupIndex, group.AdversaryType, len(group.NodeIDs),
-			group.GroupMana/totalWeight, group.NodeIDs)
+	return newWeights
+}
+
+func (g *AdversaryGroups) updateGroupMana() {
+	for _, group := range *g {
+		group.GroupMana = group.TargetManaPercentage * float64(config.NodesTotalWeight) / 100.0
 	}
 }
 
@@ -173,34 +171,36 @@ func randomWeightIndex(weights []uint64, count int) (randomWeights []int) {
 	return
 }
 
-func selectMinWeightIndex(weights []uint64, usedWeights map[int]types.Empty) int {
-	minLocation := -1
-	currentMin := weights[0]
-	for i, weight := range weights {
-		// skip indexes that has been already used
-		if _, ok := usedWeights[i]; !ok {
-			if weight < currentMin || minLocation == -1 {
-				currentMin = weight
-				minLocation = i
-			}
-		}
-	}
-	return minLocation
-}
+// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func selectMaxWeightIndex(weights []uint64, usedWeights map[int]types.Empty) int {
-	maxLocation := -1
-	currentMax := weights[0]
-	for i, weight := range weights {
-		// skip indexes that has been already used
-		if _, ok := usedWeights[i]; !ok {
-			if weight > currentMax || maxLocation == -1 {
-				currentMax = weight
-				maxLocation = i
+// region Accidental ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+func GetAccidentalIssuers(network *Network) []*Peer {
+	peers := make([]*Peer, 0)
+	randomCount := 0
+	for i := 0; i < len(config.AccidentalMana); i++ {
+		switch config.AccidentalMana[i] {
+		case "max":
+			peers = append(peers, network.Peer(0))
+		case "min":
+			peers = append(peers, network.Peer(len(network.WeightDistribution.weights)-1))
+		case "random":
+			randomCount++
+		default:
+			customId, err := strconv.Atoi(config.AccidentalMana[i])
+			if err != nil || config.NodesCount-1 < customId || customId < 0 {
+				log.Warnf("AccidentalMana parameter: %s is incorrect, so not processed", config.AccidentalMana[i])
+			} else {
+				peers = append(peers, network.Peer(customId))
 			}
 		}
 	}
-	return maxLocation
+	if randomCount > 0 {
+		for _, selectedNode := range network.RandomPeers(randomCount) {
+			peers = append(peers, selectedNode)
+		}
+	}
+	return peers
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

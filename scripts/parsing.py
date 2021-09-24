@@ -145,17 +145,24 @@ class FileParser:
         unconfirming_blue = data['Unconfirmed Blue'].iloc[-1]
         unconfirming_red = data['Unconfirmed Red'].iloc[-1]
 
-        adversary_liked_aw_blue = data['Blue (Adversary Like Accumulated Weight)'].iloc[-1]
-        adversary_liked_aw_red = data['Red (Adversary Like Accumulated Weight)'].iloc[-1]
+        adversary_liked_aw_blue = data['Blue (Adversary Like Accumulated Weight)']
+        adversary_liked_aw_red = data['Red (Adversary Like Accumulated Weight)']
+        adversary_confirmed_aw_blue = data['Blue (Confirmed Adversary Weight)']
+        adversary_confirmed_aw_red = data['Red (Confirmed Adversary Weight)']
 
         convergence_time = data['ns since issuance'].iloc[-1]
         convergence_time /= self.one_second
         convergence_time /= float(c["DecelerationFactor"])
 
+        colored_node_aw["Blue (Like Accumulated Weight)"] -= adversary_liked_aw_blue
+        colored_node_aw["Red (Like Accumulated Weight)"] -= adversary_liked_aw_red
+        colored_node_aw["Blue (Confirmed Accumulated Weight)"] -= adversary_confirmed_aw_blue
+        colored_node_aw["Red (Confirmed Accumulated Weight)"] -= adversary_confirmed_aw_red
+
         v = c[var]
 
         honest_total_weight = (c["NodesTotalWeight"] -
-                               adversary_liked_aw_blue - adversary_liked_aw_red)
+                               adversary_liked_aw_blue.iloc[-1] - adversary_liked_aw_red.iloc[-1])
 
         # Return the scaled x axis
         x_axis = ((data['ns since start']) /

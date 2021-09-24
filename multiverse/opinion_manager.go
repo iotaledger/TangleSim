@@ -34,11 +34,12 @@ type OpinionManager struct {
 func NewOpinionManager(tangle *Tangle) (opinionManager *OpinionManager) {
 	return &OpinionManager{
 		events: &OpinionManagerEvents{
-			OpinionFormed:         events.NewEvent(messageIDEventCaller),
-			OpinionChanged:        events.NewEvent(opinionChangedEventHandler),
-			ApprovalWeightUpdated: events.NewEvent(approvalWeightUpdatedHandler),
-			ColorConfirmed:        events.NewEvent(colorEventHandler),
-			ColorUnconfirmed:      events.NewEvent(reorgEventHandler),
+			OpinionFormed:             events.NewEvent(messageIDEventCaller),
+			OpinionChanged:            events.NewEvent(opinionChangedEventHandler),
+			ApprovalWeightUpdated:     events.NewEvent(approvalWeightUpdatedHandler),
+			MinConfirmedWeightUpdated: events.NewEvent(approvalWeightUpdatedHandler),
+			ColorConfirmed:            events.NewEvent(colorEventHandler),
+			ColorUnconfirmed:          events.NewEvent(reorgEventHandler),
 		},
 
 		tangle:          tangle,
@@ -105,6 +106,11 @@ func (o *OpinionManager) UpdateWeights(messageID MessageID) (updated bool) {
 		// We calculate the approval weight of the branch based on the node who issued the message to the branch (i.e., it already voted for the branch).
 		o.approvalWeights[lastOpinion.Color] -= o.tangle.WeightDistribution.Weight(message.Issuer)
 		o.events.ApprovalWeightUpdated.Trigger(lastOpinion.Color, int64(-o.tangle.WeightDistribution.Weight(message.Issuer)))
+
+		// Record the min confirmed weight
+		if o.checkColorConfirmed(lastOpinion.Color) {
+			o.events.MinConfirmedWeightUpdated.Trigger(lastOpinion.Color, int64(o.approvalWeights[lastOpinion.Color]))
+		}
 	}
 
 	// We calculate the approval weight of the branch based on the node who issued the message to the branch (i.e., it already voted for the branch).
@@ -194,11 +200,12 @@ type Opinion struct {
 // region OpinionManagerEvents /////////////////////////////////////////////////////////////////////////////////////////
 
 type OpinionManagerEvents struct {
-	OpinionFormed         *events.Event
-	OpinionChanged        *events.Event
-	ApprovalWeightUpdated *events.Event
-	ColorConfirmed        *events.Event
-	ColorUnconfirmed      *events.Event
+	OpinionFormed             *events.Event
+	OpinionChanged            *events.Event
+	ApprovalWeightUpdated     *events.Event
+	MinConfirmedWeightUpdated *events.Event
+	ColorConfirmed            *events.Event
+	ColorUnconfirmed          *events.Event
 }
 
 func opinionChangedEventHandler(handler interface{}, params ...interface{}) {

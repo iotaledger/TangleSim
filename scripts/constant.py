@@ -18,7 +18,8 @@ VAR_DICT = {'TipsCount': 'k', 'ZipfParameter': 's',
 
 # Items for double spending figures
 COLORED_CONFIRMED_LIKE_ITEMS = [
-    'Blue (Confirmed)', 'Red (Confirmed)', 'Blue (Like)', 'Red (Like)', 'Unconfirmed Blue', 'Unconfirmed Red']
+    'Blue (Confirmed Accumulated Weight)', 'Red (Confirmed Accumulated Weight)', 'Blue (Like Accumulated Weight)',
+    'Red (Like Accumulated Weight)']
 
 # The color list for the double spending figures
 DS_CLR_LIST = ['b', 'r', 'b', 'r', 'b', 'r']

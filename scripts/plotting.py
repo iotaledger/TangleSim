@@ -1,16 +1,14 @@
 """The plotting module to plot the figures.
 """
 import glob
+
 import matplotlib
 import matplotlib.pyplot as plt
-import json
-import logging
-import re
-import numpy as np
+import matplotlib.ticker as mtick
 
 import constant as c
-from utils import *
 from parsing import FileParser
+from utils import *
 
 
 class FigurePlotter:
@@ -56,7 +54,7 @@ class FigurePlotter:
 
             for f in glob.glob(fs):
 
-                # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
+                # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
                 v, (cc, ct, flips, *_,
                     x) = self.parser.parse_confirmed_color_file(f, var)
 
@@ -83,7 +81,8 @@ class FigurePlotter:
         plt.boxplot(data)
         plt.xlabel(var)
         plt.title(title)
-        plt.xticks(ticks=list(range(1, 1+len(variations))), labels=variations)
+        plt.xticks(ticks=list(range(1, 1 + len(variations))),
+                   labels=variations)
         if target == 'convergence_time':
             plt.ylabel('Convergence Time (s)')
         elif target == 'flips':
@@ -131,6 +130,7 @@ class FigurePlotter:
             iters: The number of iteration.
             title: The figure title.
         """
+
         def set_box_color(bp, color):
             """The helper functions to set colors of the unconfirming boxplot.
             """
@@ -180,11 +180,11 @@ class FigurePlotter:
             box_location += 1
             xticks.append(box_location + 0.5)
             bp = plt.boxplot(data_blue[i], positions=[
-                             box_location], sym='o', widths=0.6)
+                box_location], sym='o', widths=0.6)
             set_box_color(bp, 'b')
             box_location += 1
             bp = plt.boxplot(data_red[i], positions=[
-                             box_location], sym='x', widths=0.6)
+                box_location], sym='x', widths=0.6)
             box_location += 1
             set_box_color(bp, 'r')
 
@@ -220,16 +220,17 @@ class FigurePlotter:
 
         variation_data = {}
         for f in glob.glob(fs):
-            # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
-            v, cc_ct_flips_x = self.parser.parse_confirmed_color_file(f, var)
-            variation_data[v] = cc_ct_flips_x
+            # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
+            v, cc_ct_flips_total_aw_x = self.parser.parse_confirmed_color_file(
+                f, var)
+            variation_data[v] = cc_ct_flips_total_aw_x
 
         rc, cc = get_row_col_counts(fc)
         fig, axs = plt.subplots(rc, cc, figsize=(
             12, 5), dpi=500, constrained_layout=True)
 
         for i, (v, d) in enumerate(sorted(variation_data.items())):
-            (nodes, ct, *_, x_axis) = d
+            (weights, ct, *_, total_aw, x_axis) = d
             r_loc = i // cc
             c_loc = i % cc
 
@@ -237,15 +238,17 @@ class FigurePlotter:
                 ax = axs[c_loc]
             else:
                 ax = axs[r_loc, c_loc]
-            for j, n in enumerate(nodes.columns):
-                ax.plot(x_axis, nodes[n], label=n,
+            for j, n in enumerate(weights.columns):
+                aw_percentage = 100.0 * weights[n] / total_aw
+                ax.plot(x_axis, aw_percentage, label=n,
                         color=self.ds_clr_list[j], ls=self.ds_sty_list[j], linewidth=1)
 
             # Only put the legend on the first figures
             if i == 0:
                 ax.legend()
-            ax.set(
-                xlabel='Time (s)', ylabel='Node Count', title=f'{self.var_dict[var]} = {v}, {ct:.1f}(s)')
+            ax.yaxis.set_major_formatter(mtick.PercentFormatter())
+            ax.set(xlabel='Time (s)', ylabel='Accumulated Weight Percentage',
+                   title=f'{self.var_dict[var]} = {v}, {ct:.1f}(s)')
 
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent)
@@ -329,9 +332,10 @@ class FigurePlotter:
 
             ct_series = np.array(sorted(d[0].values))
             confirmed_msg_counts = np.array(list(d[0].index))
-            plt.plot(ct_series / d[1], confirmed_msg_counts / len(confirmed_msg_counts),
+            plt.plot(ct_series / d[1], 100.0 * confirmed_msg_counts / len(confirmed_msg_counts),
                      label=f'{label} = {v}', color=clr, ls=sty)
 
+        plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
         plt.xlabel('Confirmation Time (s)')
         plt.ylabel('Cumulative Confirmed Message Percentage')
         plt.legend()

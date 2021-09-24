@@ -49,7 +49,7 @@ class FileParser:
         with open(config_fn) as f:
             c = json.load(f)
 
-        v = c[variation]
+        v = str(c[variation])
 
         data = pd.read_csv(fn)
 
@@ -87,7 +87,7 @@ class FileParser:
         with open(config_fn) as f:
             c = json.load(f)
 
-        v = c[var]
+        v = str(c[var])
 
         data = pd.read_csv(fn)
 
@@ -159,7 +159,7 @@ class FileParser:
         colored_node_aw["Blue (Confirmed Accumulated Weight)"] -= adversary_confirmed_aw_blue
         colored_node_aw["Red (Confirmed Accumulated Weight)"] -= adversary_confirmed_aw_red
 
-        v = c[var]
+        v = str(c[var])
 
         honest_total_weight = (c["NodesTotalWeight"] -
                                adversary_liked_aw_blue.iloc[-1] - adversary_liked_aw_red.iloc[-1])

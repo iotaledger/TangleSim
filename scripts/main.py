@@ -73,7 +73,7 @@ def parse_arg():
     parser.add_argument("-v", "--VARIATIONS",
                         help="N, K, S, D (Number of nodes, parents, Zipfs, delays)",
                         default=config.cd['VARIATIONS'])
-    parser.add_argument("-vv", "--VARIATION_VALUES", nargs="+", type=float,
+    parser.add_argument("-vv", "--VARIATION_VALUES", nargs="+", type=str,
                         help="The variation values, e.g., '100 200 300' for different N",
                         default=config.cd['VARIATION_VALUES'])
     parser.add_argument("-df", "--DECELERATION_FACTORS", nargs="+", type=int,
@@ -159,15 +159,19 @@ if __name__ == '__main__':
                 vn = c.SIMULATION_VAR_DICT[var]
                 for i, v in enumerate(vv):
                     os.system(
-                        f'{exec} --simulationTarget={target} --{vn}={v} --decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --{vn}={float(v)} --decelerationFactor={df[i]}')
             elif var == 'D':
                 for i, v in vv:
                     os.system(
-                        f'{exec} --simulationTarget={target} --MinDelay={v} --maxDelay={v} -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --MinDelay={float(v)} --maxDelay={float(v)} -decelerationFactor={df[i]}')
             elif var == 'AW':
                 for i, v in enumerate([(0.66, True), (0.75, True), (0.5, False), (0.5, True)]):
                     os.system(
                         f'{exec} --simulationTarget={target} --weightThreshold={v[0]} --weightThresholdAbsolute={v[1]} -decelerationFactor={df[i]}')
+            elif var == 'IM':
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -simulationMode=Accidental -accidentalMana="{v}" -decelerationFactor={df[i]}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)

@@ -45,7 +45,7 @@ var (
 		"Unconfirmed Blue Accumulated Weight", "Unconfirmed Red Accumulated Weight", "Unconfirmed Green Accumulated Weight",
 		"Flips (Winning color changed)", "Honest nodes Flips", "ns since start", "ns since issuance"}
 	adHeader = []string{"AdversaryGroupID", "Strategy", "AdversaryCount", "q", "ns since issuance"}
-	ndHeader = []string{"Node ID, Min Confirmed Accumulated Weight, Unconfirmation Count"}
+	ndHeader = []string{"Node ID, Adversary, Min Confirmed Accumulated Weight, Unconfirmation Count"}
 
 	csvMutex sync.Mutex
 
@@ -165,6 +165,7 @@ func dumpFinalRecorder() {
 	for i := 0; i < config.NodesCount; i++ {
 		record := []string{
 			strconv.FormatInt(int64(i), 10),
+			strconv.FormatBool(network.IsAdversary(int(i))),
 			strconv.FormatInt(int64(nodeCounters[i].Get("minConfirmedAccumulatedWeight")), 10),
 			strconv.FormatInt(int64(nodeCounters[i].Get("unconfirmationCount")), 10),
 		}

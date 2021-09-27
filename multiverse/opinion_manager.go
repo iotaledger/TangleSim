@@ -108,7 +108,8 @@ func (o *OpinionManager) UpdateWeights(messageID MessageID) (updated bool) {
 		o.events.ApprovalWeightUpdated.Trigger(lastOpinion.Color, int64(-o.tangle.WeightDistribution.Weight(message.Issuer)))
 
 		// Record the min confirmed weight
-		if o.checkColorConfirmed(lastOpinion.Color) {
+		// When the weight of the color < confirmation threshold, but the color is still not unconfirmed yet.
+		if o.colorConfirmed && o.ownOpinion == lastOpinion.Color && !o.checkColorConfirmed(o.ownOpinion) {
 			o.events.MinConfirmedWeightUpdated.Trigger(lastOpinion.Color, int64(o.approvalWeights[lastOpinion.Color]))
 		}
 	}

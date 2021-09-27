@@ -512,6 +512,9 @@ func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {
 	}
 
 	writeLine(ccResultsWriter, record)
+
+	// Flush the cc writer, or the data will be truncated sometimes if the buffer is full
+	ccResultsWriter.Flush()
 }
 
 func dumpResultsAD(adResultsWriter *csv.Writer, net *network.Network) {

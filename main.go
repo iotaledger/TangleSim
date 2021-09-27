@@ -45,6 +45,7 @@ var (
 		"Unconfirmed Blue Accumulated Weight", "Unconfirmed Red Accumulated Weight", "Unconfirmed Green Accumulated Weight",
 		"Flips (Winning color changed)", "Honest nodes Flips", "ns since start", "ns since issuance"}
 	adHeader = []string{"AdversaryGroupID", "Strategy", "AdversaryCount", "q", "ns since issuance"}
+	ndHeader = []string{"Node ID, Min Confirmed Accumulated Weight, Unconfirmation Count"}
 
 	csvMutex sync.Mutex
 
@@ -150,9 +151,6 @@ func shutdownSimulation() {
 }
 
 func dumpFinalRecorder() {
-	// node header
-	ndHeader := []string{"Node ID, Min Confirmed Accumulated Weight, Unconfirmation Count"}
-
 	fileName := fmt.Sprint("nd-", simulationStartTimeStr, ".csv")
 	file, err := os.Create(path.Join(config.ResultDir, fileName))
 	if err != nil {

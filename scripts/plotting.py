@@ -5,6 +5,7 @@ import glob
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
+import logging
 
 import constant as c
 from parsing import FileParser
@@ -54,9 +55,13 @@ class FigurePlotter:
 
             for f in glob.glob(fs):
 
-                # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
-                v, (cc, ct, flips, *_,
-                    x) = self.parser.parse_confirmed_color_file(f, var)
+                try:
+                    # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
+                    v, (cc, ct, flips, *_,
+                        x) = self.parser.parse_confirmed_color_file(f, var)
+                except:
+                    logging.error(f'{fs}: Incomplete Data!')
+                    continue
 
                 if target == 'convergence_time':
                     # Store the convergence time
@@ -154,8 +159,13 @@ class FigurePlotter:
 
             for f in glob.glob(fs):
 
-                # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
-                v, (cc, *_, ub, ur, x) = self.parser.parse_confirmed_color_file(f, var)
+                try:
+                    # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
+                    v, (cc, *_, ub, ur,
+                        x) = self.parser.parse_confirmed_color_file(f, var)
+                except:
+                    logging.error(f'{fs}: Incomplete Data!')
+                    continue
 
                 # Store the unconfirming counts
                 if v not in variation_data_blue:
@@ -220,9 +230,14 @@ class FigurePlotter:
 
         variation_data = {}
         for f in glob.glob(fs):
-            # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
-            v, cc_ct_flips_total_aw_x = self.parser.parse_confirmed_color_file(
-                f, var)
+            try:
+                # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
+                v, cc_ct_flips_total_aw_x = self.parser.parse_confirmed_color_file(
+                    f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
+
             variation_data[v] = cc_ct_flips_total_aw_x
 
         rc, cc = get_row_col_counts(fc)
@@ -234,7 +249,9 @@ class FigurePlotter:
             r_loc = i // cc
             c_loc = i % cc
 
-            if rc == 1:
+            if fc == 1:
+                ax = axs
+            elif rc == 1:
                 ax = axs[c_loc]
             else:
                 ax = axs[r_loc, c_loc]
@@ -271,7 +288,11 @@ class FigurePlotter:
 
         variation_data = {}
         for f in glob.glob(fs):
-            v, tp = self.parser.parse_throughput_file(f, var)
+            try:
+                v, tp = self.parser.parse_throughput_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
             variation_data[v] = tp
 
         rc, cc = get_row_col_counts(fc)
@@ -283,7 +304,9 @@ class FigurePlotter:
             r_loc = i // cc
             c_loc = i % cc
 
-            if rc == 1:
+            if fc == 1:
+                ax = axs
+            elif rc == 1:
                 ax = axs[c_loc]
             else:
                 ax = axs[r_loc, c_loc]
@@ -324,7 +347,11 @@ class FigurePlotter:
         plt.figure(figsize=(12, 5), dpi=500, constrained_layout=True)
         variation_data = {}
         for f in glob.glob(fs):
-            v, data, x_axis_adjust = self.parser.parse_aw_file(f, var)
+            try:
+                v, data, x_axis_adjust = self.parser.parse_aw_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
             variation_data[v] = (data, x_axis_adjust)
         for i, (v, d) in enumerate(sorted(variation_data.items())):
             clr = self.clr_list[i // 4]

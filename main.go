@@ -455,6 +455,9 @@ func dumpResultDS(dsResultsWriter *csv.Writer, sinceIssuance string) {
 	}
 
 	writeLine(dsResultsWriter, record)
+
+	// Flush the writers, or the data will be truncated sometimes if the buffer is full
+	dsResultsWriter.Flush()
 }
 
 func dumpResultsTP(tpResultsWriter *csv.Writer) {
@@ -473,6 +476,9 @@ func dumpResultsTP(tpResultsWriter *csv.Writer) {
 	}
 
 	writeLine(tpResultsWriter, record)
+
+	// Flush the writers, or the data will be truncated sometimes if the buffer is full
+	tpResultsWriter.Flush()
 }
 
 func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {
@@ -529,6 +535,8 @@ func dumpResultsAD(adResultsWriter *csv.Writer, net *network.Network) {
 		}
 		writeLine(adResultsWriter, record)
 	}
+	// Flush the cc writer, or the data will be truncated sometimes if the buffer is full
+	adResultsWriter.Flush()
 }
 
 func writeLine(writer *csv.Writer, record []string) {

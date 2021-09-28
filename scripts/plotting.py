@@ -56,7 +56,7 @@ class FigurePlotter:
             for f in glob.glob(fs):
 
                 try:
-                    # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
+                    # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, honest total weight, x_axis
                     v, (cc, ct, flips, *_,
                         x) = self.parser.parse_confirmed_color_file(f, var)
                 except:
@@ -160,8 +160,8 @@ class FigurePlotter:
             for f in glob.glob(fs):
 
                 try:
-                    # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
-                    v, (cc, *_, ub, ur,
+                    # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, honest total weight, x_axis
+                    v, (cc, *_, ub, ur, _,
                         x) = self.parser.parse_confirmed_color_file(f, var)
                 except:
                     logging.error(f'{fs}: Incomplete Data!')
@@ -231,7 +231,7 @@ class FigurePlotter:
         variation_data = {}
         for f in glob.glob(fs):
             try:
-                # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
+                # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, honest total weight, x_axis
                 v, cc_ct_flips_total_aw_x = self.parser.parse_confirmed_color_file(
                     f, var)
             except:

@@ -5,6 +5,7 @@ import glob
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
+import logging
 
 import constant as c
 from parsing import FileParser
@@ -30,7 +31,6 @@ class FigurePlotter:
 
     def _distribution_boxplot(self, var, base_folder, ofn, fc, iters, title, target):
         """The basic function of generating the distribution boxplot figures.
-
         Args:
             var: The variation.
             base_folder: The parent folder of the iteration results.
@@ -54,9 +54,13 @@ class FigurePlotter:
 
             for f in glob.glob(fs):
 
-                # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
-                v, (cc, ct, flips, *_,
-                    x) = self.parser.parse_confirmed_color_file(f, var)
+                try:
+                    # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, honest total weight, x_axis
+                    v, (cc, ct, flips, *_,
+                        x) = self.parser.parse_confirmed_color_file(f, var)
+                except:
+                    logging.error(f'{fs}: Incomplete Data!')
+                    continue
 
                 if target == 'convergence_time':
                     # Store the convergence time
@@ -93,7 +97,6 @@ class FigurePlotter:
 
     def flips_distribution_plot(self, var, base_folder, ofn, fc, iters, title):
         """Generate the flips distribution figures.
-
         Args:
             var: The variation.
             base_folder: The parent folder of the iteration results.
@@ -107,7 +110,6 @@ class FigurePlotter:
 
     def convergence_time_distribution_plot(self, var, base_folder, ofn, fc, iters, title):
         """Generate the convergence time distribution figures.
-
         Args:
             var: The variation.
             base_folder: The parent folder of the iteration results.
@@ -121,7 +123,6 @@ class FigurePlotter:
 
     def unconfirmed_count_distribution_plot(self, var, base_folder, ofn, fc, iters, title):
         """The basic function of generating the distribution boxplot figures.
-
         Args:
             var: The variation.
             base_folder: The parent folder of the iteration results.
@@ -154,8 +155,13 @@ class FigurePlotter:
 
             for f in glob.glob(fs):
 
-                # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
-                v, (cc, *_, ub, ur, x) = self.parser.parse_confirmed_color_file(f, var)
+                try:
+                    # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, honest total weight, x_axis
+                    v, (cc, *_, ub, ur, _,
+                        x) = self.parser.parse_confirmed_color_file(f, var)
+                except:
+                    logging.error(f'{fs}: Incomplete Data!')
+                    continue
 
                 # Store the unconfirming counts
                 if v not in variation_data_blue:
@@ -203,9 +209,61 @@ class FigurePlotter:
                     transparent=self.transparent)
         plt.close()
 
+    def confirmation_depth_distribution_plot(self, var, base_folder, ofn, fc, iters, title):
+        """The function of generating the confirmation-depth distribution boxplot figures.
+        Args:
+            var: The variation.
+            base_folder: The parent folder of the iteration results.
+            ofn: The output file name.
+            fc: The figure count.
+            iters: The number of iteration.
+            title: The figure title.
+        """
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 14}
+        matplotlib.rc('font', **font)
+
+        plt.figure(figsize=(12, 5), dpi=500, constrained_layout=True)
+        variation_data = {}
+
+        for i in range(iters):
+            fs = base_folder + f'/iter_{i}/nd*csv'
+
+            for f in glob.glob(fs):
+
+                try:
+                    # confirmation_rate_depth
+                    v, depth = self.parser.parse_node_file(f, var)
+                except:
+                    logging.error(f'{fs}: Incomplete Data!')
+                    continue
+
+                if v not in variation_data:
+                    variation_data[v] = [depth]
+                else:
+                    variation_data[v].append(depth)
+
+        data = []
+        variations = []
+        for i, (v, d) in enumerate(sorted(variation_data.items())):
+            data.append(d)
+            variations.append(v)
+
+        plt.boxplot(data)
+        plt.xlabel(var)
+        plt.title(title)
+        plt.xticks(ticks=list(range(1, 1 + len(variations))),
+                   labels=variations)
+
+        plt.ylabel('Confirmation Weight Depth (%)')
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent)
+        plt.close()
+
     def confirmed_like_color_plot(self, var, fs, ofn, fc):
         """Generate the confirmed/like color figures.
-
         Args:
             var: The variation.
             fs: The path of files.
@@ -220,9 +278,14 @@ class FigurePlotter:
 
         variation_data = {}
         for f in glob.glob(fs):
-            # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, x_axis
-            v, cc_ct_flips_total_aw_x = self.parser.parse_confirmed_color_file(
-                f, var)
+            try:
+                # colored_node_aw, convergence_time, flips, unconfirming blue, unconfirming red, honest total weight, x_axis
+                v, cc_ct_flips_total_aw_x = self.parser.parse_confirmed_color_file(
+                    f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
+
             variation_data[v] = cc_ct_flips_total_aw_x
 
         rc, cc = get_row_col_counts(fc)
@@ -234,7 +297,9 @@ class FigurePlotter:
             r_loc = i // cc
             c_loc = i % cc
 
-            if rc == 1:
+            if fc == 1:
+                ax = axs
+            elif rc == 1:
                 ax = axs[c_loc]
             else:
                 ax = axs[r_loc, c_loc]
@@ -256,7 +321,6 @@ class FigurePlotter:
 
     def throughput_plot(self, var, fs, ofn, fc):
         """Generate the throughput figures.
-
         Args:
             var: The variation.
             fs: The path of files.
@@ -271,7 +335,11 @@ class FigurePlotter:
 
         variation_data = {}
         for f in glob.glob(fs):
-            v, tp = self.parser.parse_throughput_file(f, var)
+            try:
+                v, tp = self.parser.parse_throughput_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
             variation_data[v] = tp
 
         rc, cc = get_row_col_counts(fc)
@@ -283,7 +351,9 @@ class FigurePlotter:
             r_loc = i // cc
             c_loc = i % cc
 
-            if rc == 1:
+            if fc == 1:
+                ax = axs
+            elif rc == 1:
                 ax = axs[c_loc]
             else:
                 ax = axs[r_loc, c_loc]
@@ -307,7 +377,6 @@ class FigurePlotter:
 
     def confirmation_time_plot(self, var, fs, ofn, title, label):
         """Generate the confirmation time figures.
-
         Args:
             var: The variation.
             fs: The path of files.
@@ -324,7 +393,11 @@ class FigurePlotter:
         plt.figure(figsize=(12, 5), dpi=500, constrained_layout=True)
         variation_data = {}
         for f in glob.glob(fs):
-            v, data, x_axis_adjust = self.parser.parse_aw_file(f, var)
+            try:
+                v, data, x_axis_adjust = self.parser.parse_aw_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
             variation_data[v] = (data, x_axis_adjust)
         for i, (v, d) in enumerate(sorted(variation_data.items())):
             clr = self.clr_list[i // 4]

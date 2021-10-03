@@ -172,6 +172,10 @@ if __name__ == '__main__':
                 for i, v in enumerate(vv):
                     os.system(
                         f'{exec} --simulationTarget={target}  -simulationMode=Accidental -accidentalMana="{v}" -decelerationFactor={df[i]}')
+            elif var == 'AD':
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -adversaryType="1" -adversaryInitColors="R" -decelerationFactor={df[i]}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)
@@ -183,8 +187,10 @@ if __name__ == '__main__':
         plotter = FigurePlotter(config.cd)
 
         # (The variation name in the configuration file, the confirmation time figure title,
-        #  the convergence time figure title, the flips title, the unconfirming count title)
-        n, t_confirmation, t_convergence, t_flips, t_unconfirming = c.FIGURE_NAMING_DICT[var]
+        #  the convergence time figure title, the flips title, the unconfirming count title,
+        #  the confirmation weight depth figure title)
+        (n, t_confirmation, t_convergence, t_flips,
+         t_unconfirming, t_depth) = c.FIGURE_NAMING_DICT[var]
 
         folder = base_folder
         iter_suffix = ''
@@ -205,6 +211,9 @@ if __name__ == '__main__':
 
                     plotter.unconfirmed_count_distribution_plot(
                         n, base_folder, f'DS_{n}_uc.png', len(vv), repetition, title=t_unconfirming)
+
+                    plotter.confirmation_depth_distribution_plot(
+                        n, base_folder, f'DP_{n}_cd.png', len(vv), repetition, title=t_depth)
 
                 plotter.confirmed_like_color_plot(
                     n, folder + '/cc*csv', f'DS_{n}_cc{iter_suffix}.png', len(vv))

@@ -57,8 +57,8 @@ var (
 
 	// global declarations
 	dsIssuanceTime           time.Time
-	mostLikedColor           *multiverse.Color
-	honestOnlyMostLikedColor *multiverse.Color
+	mostLikedColor           multiverse.Color
+	honestOnlyMostLikedColor multiverse.Color
 	simulationStartTime      time.Time
 
 	// counters
@@ -304,8 +304,8 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	atomicCounters.CreateAtomicCounter("relevantValidators", 0)
 	atomicCounters.CreateAtomicCounter("issuedMessages", 0)
 
-	mostLikedColor = &multiverse.UndefinedColor
-	honestOnlyMostLikedColor = &multiverse.UndefinedColor
+	mostLikedColor = multiverse.UndefinedColor
+	honestOnlyMostLikedColor = multiverse.UndefinedColor
 
 	// The simulation start time
 	simulationStartTime = time.Now()
@@ -379,7 +379,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			colorCounters.Add("likeAccumulatedWeight", weight, newOpinion)
 
 			r, g, b := getLikesPerRGB(colorCounters, "opinions")
-			if mostLikedColorChanged(r, g, b, mostLikedColor) {
+			if mostLikedColorChanged(r, g, b, &mostLikedColor) {
 				atomicCounters.Add("flips", 1)
 			}
 			if network.IsAdversary(int(peerID)) {
@@ -391,7 +391,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 			ar, ag, ab := getLikesPerRGB(adversaryCounters, "opinions")
 			// honest nodes likes status only, flips
-			if mostLikedColorChanged(r-ar, g-ag, b-ab, honestOnlyMostLikedColor) {
+			if mostLikedColorChanged(r-ar, g-ag, b-ab, &honestOnlyMostLikedColor) {
 				atomicCounters.Add("honestFlips", 1)
 			}
 		}))

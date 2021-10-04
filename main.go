@@ -64,7 +64,7 @@ var (
 	// counters
 	colorCounters     = simulation.NewColorCounters()
 	adversaryCounters = simulation.NewColorCounters()
-	nodeCounters      = []*simulation.AtomicCounters{}
+	nodeCounters      = []simulation.AtomicCounters{}
 	atomicCounters    = simulation.NewAtomicCounters()
 
 	confirmedMessageCounter = make(map[network.PeerID]int64)
@@ -293,7 +293,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	// Initialize the minConfirmedWeight to be the max value (i.e., the total weight)
 	for i := 0; i < config.NodesCount; i++ {
-		nodeCounters = append(nodeCounters, simulation.NewAtomicCounters())
+		nodeCounters = append(nodeCounters, *simulation.NewAtomicCounters())
 		nodeCounters[i].CreateAtomicCounter("minConfirmedAccumulatedWeight", int64(config.NodesTotalWeight))
 		nodeCounters[i].CreateAtomicCounter("unconfirmationCount", 0)
 	}

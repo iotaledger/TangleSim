@@ -57,8 +57,8 @@ var (
 
 	// global declarations
 	dsIssuanceTime           time.Time
-	mostLikedColor           multiverse.Color
-	honestOnlyMostLikedColor multiverse.Color
+	mostLikedColor           *multiverse.Color
+	honestOnlyMostLikedColor *multiverse.Color
 	simulationStartTime      time.Time
 
 	// counters
@@ -304,7 +304,8 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	atomicCounters.CreateAtomicCounter("relevantValidators", 0)
 	atomicCounters.CreateAtomicCounter("issuedMessages", 0)
 
-	mostLikedColor = multiverse.UndefinedColor
+	mostLikedColor = &multiverse.UndefinedColor
+	honestOnlyMostLikedColor = &multiverse.UndefinedColor
 
 	// The simulation start time
 	simulationStartTime = time.Now()
@@ -700,7 +701,7 @@ func getLikesPerRGB(counter *simulation.ColorCounters, flag string) (int64, int6
 	return counter.Get(flag, multiverse.Red), counter.Get(flag, multiverse.Green), counter.Get(flag, multiverse.Blue)
 }
 
-func mostLikedColorChanged(r, g, b int64, mostLikedColorVar multiverse.Color) bool {
+func mostLikedColorChanged(r, g, b int64, mostLikedColorVar *multiverse.Color) bool {
 
 	currentMostLikedColor := multiverse.UndefinedColor
 	if g > 0 {
@@ -713,13 +714,13 @@ func mostLikedColorChanged(r, g, b int64, mostLikedColorVar multiverse.Color) bo
 		currentMostLikedColor = multiverse.Red
 	}
 	// color selected
-	if mostLikedColorVar != currentMostLikedColor {
+	if *mostLikedColorVar != currentMostLikedColor {
 		// color selected for the first time, it not counts
-		if mostLikedColorVar == multiverse.UndefinedColor {
-			mostLikedColorVar = currentMostLikedColor
+		if *mostLikedColorVar == multiverse.UndefinedColor {
+			*mostLikedColorVar = currentMostLikedColor
 			return false
 		}
-		mostLikedColorVar = currentMostLikedColor
+		*mostLikedColorVar = currentMostLikedColor
 		return true
 	}
 	return false

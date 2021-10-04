@@ -45,6 +45,7 @@ var (
 		"Unconfirmed Blue Accumulated Weight", "Unconfirmed Red Accumulated Weight", "Unconfirmed Green Accumulated Weight",
 		"Flips (Winning color changed)", "Honest nodes Flips", "ns since start", "ns since issuance"}
 	adHeader = []string{"AdversaryGroupID", "Strategy", "AdversaryCount", "q", "ns since issuance"}
+	ndHeader = []string{"Node ID", "Adversary", "Min Confirmed Accumulated Weight", "Unconfirmation Count"}
 
 	csvMutex sync.Mutex
 
@@ -63,10 +64,14 @@ var (
 	// counters
 	colorCounters     = simulation.NewColorCounters()
 	adversaryCounters = simulation.NewColorCounters()
+	nodeCounters      = []simulation.AtomicCounters{}
 	atomicCounters    = simulation.NewAtomicCounters()
 
 	confirmedMessageCounter = make(map[network.PeerID]int64)
 	confirmedMessageMutex   sync.RWMutex
+
+	// simulation start time string in the result file name
+	simulationStartTimeStr string
 )
 
 func main() {
@@ -94,7 +99,7 @@ func main() {
 	defer flushWriters(resultsWriters)
 	secureNetwork(testNetwork)
 
-	// To simulate the confirmation time w/o any double spendings, the colored msgs are not to be sent
+	// To simulate the confirmation time w/o any double spending, the colored msgs are not to be sent
 	if config.SimulationTarget == "DS" {
 		SimulateDoubleSpent(testNetwork)
 	}
@@ -141,7 +146,34 @@ func SimulateDoubleSpent(testNetwork *network.Network) {
 
 func shutdownSimulation() {
 	dumpingTicker.Stop()
+	dumpFinalRecorder()
 	simulationWg.Wait()
+}
+
+func dumpFinalRecorder() {
+	fileName := fmt.Sprint("nd-", simulationStartTimeStr, ".csv")
+	file, err := os.Create(path.Join(config.ResultDir, fileName))
+	if err != nil {
+		panic(err)
+	}
+
+	writer := csv.NewWriter(file)
+	if err := writer.Write(ndHeader); err != nil {
+		panic(err)
+	}
+
+	for i := 0; i < config.NodesCount; i++ {
+		record := []string{
+			strconv.FormatInt(int64(i), 10),
+			strconv.FormatBool(network.IsAdversary(int(i))),
+			strconv.FormatInt(int64(nodeCounters[i].Get("minConfirmedAccumulatedWeight")), 10),
+			strconv.FormatInt(int64(nodeCounters[i].Get("unconfirmationCount")), 10),
+		}
+		writeLine(writer, record)
+
+		// Flush the writers, or the data will be truncated for high node count
+		writer.Flush()
+	}
 }
 
 func flushWriters(writers []*csv.Writer) {
@@ -259,6 +291,13 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	adversaryCounters.CreateCounter("confirmedNodes", allColors, []int64{0, 0, 0, 0})
 	adversaryCounters.CreateCounter("confirmedAccumulatedWeight", allColors, []int64{0, 0, 0, 0})
 
+	// Initialize the minConfirmedWeight to be the max value (i.e., the total weight)
+	for i := 0; i < config.NodesCount; i++ {
+		nodeCounters = append(nodeCounters, *simulation.NewAtomicCounters())
+		nodeCounters[i].CreateAtomicCounter("minConfirmedAccumulatedWeight", int64(config.NodesTotalWeight))
+		nodeCounters[i].CreateAtomicCounter("unconfirmationCount", 0)
+	}
+
 	atomicCounters.CreateAtomicCounter("flips", 0)
 	atomicCounters.CreateAtomicCounter("honestFlips", 0)
 	atomicCounters.CreateAtomicCounter("tps", 0)
@@ -266,10 +305,11 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	atomicCounters.CreateAtomicCounter("issuedMessages", 0)
 
 	mostLikedColor = multiverse.UndefinedColor
+	honestOnlyMostLikedColor = multiverse.UndefinedColor
 
 	// The simulation start time
 	simulationStartTime = time.Now()
-	simulationStartTimeStr := simulationStartTime.UTC().Format(time.RFC3339)
+	simulationStartTimeStr = simulationStartTime.UTC().Format(time.RFC3339)
 
 	// Dump the configuration of this simulation
 	dumpConfig(fmt.Sprint("aw-", simulationStartTimeStr, ".config"))
@@ -339,7 +379,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			colorCounters.Add("likeAccumulatedWeight", weight, newOpinion)
 
 			r, g, b := getLikesPerRGB(colorCounters, "opinions")
-			if mostLikedColorChanged(r, g, b, mostLikedColor) {
+			if mostLikedColorChanged(r, g, b, &mostLikedColor) {
 				atomicCounters.Add("flips", 1)
 			}
 			if network.IsAdversary(int(peerID)) {
@@ -351,7 +391,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 			ar, ag, ab := getLikesPerRGB(adversaryCounters, "opinions")
 			// honest nodes likes status only, flips
-			if mostLikedColorChanged(r-ar, g-ag, b-ab, honestOnlyMostLikedColor) {
+			if mostLikedColorChanged(r-ar, g-ag, b-ab, &honestOnlyMostLikedColor) {
 				atomicCounters.Add("honestFlips", 1)
 			}
 		}))
@@ -371,8 +411,18 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			colorCounters.Add("unconfirmedAccumulatedWeight", weight, unconfirmedColor)
 			colorCounters.Add("confirmedAccumulatedWeight", -weight, unconfirmedColor)
 
-			// we want to know how deep the support for our once confirmed color could fall
-			// TODO after merging counters add counter colorCounters["unconfirmedDepth"] that will save min(colorCounters["unconfirmedDepth"], unconfirmedSupport)
+			// When the color is unconfirmed, the min confirmed accumulated weight should be reset
+			nodeCounters[int(peerID)].Set("minConfirmedAccumulatedWeight", int64(config.NodesTotalWeight))
+
+			// Accumulate the unconfirmed count for each node
+			nodeCounters[int(peerID)].Add("unconfirmationCount", 1)
+		}))
+
+		// We want to know how deep the support for our once confirmed color could fall
+		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().MinConfirmedWeightUpdated.Attach(events.NewClosure(func(opinion multiverse.Color, confirmedWeight int64) {
+			if nodeCounters[int(peerID)].Get("minConfirmedAccumulatedWeight") > confirmedWeight {
+				nodeCounters[int(peerID)].Set("minConfirmedAccumulatedWeight", confirmedWeight)
+			}
 		}))
 	}
 
@@ -455,6 +505,9 @@ func dumpResultDS(dsResultsWriter *csv.Writer, sinceIssuance string) {
 	}
 
 	writeLine(dsResultsWriter, record)
+
+	// Flush the writers, or the data will be truncated sometimes if the buffer is full
+	dsResultsWriter.Flush()
 }
 
 func dumpResultsTP(tpResultsWriter *csv.Writer) {
@@ -473,6 +526,9 @@ func dumpResultsTP(tpResultsWriter *csv.Writer) {
 	}
 
 	writeLine(tpResultsWriter, record)
+
+	// Flush the writers, or the data will be truncated sometimes if the buffer is full
+	tpResultsWriter.Flush()
 }
 
 func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {
@@ -512,6 +568,9 @@ func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {
 	}
 
 	writeLine(ccResultsWriter, record)
+
+	// Flush the cc writer, or the data will be truncated sometimes if the buffer is full
+	ccResultsWriter.Flush()
 }
 
 func dumpResultsAD(adResultsWriter *csv.Writer, net *network.Network) {
@@ -526,6 +585,8 @@ func dumpResultsAD(adResultsWriter *csv.Writer, net *network.Network) {
 		}
 		writeLine(adResultsWriter, record)
 	}
+	// Flush the cc writer, or the data will be truncated sometimes if the buffer is full
+	adResultsWriter.Flush()
 }
 
 func writeLine(writer *csv.Writer, record []string) {
@@ -640,7 +701,7 @@ func getLikesPerRGB(counter *simulation.ColorCounters, flag string) (int64, int6
 	return counter.Get(flag, multiverse.Red), counter.Get(flag, multiverse.Green), counter.Get(flag, multiverse.Blue)
 }
 
-func mostLikedColorChanged(r, g, b int64, mostLikedColorVar multiverse.Color) bool {
+func mostLikedColorChanged(r, g, b int64, mostLikedColorVar *multiverse.Color) bool {
 
 	currentMostLikedColor := multiverse.UndefinedColor
 	if g > 0 {
@@ -653,13 +714,13 @@ func mostLikedColorChanged(r, g, b int64, mostLikedColorVar multiverse.Color) bo
 		currentMostLikedColor = multiverse.Red
 	}
 	// color selected
-	if mostLikedColorVar != currentMostLikedColor {
+	if *mostLikedColorVar != currentMostLikedColor {
 		// color selected for the first time, it not counts
-		if mostLikedColorVar == multiverse.UndefinedColor {
-			mostLikedColorVar = currentMostLikedColor
+		if *mostLikedColorVar == multiverse.UndefinedColor {
+			*mostLikedColorVar = currentMostLikedColor
 			return false
 		}
-		mostLikedColorVar = currentMostLikedColor
+		*mostLikedColorVar = currentMostLikedColor
 		return true
 	}
 	return false

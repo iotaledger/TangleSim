@@ -14,7 +14,7 @@ ISSUED_MESSAGE = "# of Issued Messages"
 
 # Rename the parameters
 VAR_DICT = {'TipsCount': 'k', 'ZipfParameter': 's',
-            'NodesCount': 'N', 'MinDelay': 'D', 'WeightThreshold': 'AW', 'AccidentalMana': 'IM'}
+            'NodesCount': 'N', 'MinDelay': 'D', 'WeightThreshold': 'AW', 'AccidentalMana': 'IM', 'AdversaryMana': 'AD'}
 
 # Items for double spending figures
 COLORED_CONFIRMED_LIKE_ITEMS = [
@@ -33,20 +33,30 @@ SIMULATION_VAR_DICT = {'N': 'nodesCount',
 # The figure naming mapping
 FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node Counts",
                             "Convergence Time v.s. Different Node Counts", "Flips v.s. Different Node Counts",
-                            "Unconfirming Counts v.s. Different Node Counts"),
+                            "Unconfirming Counts v.s. Different Node Counts",
+                            "Confirmation Weight Depth v.s. Different Node Counts"),
                       'S': ("ZipfParameter", "Confirmation Time v.s. Different Zipf's Parameters",
                             "Convergence Time v.s. Different Zipf's Parameters",
                             "Flips v.s. Different Zipf's Parameters",
-                            "Unconfirming Counts v.s. Different Zipf's Parameters"),
+                            "Unconfirming Counts v.s. Different Zipf's Parameters",
+                            "Confirmation Weight Depth v.s. Different Zipf's Parameters"),
                       'K': ("TipsCount", "Confirmation Time v.s. Different Parents Counts",
                             "Convergence Time v.s. Different Parents Counts", "Flips v.s. Different Parents Counts",
-                            "Unconfirming Counts v.s. Different Parents Counts"),
+                            "Unconfirming Counts v.s. Different Parents Counts",
+                            "Confirmation Weight Depth v.s. Different Parents Counts"),
                       'D': ("MinDelay", "Confirmation Time v.s. Different Delays",
                             "Convergence Time v.s. Different Delays", "Flips v.s. Different Delays",
-                            "Unconfirming Counts v.s. Different Delays"),
+                            "Unconfirming Counts v.s. Different Delays",
+                            "Confirmation Weight Depth v.s. Different Delays"),
                       'AW': ("WeightThreshold", "Confirmation Time v.s. Different Thresholds",
                              "Convergence Time v.s. Different Threshold", "Flips v.s. Different Thresholds",
-                             "Unconfirming Counts v.s. Different Thresholds"),
+                             "Unconfirming Counts v.s. Different Thresholds",
+                             "Confirmation Weight Depth v.s. Different Thresholds"),
                       'IM': ("AccidentalMana", "Confirmation Time v.s. Different Issuers",
                              "Convergence Time v.s. Different Issuers", "Flips v.s. Different Issuers",
-                             "Unconfirming Counts v.s. Different Issuers")}
+                             "Unconfirming Counts v.s. Different Issuers",
+                             "Confirmation Weight Depth v.s. Different Issuers"),
+                      'AD': ("AdversaryMana", "Confirmation Time v.s. Different Adversary Weights",
+                             "Convergence Time v.s. Different Adversary Weights", "Flips v.s. Different Adversary Weights",
+                             "Unconfirming Counts v.s. Different Adversary Weights",
+                             "Confirmation Weight Depth v.s. Different Adversary Weights")}

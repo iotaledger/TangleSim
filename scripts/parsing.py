@@ -170,3 +170,37 @@ class FileParser:
 
         return v, (colored_node_aw, convergence_time, flips, unconfirming_blue, unconfirming_red,
                    honest_total_weight, x_axis)
+
+    def parse_node_file(self, fn, var):
+        """Parse the node files.
+        Args:
+            fn: The input file name.
+            var: The variated parameter.
+
+        Returns:
+            v: The variation value.
+            confirmation_rate_depth: The confirmation rate depth.
+        """
+        logging.info(f'Parsing {fn}...')
+        # Get the configuration setup of this simulation
+        config_fn = re.sub('nd', 'aw', fn)
+        config_fn = config_fn.replace('.csv', '.config')
+
+        # Opening JSON file
+        with open(config_fn) as f:
+            c = json.load(f)
+
+        v = str(c[var])
+
+        # Get the weight threshold
+        weight_threshold = float(c['WeightThreshold'].split('-')[0])
+
+        data = pd.read_csv(fn)
+
+        # Get the minimum weight percentage
+        mw = float(data['Min Confirmed Accumulated Weight'].min()
+                   ) / float(c['NodesTotalWeight'])
+
+        confirmation_rate_depth = max(weight_threshold - mw, 0)
+
+        return v, confirmation_rate_depth

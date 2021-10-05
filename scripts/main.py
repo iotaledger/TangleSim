@@ -174,8 +174,9 @@ if __name__ == '__main__':
                         f'{exec} --simulationTarget={target}  -simulationMode=Accidental -accidentalMana="{v}" -decelerationFactor={df[i]}')
             elif var == 'AD':
                 for i, v in enumerate(vv):
+                    v = str(float(v)/2)
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -adversaryType="1" -adversaryInitColors="R" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)

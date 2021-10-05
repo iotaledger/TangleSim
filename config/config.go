@@ -27,7 +27,7 @@ var (
 	SimulationMode          = "Accidental"                 // Mode for the DS simulations one of: 'Accidental' - accidental double spends sent by max, min or random weight node from Zipf distrib, 'Adversary' - need to use adversary groups (parameters starting with 'Adversary...')
 	AccidentalMana          = []string{"random", "random"} // Defines nodes which will be used: 'min', 'max', 'random' or valid nodeID
 	AdversaryDelays         = []int{}                      // Delays in ms of adversary nodes, eg '50 100 200', SimulationTarget must be 'DS'
-	AdversaryTypes          = []int{0, 0}                  // Defines group attack strategy, one of the following: 0 - honest node behavior, 1 - shifts opinion, 2 - keeps the same opinion. SimulationTarget must be 'DS'
+	AdversaryTypes          = []int{0, 0}                  // Defines group attack strategy, one of the following: 0 - honest node behavior, 1 - shifts opinion, 2 - keeps the same opinion, 3 - nodes not gossiping anything, even DS. SimulationTarget must be 'DS'
 	AdversaryMana           = []float64{}                  // Adversary nodes mana in %, e.g. '10 10'. Default value: 1%. SimulationTarget must be 'DS'
 	AdversaryNodeCounts     = []int{}                      // Defines number of adversary nodes in the group. Leave empty for default value: 1. SimulationTarget must be 'DS'
 	AdversaryInitColors     = []string{"R", "B"}           // Defines initial color for adversary group, one of following: 'R', 'G', 'B'. Mandatory for each group. SimulationTarget must be 'DS'

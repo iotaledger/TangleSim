@@ -20,6 +20,8 @@ func CastAdversary(node network.Node) NodeInterface {
 		return node.(*ShiftingOpinionNode)
 	case *SameOpinionNode:
 		return node.(*SameOpinionNode)
+	case *NoGossipNode:
+		return node.(*NoGossipNode)
 	}
 	return nil
 }

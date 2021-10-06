@@ -16,6 +16,7 @@ const (
 	HonestNode AdversaryType = iota
 	ShiftOpinion
 	TheSameOpinion
+	NoGossip
 )
 
 func ToAdversaryType(adv int) AdversaryType {
@@ -24,6 +25,8 @@ func ToAdversaryType(adv int) AdversaryType {
 		return ShiftOpinion
 	case int(TheSameOpinion):
 		return TheSameOpinion
+	case int(NoGossip):
+		return NoGossip
 	default:
 		return HonestNode
 	}
@@ -37,6 +40,8 @@ func AdversaryTypeToString(adv AdversaryType) string {
 		return "ShiftingOpinion"
 	case TheSameOpinion:
 		return "TheSameOpinion"
+	case NoGossip:
+		return "NoGossip"
 	}
 	return ""
 }

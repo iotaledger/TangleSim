@@ -1,11 +1,12 @@
 package network
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/iotaledger/hive.go/crypto"
 	"github.com/iotaledger/hive.go/datastructure/set"
 	"github.com/iotaledger/multivers-simulation/config"
-	"strconv"
-	"time"
 )
 
 // region AdversaryType ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -161,6 +162,21 @@ func (g *AdversaryGroups) ApplyNetworkDelayForAdversaryNodes(network *Network) {
 			peer := network.Peer(nodeID)
 			for _, neighbor := range peer.Neighbors {
 				neighbor.SetDelay(adversaryGroup.Delay)
+			}
+		}
+	}
+}
+
+func (g *AdversaryGroups) ApplyNeighborsAdversaryNodes(network *Network) {
+	for _, adversaryGroup := range *g {
+		for _, nodeID := range adversaryGroup.NodeIDs {
+			adversary := network.Peer(nodeID)
+			for _, peer := range network.Peers {
+				adversary.Neighbors[peer.ID] = NewConnection(
+					network.Peers[peer.ID].Socket,
+					adversaryGroup.Delay,
+					0,
+				)
 			}
 		}
 	}

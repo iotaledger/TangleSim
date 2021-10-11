@@ -2,10 +2,11 @@ package simulation
 
 import (
 	"flag"
-	"github.com/iotaledger/multivers-simulation/config"
-	"github.com/iotaledger/multivers-simulation/logger"
 	"strconv"
 	"strings"
+
+	"github.com/iotaledger/multivers-simulation/config"
+	"github.com/iotaledger/multivers-simulation/logger"
 )
 
 var log = logger.New("Simulation")
@@ -74,6 +75,8 @@ func ParseFlags() {
 		flag.String("simulationMode", config.SimulationMode, "Mode for the DS simulations one of: 'Accidental' - accidental double spends sent by max, min or random weight node from Zipf distrib, 'Adversary' - need to use adversary groups (parameters starting with 'Adversary...')")
 	accidentalMana :=
 		flag.String("accidentalMana", "", "Defines node which will be used: min, max or random")
+	adversaryPeeringAll :=
+		flag.Bool("adversaryPeeringAll", config.AdversaryPeeringAll, "Flag indicating whether adversary nodes should be able to gossip messages to all nodes in the network directly, or should follow the peering algorithm.")
 
 	// Parse the flags
 	flag.Parse()
@@ -104,7 +107,7 @@ func ParseFlags() {
 	config.NeighbourCountWS = *neighbourCountWS
 	config.SimulationMode = *simulationMode
 	parseAccidentalConfig(accidentalMana)
-	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors)
+	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll)
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
@@ -136,10 +139,11 @@ func ParseFlags() {
 	log.Info("AdversaryNodeCounts: ", config.AdversaryNodeCounts)
 	log.Info("AdversaryDelays: ", config.AdversaryDelays)
 	log.Info("AccidentalMana: ", config.AccidentalMana)
+	log.Info("AdversaryPeeringAll: ", config.AdversaryPeeringAll)
 
 }
 
-func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors *string) {
+func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors *string, adversaryPeeringAll *bool) {
 	if config.SimulationMode != "Adversary" || config.SimulationTarget != "DS" {
 		config.AdversaryTypes = []int{}
 		config.AdversaryNodeCounts = []int{}
@@ -148,6 +152,7 @@ func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, advers
 		config.AdversaryInitColors = []string{}
 		return
 	}
+	config.AdversaryPeeringAll = *adversaryPeeringAll
 
 	if *adversaryDelays != "" {
 		config.AdversaryDelays = parseStrToInt(*adversaryDelays)
@@ -172,7 +177,7 @@ func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, advers
 
 	// make sure mana, nodeCounts and delays are only defined when adversary type is provided and have the same length
 	if len(config.AdversaryDelays) != 0 && len(config.AdversaryDelays) != len(config.AdversaryTypes) {
-		log.Warnf("The AdversaryDelays count is not equal to the AdversaryTypes count!")	
+		log.Warnf("The AdversaryDelays count is not equal to the AdversaryTypes count!")
 		config.AdversaryDelays = []int{}
 	}
 	if len(config.AdversaryMana) != 0 && len(config.AdversaryMana) != len(config.AdversaryTypes) {
@@ -180,7 +185,7 @@ func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, advers
 		config.AdversaryMana = []float64{}
 	}
 	if len(config.AdversaryNodeCounts) != 0 && len(config.AdversaryNodeCounts) != len(config.AdversaryTypes) {
-		log.Warnf("The AdversaryNodeCounts count is not equal to the AdversaryTypes count!")	
+		log.Warnf("The AdversaryNodeCounts count is not equal to the AdversaryTypes count!")
 		config.AdversaryNodeCounts = []int{}
 	}
 }

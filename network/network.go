@@ -68,12 +68,13 @@ func (n *Network) Peer(index int) *Peer {
 // region Configuration ////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Configuration struct {
-	nodes           []*NodesSpecification
-	minDelay        time.Duration
-	maxDelay        time.Duration
-	minPacketLoss   float64
-	maxPacketLoss   float64
-	peeringStrategy PeeringStrategy
+	nodes               []*NodesSpecification
+	minDelay            time.Duration
+	maxDelay            time.Duration
+	minPacketLoss       float64
+	maxPacketLoss       float64
+	peeringStrategy     PeeringStrategy
+	adversaryPeeringAll bool
 }
 
 func NewConfiguration(options ...Option) (configuration *Configuration) {
@@ -125,7 +126,11 @@ func (c *Configuration) ConnectPeers(network *Network) {
 	defer log.Info("Connecting peers ... [DONE]")
 
 	c.peeringStrategy(network, c)
+	if c.adversaryPeeringAll {
+		network.AdversaryGroups.ApplyNeighborsAdversaryNodes(network)
+	}
 	network.AdversaryGroups.ApplyNetworkDelayForAdversaryNodes(network)
+
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -191,6 +196,12 @@ func PacketLoss(minPacketLoss float64, maxPacketLoss float64) Option {
 func Topology(peeringStrategy PeeringStrategy) Option {
 	return func(config *Configuration) {
 		config.peeringStrategy = peeringStrategy
+	}
+}
+
+func AdversaryPeeringAll(adversaryPeeringAll bool) Option {
+	return func(config *Configuration) {
+		config.adversaryPeeringAll = adversaryPeeringAll
 	}
 }
 

@@ -92,6 +92,7 @@ func main() {
 			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
 		network.PacketLoss(0, config.PayloadLoss),
 		network.Topology(network.WattsStrogatz(config.NeighbourCountWS, config.RandomnessWS)),
+		network.AdversaryPeeringAll(config.AdversaryPeeringAll),
 	)
 	testNetwork.Start()
 	defer testNetwork.Shutdown()
@@ -195,6 +196,7 @@ func dumpConfig(fileName string) {
 		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                    []int
 		AdversaryMana                                                                                                                                                           []float64
 		AdversaryInitColor, AccidentalMana                                                                                                                                      []string
+		AdversaryPeeringAll                                                                                                                                                     bool
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -226,6 +228,7 @@ func dumpConfig(fileName string) {
 		AdversaryInitColor:      config.AdversaryInitColors,
 		SimulationMode:          config.SimulationMode,
 		AccidentalMana:          config.AccidentalMana,
+		AdversaryPeeringAll:     config.AdversaryPeeringAll,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")

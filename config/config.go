@@ -31,6 +31,7 @@ var (
 	AdversaryMana           = []float64{}                  // Adversary nodes mana in %, e.g. '10 10'. Default value: 1%. SimulationTarget must be 'DS'
 	AdversaryNodeCounts     = []int{}                      // Defines number of adversary nodes in the group. Leave empty for default value: 1. SimulationTarget must be 'DS'
 	AdversaryInitColors     = []string{"R", "B"}           // Defines initial color for adversary group, one of following: 'R', 'G', 'B'. Mandatory for each group. SimulationTarget must be 'DS'
+	AdversaryPeeringAll     = false                        // Defines a flag indicating whether adversarial nodes should be able to send messages to all nodes in the network, instead of following regular peering algorithm.
 )
 
 var (

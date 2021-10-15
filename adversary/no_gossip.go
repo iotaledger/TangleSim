@@ -23,10 +23,8 @@ func NewNoGossipNode() interface{} {
 func (n *NoGossipNode) UpdateGossipBehavior() {
 	n.Tangle().Booker.Events.MessageBooked.Attach(events.NewClosure(func(messageID multiverse.MessageID) {
 		// do nothing - no gossiping
-		log.Infof("Not gossiping msg")
 	}))
 	n.Tangle().Requester.Events.Request.Attach(events.NewClosure(func(messageID multiverse.MessageID) {
-		log.Infof("Not gossiping msg")
 		// do nothing - no answering requests for missing messages
 	}))
 }

@@ -162,7 +162,7 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 	var totalWeight float64
 	var nodeWeights []uint64
 
-	if config.SimulationTarget == "DS" {
+	if len(config.AdversaryTypes) > 0 || config.SimulationTarget == "DS" {
 		switch config.SimulationMode {
 		case "Adversary":
 			nodesCount, totalWeight = network.AdversaryGroups.CalculateWeightTotalConfig()

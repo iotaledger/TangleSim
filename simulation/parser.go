@@ -144,7 +144,7 @@ func ParseFlags() {
 }
 
 func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors *string, adversaryPeeringAll *bool) {
-	if config.SimulationMode != "Adversary" || config.SimulationTarget != "DS" {
+	if config.SimulationMode != "Adversary" {
 		config.AdversaryTypes = []int{}
 		config.AdversaryNodeCounts = []int{}
 		config.AdversaryMana = []float64{}
@@ -152,6 +152,7 @@ func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, advers
 		config.AdversaryInitColors = []string{}
 		return
 	}
+
 	config.AdversaryPeeringAll = *adversaryPeeringAll
 
 	if *adversaryDelays != "" {

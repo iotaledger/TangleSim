@@ -75,6 +75,7 @@ type Configuration struct {
 	maxPacketLoss       float64
 	peeringStrategy     PeeringStrategy
 	adversaryPeeringAll bool
+	adversarySpeedup    []float64
 }
 
 func NewConfiguration(options ...Option) (configuration *Configuration) {
@@ -105,13 +106,16 @@ func (c *Configuration) CreatePeers(network *Network) {
 
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
+			speedupFactor := 1.0
 			// this is adversary node
 			if groupIndex, ok := AdversaryNodeIDToGroupIDMap[i]; ok {
 				nodeType = network.AdversaryGroups[groupIndex].AdversaryType
+				speedupFactor = c.adversarySpeedup[groupIndex]
 			}
 			nodeFactory := nodesSpecification.nodeFactories[nodeType]
 
 			peer := NewPeer(nodeFactory())
+			peer.AdversarySpeedup = speedupFactor
 			network.Peers = append(network.Peers, peer)
 			log.Debugf("Created %s ... [DONE]", peer)
 
@@ -202,6 +206,12 @@ func Topology(peeringStrategy PeeringStrategy) Option {
 func AdversaryPeeringAll(adversaryPeeringAll bool) Option {
 	return func(config *Configuration) {
 		config.adversaryPeeringAll = adversaryPeeringAll
+	}
+}
+
+func AdversarySpeedup(adversarySpeedupFactors []float64) Option {
+	return func(config *Configuration) {
+		config.adversarySpeedup = adversarySpeedupFactors
 	}
 }
 

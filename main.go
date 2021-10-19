@@ -93,6 +93,7 @@ func main() {
 		network.PacketLoss(0, config.PayloadLoss),
 		network.Topology(network.WattsStrogatz(config.NeighbourCountWS, config.RandomnessWS)),
 		network.AdversaryPeeringAll(config.AdversaryPeeringAll),
+		network.AdversarySpeedup(config.AdversarySpeedup),
 	)
 	testNetwork.Start()
 	defer testNetwork.Shutdown()
@@ -194,7 +195,7 @@ func dumpConfig(fileName string) {
 		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
 		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                 string
 		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                    []int
-		AdversaryMana                                                                                                                                                           []float64
+		AdversarySpeedup, AdversaryMana                                                                                                                                         []float64
 		AdversaryInitColor, AccidentalMana                                                                                                                                      []string
 		AdversaryPeeringAll                                                                                                                                                     bool
 	}
@@ -229,6 +230,7 @@ func dumpConfig(fileName string) {
 		SimulationMode:          config.SimulationMode,
 		AccidentalMana:          config.AccidentalMana,
 		AdversaryPeeringAll:     config.AdversaryPeeringAll,
+		AdversarySpeedup:        config.AdversarySpeedup,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")
@@ -627,7 +629,6 @@ func secureNetwork(testNetwork *network.Network) {
 
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
-
 		// if float64(config.RelevantValidatorWeight)*weightOfPeer <= largestWeight {
 		// 	continue
 		// }
@@ -641,7 +642,10 @@ func secureNetwork(testNetwork *network.Network) {
 		// TPS: 1000
 		// Band widths summed up: 100000/121 + 20000/121 + 1000/121 = 1000
 
-		band := weightOfPeer * float64(config.TPS) / float64(config.NodesTotalWeight)
+		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
+		band := peer.AdversarySpeedup * weightOfPeer * float64(config.TPS) / float64(config.NodesTotalWeight)
+		fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
+
 		go startSecurityWorker(peer, band)
 	}
 }

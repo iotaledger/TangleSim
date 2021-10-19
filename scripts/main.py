@@ -183,7 +183,7 @@ if __name__ == '__main__':
                         logging.error(f'You must specify "-adversaryMana" parameter!')
                         sys.exit(2)
 
-                    v = str(float(v)/2)
+                    v = str(int(float(v)/2))
                     os.system(
                             f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
             else:

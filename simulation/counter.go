@@ -2,15 +2,17 @@ package simulation
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/iotaledger/multivers-simulation/multiverse"
 	"go.uber.org/atomic"
-	"sync"
 )
 
 // region AtomicCounters ////////////////////////////////////////////////////////////////////////////////////////////////
 
 type AtomicCounters struct {
-	counters map[string]*atomic.Int64
+	counters      map[string]*atomic.Int64
+	countersMutex sync.RWMutex
 }
 
 func NewAtomicCounters() *AtomicCounters {
@@ -20,6 +22,8 @@ func NewAtomicCounters() *AtomicCounters {
 }
 
 func (ac *AtomicCounters) CreateAtomicCounter(counterKey string, initValue int64) {
+	ac.countersMutex.Lock()
+	defer ac.countersMutex.Unlock()
 	// if key not exist create new counter
 	if _, ok := ac.counters[counterKey]; !ok {
 		ac.counters[counterKey] = atomic.NewInt64(initValue)
@@ -27,6 +31,8 @@ func (ac *AtomicCounters) CreateAtomicCounter(counterKey string, initValue int64
 }
 
 func (ac *AtomicCounters) Get(counterKey string) int64 {
+	ac.countersMutex.RLock()
+	defer ac.countersMutex.RUnlock()
 	counter, ok := ac.counters[counterKey]
 	if !ok {
 		panic(fmt.Sprintf("Trying get from not initiated counter, key: %s", counterKey))
@@ -35,6 +41,8 @@ func (ac *AtomicCounters) Get(counterKey string) int64 {
 }
 
 func (ac *AtomicCounters) Add(counterKey string, value int64) {
+	ac.countersMutex.RLock()
+	defer ac.countersMutex.RUnlock()
 	counter, ok := ac.counters[counterKey]
 	if !ok {
 		panic(fmt.Sprintf("Trying add to not initiated counter, key: %s", counterKey))
@@ -43,6 +51,8 @@ func (ac *AtomicCounters) Add(counterKey string, value int64) {
 }
 
 func (ac *AtomicCounters) Set(counterKey string, value int64) {
+	ac.countersMutex.Lock()
+	defer ac.countersMutex.Unlock()
 	_, ok := ac.counters[counterKey]
 	if !ok {
 		panic(fmt.Sprintf("Trying set for not initiated counter, key: %s", counterKey))

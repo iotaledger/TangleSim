@@ -97,6 +97,9 @@ def parse_arg():
     parser.add_argument("-pf", "--PLOT_FIGURES", dest='PLOT_FIGURES', action='store_true',
                         help="Plot the figures",
                         default=config.cd['PLOT_FIGURES'])
+    parser.add_argument("-as", "--ADVERSARY_STRATEGY", dest='ADVERSARY_STRATEGY',
+                       help="Adversary types",
+                       default=config.cd['ADVERSARY_STRATEGY'])
 
     # Update the che configuration dictionary
     args = parser.parse_args()
@@ -140,6 +143,7 @@ if __name__ == '__main__':
     result_path = config.cd['RESULTS_PATH']
     base_folder = f'{result_path}/var_{var}_{target}'
     repetition = config.cd['REPETITION_TIME']
+    adv_strategy = config.cd['ADVERSARY_STRATEGY']
 
     # Generate the folders if they don't exist
     os.makedirs(result_path, exist_ok=True)
@@ -176,7 +180,7 @@ if __name__ == '__main__':
                 for i, v in enumerate(vv):
                     v = str(float(v)/2)
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v} {v}" -adversaryType="{adv_strategy}" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
             elif var == 'AC':
                 for i, v in enumerate(vv):
                     if "adversaryMana" not in exec:

@@ -55,6 +55,9 @@ class Configuration:
         self.cd['RUN_SIM'] = False
         self.cd['PLOT_FIGURES'] = False
 
+        # Adversary strategies
+        self.cd["ADVERSARY_STRATEGY"] = "1 1"
+
     def update(self, k, v):
         """Update the key/value pair of the configuration.
 

@@ -175,7 +175,7 @@ func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, advers
 	if *adversaryInitColors != "" {
 		config.AdversaryInitColors = parseStr(*adversaryInitColors)
 	}
-	if *adversaryMana != "" {
+	if *adversarySpeedup != "" {
 		config.AdversarySpeedup = parseStrToFloat64(*adversarySpeedup)
 	}
 	// no adversary if colors are not provided

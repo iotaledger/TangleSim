@@ -32,6 +32,7 @@ var (
 	AdversaryNodeCounts     = []int{}                      // Defines number of adversary nodes in the group. Leave empty for default value: 1.
 	AdversaryInitColors     = []string{"R", "B"}           // Defines initial color for adversary group, one of following: 'R', 'G', 'B'. Mandatory for each group.
 	AdversaryPeeringAll     = false                        // Defines a flag indicating whether adversarial nodes should be able to send messages to all nodes in the network, instead of following regular peering algorithm.
+	AdversarySpeedup        = []float64{1.0, 1.0}          // Defines how many more messages should adversary nodes issue.
 )
 
 var (

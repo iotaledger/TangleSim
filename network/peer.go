@@ -13,10 +13,11 @@ import (
 // region Peer /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Peer struct {
-	ID        PeerID
-	Neighbors map[PeerID]*Connection
-	Socket    chan interface{}
-	Node      Node
+	ID               PeerID
+	Neighbors        map[PeerID]*Connection
+	Socket           chan interface{}
+	Node             Node
+	AdversarySpeedup float64
 
 	startOnce      sync.Once
 	shutdownOnce   sync.Once

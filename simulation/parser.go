@@ -75,6 +75,8 @@ func ParseFlags() {
 		flag.String("simulationMode", config.SimulationMode, "Mode for the DS simulations one of: 'Accidental' - accidental double spends sent by max, min or random weight node from Zipf distrib, 'Adversary' - need to use adversary groups (parameters starting with 'Adversary...')")
 	accidentalMana :=
 		flag.String("accidentalMana", "", "Defines node which will be used: min, max or random")
+	adversarySpeedup :=
+		flag.String("adversarySpeedup", "", "Adversary issuing speed relative to their mana, e.g. '10 10' means that nodes in each group will issue 10 times messages than would be allowed by their mana. SimulationTarget must be 'DS'")
 	adversaryPeeringAll :=
 		flag.Bool("adversaryPeeringAll", config.AdversaryPeeringAll, "Flag indicating whether adversary nodes should be able to gossip messages to all nodes in the network directly, or should follow the peering algorithm.")
 
@@ -107,7 +109,7 @@ func ParseFlags() {
 	config.NeighbourCountWS = *neighbourCountWS
 	config.SimulationMode = *simulationMode
 	parseAccidentalConfig(accidentalMana)
-	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll)
+	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll, adversarySpeedup)
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
@@ -140,16 +142,19 @@ func ParseFlags() {
 	log.Info("AdversaryDelays: ", config.AdversaryDelays)
 	log.Info("AccidentalMana: ", config.AccidentalMana)
 	log.Info("AdversaryPeeringAll: ", config.AdversaryPeeringAll)
+	log.Info("AdversarySpeedup: ", config.AdversarySpeedup)
 
 }
 
-func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors *string, adversaryPeeringAll *bool) {
+func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors *string, adversaryPeeringAll *bool, adversarySpeedup *string) {
 	if config.SimulationMode != "Adversary" {
 		config.AdversaryTypes = []int{}
 		config.AdversaryNodeCounts = []int{}
 		config.AdversaryMana = []float64{}
 		config.AdversaryDelays = []int{}
 		config.AdversaryInitColors = []string{}
+		config.AdversarySpeedup = []float64{}
+
 		return
 	}
 
@@ -170,7 +175,9 @@ func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, advers
 	if *adversaryInitColors != "" {
 		config.AdversaryInitColors = parseStr(*adversaryInitColors)
 	}
-
+	if *adversarySpeedup != "" {
+		config.AdversarySpeedup = parseStrToFloat64(*adversarySpeedup)
+	}
 	// no adversary if colors are not provided
 	if len(config.AdversaryInitColors) != len(config.AdversaryTypes) {
 		config.AdversaryTypes = []int{}

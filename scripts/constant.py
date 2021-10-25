@@ -66,4 +66,9 @@ FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node
                              "Convergence Time v.s. Different Adversary Node Counts",
                              "Flips v.s. Different Adversary Node Counts",
                              "Unconfirming Counts v.s. Different Adversary Node Counts",
-                             "Confirmation Weight Depth v.s. Different Adversary Node Counts")}
+                             "Confirmation Weight Depth v.s. Different Adversary Node Counts"),
+                      'BS': ("AdversaryMana", "Confirmation Time v.s. Different Adversary Weights",
+                             "Convergence Time v.s. Different Adversary Weights",
+                             "Flips v.s. Different Adversary Weights",
+                             "Unconfirming Counts v.s. Different Adversary Weights",
+                             "Confirmation Weight Depth v.s. Different Adversary Weights")}

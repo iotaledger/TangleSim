@@ -193,7 +193,7 @@ if __name__ == '__main__':
                         f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
             elif var == 'BS':
                 os.system(
-                    f'{exec} --simulationTarget={target}  -simulationMode=Adversary -accidentalMana="{v}" -decelerationFactor={df[i]}')
+                    f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -decelerationFactor={df[i]}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)

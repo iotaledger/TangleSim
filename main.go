@@ -84,6 +84,7 @@ func main() {
 		network.ShiftOpinion:   network.NodeClosure(adversary.NewShiftingOpinionNode),
 		network.TheSameOpinion: network.NodeClosure(adversary.NewSameOpinionNode),
 		network.NoGossip:       network.NodeClosure(adversary.NewNoGossipNode),
+		network.CreateOpinion:  network.NodeClosure(adversary.NewCreatingOpinionNode),
 	}
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(

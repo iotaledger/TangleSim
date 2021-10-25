@@ -1,6 +1,7 @@
 package multiverse
 
 import (
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -175,7 +176,7 @@ func (c Color) String() string {
 	case 3:
 		return "Color(Green)"
 	default:
-		return "Color(Unknown)"
+		return "Color(" + strconv.Itoa(int(c)) + ")"
 	}
 }
 
@@ -190,7 +191,7 @@ func ColorFromInt(i int) Color {
 	case 3:
 		return Green
 	default:
-		return UndefinedColor
+		return NewOpinionColor
 	}
 }
 
@@ -205,15 +206,16 @@ func ColorFromStr(s string) Color {
 	case "G":
 		return Green
 	default:
-		return UndefinedColor
+		return NewOpinionColor
 	}
 }
 
 var (
-	UndefinedColor Color
-	Blue           = Color(1)
-	Red            = Color(2)
-	Green          = Color(3)
+	UndefinedColor  Color
+	NewOpinionColor Color
+	Blue            = Color(1)
+	Red             = Color(2)
+	Green           = Color(3)
 )
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

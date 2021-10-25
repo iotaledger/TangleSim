@@ -1,10 +1,11 @@
 package adversary
 
 import (
+	"reflect"
+
 	"github.com/iotaledger/multivers-simulation/logger"
 	"github.com/iotaledger/multivers-simulation/multiverse"
 	"github.com/iotaledger/multivers-simulation/network"
-	"reflect"
 )
 
 var log = logger.New("Adversary")
@@ -22,6 +23,8 @@ func CastAdversary(node network.Node) NodeInterface {
 		return node.(*SameOpinionNode)
 	case *NoGossipNode:
 		return node.(*NoGossipNode)
+	case *CreatingOpinionNode:
+		return node.(*CreatingOpinionNode)
 	}
 	return nil
 }

@@ -18,6 +18,7 @@ const (
 	ShiftOpinion
 	TheSameOpinion
 	NoGossip
+	CreateOpinion
 )
 
 func ToAdversaryType(adv int) AdversaryType {
@@ -28,6 +29,8 @@ func ToAdversaryType(adv int) AdversaryType {
 		return TheSameOpinion
 	case int(NoGossip):
 		return NoGossip
+	case int(CreateOpinion):
+		return CreateOpinion
 	default:
 		return HonestNode
 	}
@@ -43,6 +46,8 @@ func AdversaryTypeToString(adv AdversaryType) string {
 		return "TheSameOpinion"
 	case NoGossip:
 		return "NoGossip"
+	case CreateOpinion:
+		return "CreateOpinion"
 	}
 	return ""
 }

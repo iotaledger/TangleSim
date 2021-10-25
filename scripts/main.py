@@ -98,8 +98,8 @@ def parse_arg():
                         help="Plot the figures",
                         default=config.cd['PLOT_FIGURES'])
     parser.add_argument("-as", "--ADVERSARY_STRATEGY", dest='ADVERSARY_STRATEGY',
-                       help="Adversary types",
-                       default=config.cd['ADVERSARY_STRATEGY'])
+                        help="Adversary types",
+                        default=config.cd['ADVERSARY_STRATEGY'])
 
     # Update the che configuration dictionary
     args = parser.parse_args()
@@ -184,12 +184,16 @@ if __name__ == '__main__':
             elif var == 'AC':
                 for i, v in enumerate(vv):
                     if "adversaryMana" not in exec:
-                        logging.error(f'You must specify "-adversaryMana" parameter!')
+                        logging.error(
+                            f'You must specify "-adversaryMana" parameter!')
                         sys.exit(2)
 
                     v = str(int(float(v)/2))
                     os.system(
-                            f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
+            elif var == 'BS':
+                os.system(
+                    f'{exec} --simulationTarget={target}  -simulationMode=Adversary -accidentalMana="{v}" -decelerationFactor={df[i]}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)

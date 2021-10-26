@@ -201,6 +201,6 @@ class FileParser:
         mw = float(data['Min Confirmed Accumulated Weight'].min()
                    ) / float(c['NodesTotalWeight'])
 
-        confirmation_rate_depth = max(weight_threshold - mw, 0)
+        confirmation_rate_depth = max(weight_threshold - mw, 0) * 100.0
 
         return v, confirmation_rate_depth

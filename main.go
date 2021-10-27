@@ -62,8 +62,8 @@ var (
 	simulationStartTime      time.Time
 
 	// counters
-	colorCounters     = simulation.NewColorCounters()
-	adversaryCounters = simulation.NewColorCounters()
+	colorCounters     = simulation.NewAtomicUnboundedColorCounters()
+	adversaryCounters = simulation.NewAtomicUnboundedColorCounters()
 	nodeCounters      = []simulation.AtomicCounters{}
 	atomicCounters    = simulation.NewAtomicCounters()
 
@@ -281,22 +281,20 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	adversaryNodesCount := len(network.AdversaryNodeIDToGroupIDMap)
 	honestNodesCount := config.NodesCount - adversaryNodesCount
 
-	allColors := []multiverse.Color{multiverse.UndefinedColor, multiverse.Red, multiverse.Green, multiverse.Blue}
+	colorCounters.CreateAtomicColorCounter("opinions")
+	colorCounters.CreateAtomicColorCounter("confirmedNodes")
+	colorCounters.CreateAtomicColorCounter("opinionsWeights")
+	colorCounters.CreateAtomicColorCounter("likeAccumulatedWeight")
+	colorCounters.CreateAtomicColorCounter("processedMessages")
+	colorCounters.CreateAtomicColorCounter("tipPoolSizes")
+	colorCounters.CreateAtomicColorCounter("colorUnconfirmed")
+	colorCounters.CreateAtomicColorCounter("confirmedAccumulatedWeight")
+	colorCounters.CreateAtomicColorCounter("unconfirmedAccumulatedWeight")
 
-	colorCounters.CreateCounter("opinions", allColors, []int64{int64(config.NodesCount), 0, 0, 0})
-	colorCounters.CreateCounter("confirmedNodes", allColors, []int64{0, 0, 0, 0})
-	colorCounters.CreateCounter("opinionsWeights", allColors, []int64{0, 0, 0, 0})
-	colorCounters.CreateCounter("likeAccumulatedWeight", allColors, []int64{0, 0, 0, 0})
-	colorCounters.CreateCounter("processedMessages", allColors, []int64{0, 0, 0, 0})
-	colorCounters.CreateCounter("tipPoolSizes", allColors, []int64{0, 0, 0, 0})
-	colorCounters.CreateCounter("colorUnconfirmed", allColors[1:], []int64{0, 0, 0})
-	colorCounters.CreateCounter("confirmedAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
-	colorCounters.CreateCounter("unconfirmedAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
-
-	adversaryCounters.CreateCounter("likeAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
-	adversaryCounters.CreateCounter("opinions", allColors, []int64{int64(adversaryNodesCount), 0, 0, 0})
-	adversaryCounters.CreateCounter("confirmedNodes", allColors, []int64{0, 0, 0, 0})
-	adversaryCounters.CreateCounter("confirmedAccumulatedWeight", allColors, []int64{0, 0, 0, 0})
+	adversaryCounters.CreateAtomicColorCounter("likeAccumulatedWeight")
+	adversaryCounters.CreateAtomicColorCounter("opinions")
+	adversaryCounters.CreateAtomicColorCounter("confirmedNodes")
+	adversaryCounters.CreateAtomicColorCounter("confirmedAccumulatedWeight")
 
 	// Initialize the minConfirmedWeight to be the max value (i.e., the total weight)
 	for i := 0; i < config.NodesCount; i++ {
@@ -379,44 +377,59 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 		peerID := peer.ID
 
 		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color, weight int64) {
-			colorCounters.Add("opinions", -1, oldOpinion)
-			colorCounters.Add("opinions", 1, newOpinion)
+			colorCounters.Add("opinions", oldOpinion, -1)
+			colorCounters.Add("opinions", newOpinion, 1)
 
-			colorCounters.Add("likeAccumulatedWeight", -weight, oldOpinion)
-			colorCounters.Add("likeAccumulatedWeight", weight, newOpinion)
+			colorCounters.Add("likeAccumulatedWeight", oldOpinion, -weight)
+			colorCounters.Add("likeAccumulatedWeight", newOpinion, weight)
 
-			r, g, b := getLikesPerRGB(colorCounters, "opinions")
-			if mostLikedColorChanged(r, g, b, &mostLikedColor) {
+			currentMostLikedColor := colorCounters.GeColorWithMaxCount("opinions")
+			if currentMostLikedColor != mostLikedColor {
 				atomicCounters.Add("flips", 1)
+				mostLikedColor = currentMostLikedColor
 			}
+			// r, g, b := getLikesPerRGB(colorCounters, "opinions")
+			// if mostLikedColorChanged(r, g, b, &mostLikedColor) {
+			// 	atomicCounters.Add("flips", 1)
+			// }
 			if network.IsAdversary(int(peerID)) {
-				adversaryCounters.Add("likeAccumulatedWeight", -weight, oldOpinion)
-				adversaryCounters.Add("likeAccumulatedWeight", weight, newOpinion)
-				adversaryCounters.Add("opinions", -1, oldOpinion)
-				adversaryCounters.Add("opinions", 1, newOpinion)
+				adversaryCounters.Add("likeAccumulatedWeight", oldOpinion, -weight)
+				adversaryCounters.Add("likeAccumulatedWeight", newOpinion, weight)
+				adversaryCounters.Add("opinions", oldOpinion, -1)
+				adversaryCounters.Add("opinions", newOpinion, 1)
 			}
 
-			ar, ag, ab := getLikesPerRGB(adversaryCounters, "opinions")
-			// honest nodes likes status only, flips
-			if mostLikedColorChanged(r-ar, g-ag, b-ab, &honestOnlyMostLikedColor) {
+			currentHonestOnlyMostLikedColor, _ := colorCounters.GeHonestColorWithMaxCount("opinions", adversaryCounters)
+			if currentHonestOnlyMostLikedColor != honestOnlyMostLikedColor {
 				atomicCounters.Add("honestFlips", 1)
+				honestOnlyMostLikedColor = currentHonestOnlyMostLikedColor
 			}
+			// ar, ag, ab := getLikesPerRGB(adversaryCounters, "opinions")
+			// // honest nodes likes status only, flips
+			// if mostLikedColorChanged(r-ar, g-ag, b-ab, &honestOnlyMostLikedColor) {
+			// 	atomicCounters.Add("honestFlips", 1)
+			// }
 		}))
 		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorConfirmed.Attach(events.NewClosure(func(confirmedColor multiverse.Color, weight int64) {
-			colorCounters.Add("confirmedNodes", 1, confirmedColor)
-			colorCounters.Add("confirmedAccumulatedWeight", weight, confirmedColor)
+			colorCounters.Add("confirmedNodes", confirmedColor, 1)
+			colorCounters.Add("confirmedAccumulatedWeight", confirmedColor, weight)
 			if network.IsAdversary(int(peerID)) {
-				adversaryCounters.Add("confirmedNodes", 1, confirmedColor)
-				adversaryCounters.Add("confirmedAccumulatedWeight", weight, confirmedColor)
+				adversaryCounters.Add("confirmedNodes", confirmedColor, 1)
+				adversaryCounters.Add("confirmedAccumulatedWeight", confirmedColor, weight)
 			}
 		}))
 
 		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, unconfirmedSupport int64, weight int64) {
-			colorCounters.Add("colorUnconfirmed", 1, unconfirmedColor)
-			colorCounters.Add("confirmedNodes", -1, unconfirmedColor)
+			colorCounters.Add("colorUnconfirmed", unconfirmedColor, 1)
+			colorCounters.Add("confirmedNodes", unconfirmedColor, -1)
 
-			colorCounters.Add("unconfirmedAccumulatedWeight", weight, unconfirmedColor)
-			colorCounters.Add("confirmedAccumulatedWeight", -weight, unconfirmedColor)
+			if network.IsAdversary(int(peerID)) {
+				adversaryCounters.Add("confirmedNodes", unconfirmedColor, -1)
+				adversaryCounters.Add("confirmedAccumulatedWeight", unconfirmedColor, -weight)
+			}
+
+			colorCounters.Add("unconfirmedAccumulatedWeight", unconfirmedColor, weight)
+			colorCounters.Add("confirmedAccumulatedWeight", unconfirmedColor, -weight)
 
 			// When the color is unconfirmed, the min confirmed accumulated weight should be reset
 			nodeCounters[int(peerID)].Set("minConfirmedAccumulatedWeight", int64(config.NodesTotalWeight))
@@ -436,15 +449,15 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	// Here we only monitor the opinion weight of node w/ the highest weight
 	dsPeer := testNetwork.Peers[0]
 	dsPeer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ApprovalWeightUpdated.Attach(events.NewClosure(func(opinion multiverse.Color, deltaWeight int64) {
-		colorCounters.Add("opinionsWeights", deltaWeight, opinion)
+		colorCounters.Add("opinionsWeights", opinion, deltaWeight)
 	}))
 
 	// Here we only monitor the tip pool size of node w/ the highest weight
 	peer := testNetwork.Peers[0]
 	peer.Node.(multiverse.NodeInterface).Tangle().TipManager.Events.MessageProcessed.Attach(events.NewClosure(
 		func(opinion multiverse.Color, tipPoolSize int, processedMessages uint64, issuedMessages int64) {
-			colorCounters.Set("tipPoolSizes", int64(tipPoolSize), opinion)
-			colorCounters.Set("processedMessages", int64(processedMessages), opinion)
+			colorCounters.Set("tipPoolSizes", opinion, int64(tipPoolSize))
+			colorCounters.Set("processedMessages", opinion, int64(processedMessages))
 
 			atomicCounters.Set("issuedMessages", issuedMessages)
 		}))
@@ -491,10 +504,11 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 
 	// determines whether consensus has been reached and simulation is over
 
-	r, g, b := getLikesPerRGB(colorCounters, "confirmedNodes")
-	aR, aG, aB := getLikesPerRGB(adversaryCounters, "confirmedNodes")
-	hR, hG, hB := r-aR, g-aG, b-aB
-	if Max(Max(hB, hR), hG) >= int64(config.SimulationStopThreshold*float64(honestNodesCount)) {
+	// r, g, b := getLikesPerRGB(colorCounters, "confirmedNodes")
+	// aR, aG, aB := getLikesPerRGB(adversaryCounters, "confirmedNodes")
+	// hR, hG, hB := r-aR, g-aG, b-aB
+	_, honestConfirmedNodeCount := colorCounters.GeHonestColorWithMaxCount("confirmedNodes", adversaryCounters)
+	if honestConfirmedNodeCount >= int64(config.SimulationStopThreshold*float64(honestNodesCount)) {
 		shutdownSignal <- types.Void
 	}
 	atomicCounters.Set("tps", 0)

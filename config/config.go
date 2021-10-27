@@ -4,7 +4,7 @@ var (
 	NodesCount              = 100
 	NodesTotalWeight        = 100_000_000
 	ZipfParameter           = 0.0
-	WeightThreshold         = 0.5
+	WeightThreshold         = 0.66
 	WeightThresholdAbsolute = true
 	TipsCount               = 8   // The TipsCount for a message
 	WeakTipsRatio           = 0.0 // The ratio of weak tips

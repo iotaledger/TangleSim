@@ -43,7 +43,6 @@ func NewCreatingOpinionManager(om multiverse.OpinionManagerInterface) *CreatingO
 
 func (sm *CreatingOpinionManager) FormOpinion(messageID multiverse.MessageID) {
 	defer sm.Events().OpinionFormed.Trigger(messageID)
-	log.Info("FormOpinion")
 	if updated := sm.UpdateWeights(messageID); !updated {
 		return
 	}
@@ -58,16 +57,6 @@ func (sm *CreatingOpinionManager) weightsUpdated() {
 	newOpinionColor := multiverse.ColorFromInt(newOpinion)
 	sm.SetOpinion(newOpinionColor)
 	sm.UpdateConfirmation(oldOpinion, newOpinionColor)
-}
-
-func (n *CreatingOpinionNode) IssuePayload(payload multiverse.Color) {
-	// Always issue a new colored payload
-	oldOpinion := n.Tangle().OpinionManager.Opinion()
-	newOpinion := int(oldOpinion) + 1
-	newOpinionColor := multiverse.ColorFromInt(newOpinion)
-	n.Tangle().OpinionManager.SetOpinion(newOpinionColor)
-	hackedPayload := newOpinionColor
-	n.Peer().Socket <- hackedPayload
 }
 
 func (sm *CreatingOpinionManager) Setup() {

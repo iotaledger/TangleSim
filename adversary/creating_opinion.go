@@ -23,7 +23,7 @@ func NewCreatingOpinionNode() interface{} {
 
 func (s *CreatingOpinionNode) setupOpinionManager() {
 	om := s.Tangle().OpinionManager
-	s.Tangle().OpinionManager = NewShiftingOpinionManager(om)
+	s.Tangle().OpinionManager = NewCreatingOpinionManager(om)
 	s.Tangle().OpinionManager.Setup()
 }
 

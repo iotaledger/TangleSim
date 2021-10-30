@@ -15,7 +15,7 @@ ISSUED_MESSAGE = "# of Issued Messages"
 # Rename the parameters
 VAR_DICT = {'TipsCount': 'k', 'ZipfParameter': 's',
             'NodesCount': 'N', 'MinDelay': 'D', 'WeightThreshold': 'AW', 'AccidentalMana': 'IM', 'AdversaryMana': 'AD',
-            'AdversaryNodeCounts': 'AC'}
+            'AdversaryNodeCounts': 'AC', 'AdversarySpeedup': 'SU'}
 
 # Items for double spending figures
 COLORED_CONFIRMED_LIKE_ITEMS = [
@@ -72,7 +72,7 @@ FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node
                              "Flips v.s. Different Adversary Weights",
                              "Unconfirming Counts v.s. Different Adversary Weights",
                              "Confirmation Weight Depth v.s. Different Adversary Weights"),
-                      'SU': ("Adversary Speed", "Confirmation Time v.s. Different Adversary Speed",
+                      'SU': ("AdversarySpeedup", "Confirmation Time v.s. Different Adversary Speed",
                              "Convergence Time v.s. Different Adversary Speed",
                              "Flips v.s. Different Adversary Speed",
                              "Unconfirming Counts v.s. Different Adversary Speed",

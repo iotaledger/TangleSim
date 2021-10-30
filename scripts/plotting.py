@@ -78,7 +78,7 @@ class FigurePlotter:
 
         data = []
         variations = []
-        for i, (v, d) in enumerate(sorted(variation_data.items())):
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
             data.append(d)
             variations.append(v)
 
@@ -174,7 +174,7 @@ class FigurePlotter:
         data_blue = []
         data_red = []
         variations = []
-        for v, d in sorted(variation_data_blue.items()):
+        for v, d in sorted(variation_data_blue.items(), key=lambda item: eval(item[0])):
             data_blue.append(d)
             data_red.append(variation_data_red[v])
             variations.append(v)
@@ -247,7 +247,7 @@ class FigurePlotter:
 
         data = []
         variations = []
-        for i, (v, d) in enumerate(sorted(variation_data.items())):
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
             data.append(d)
             variations.append(v)
 
@@ -292,7 +292,7 @@ class FigurePlotter:
         fig, axs = plt.subplots(rc, cc, figsize=(
             12, 5), dpi=500, constrained_layout=True)
 
-        for i, (v, d) in enumerate(sorted(variation_data.items())):
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
             (weights, ct, *_, total_aw, x_axis) = d
             r_loc = i // cc
             c_loc = i % cc
@@ -346,7 +346,7 @@ class FigurePlotter:
         fig, axs = plt.subplots(rc, cc, figsize=(
             12, 5), dpi=500, constrained_layout=True)
 
-        for i, (v, tp) in enumerate(sorted(variation_data.items())):
+        for i, (v, tp) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
             (tips, processed, issued, x_axis) = tp
             r_loc = i // cc
             c_loc = i % cc
@@ -399,7 +399,7 @@ class FigurePlotter:
                 logging.error(f'{fs}: Incomplete Data!')
                 continue
             variation_data[v] = (data, x_axis_adjust)
-        for i, (v, d) in enumerate(sorted(variation_data.items())):
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
             clr = self.clr_list[i // 4]
             sty = self.sty_list[i % 4]
 

@@ -420,7 +420,13 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 		}))
 
 		peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ColorUnconfirmed.Attach(events.NewClosure(func(unconfirmedColor multiverse.Color, unconfirmedSupport int64, weight int64) {
-			colorCounters.Add("colorUnconfirmed", unconfirmedColor, 1)
+			// To facilitate the reorg analysis, we use the Red recorder to collect the unconfirmed count for color >= 2
+			if int(unconfirmedColor) >= 2 {
+				colorCounters.Add("colorUnconfirmed", multiverse.Red, 1)
+			} else {
+				colorCounters.Add("colorUnconfirmed", unconfirmedColor, 1)
+			}
+
 			colorCounters.Add("confirmedNodes", unconfirmedColor, -1)
 
 			if network.IsAdversary(int(peerID)) {

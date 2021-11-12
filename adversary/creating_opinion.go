@@ -13,11 +13,11 @@ type CreatingOpinionNode struct {
 
 func NewCreatingOpinionNode() interface{} {
 	node := multiverse.NewNode().(*multiverse.Node)
-	sameOpinionNode := &CreatingOpinionNode{
+	creatingOpinionNode := &CreatingOpinionNode{
 		node,
 	}
-	sameOpinionNode.setupOpinionManager()
-	return sameOpinionNode
+	creatingOpinionNode.setupOpinionManager()
+	return creatingOpinionNode
 
 }
 
@@ -51,9 +51,9 @@ func (sm *CreatingOpinionManager) FormOpinion(messageID multiverse.MessageID) {
 }
 
 func (sm *CreatingOpinionManager) weightsUpdated() {
-	// Always confirm on a new color
+	// Always confirm on a new color, mod 30 to avoid out of memory
 	oldOpinion := sm.Opinion()
-	newOpinion := int(oldOpinion) + 1
+	newOpinion := (int(oldOpinion) + 1) % 30
 	newOpinionColor := multiverse.ColorFromInt(newOpinion)
 	sm.SetOpinion(newOpinionColor)
 	sm.UpdateConfirmation(oldOpinion, newOpinionColor)

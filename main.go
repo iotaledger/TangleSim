@@ -684,7 +684,13 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 					ticker.Reset(pace)
 				}
 			}
-			sendMessage(peer)
+			// The adversary will send the new colored message
+			if peer.ID == 99 {
+				sendMessage(peer, peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Opinion())
+			} else {
+				sendMessage(peer)
+			}
+
 		}
 	}
 }

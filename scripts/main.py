@@ -11,7 +11,6 @@ from utils import *
 
 def parse_arg():
     """Parse the arguments and return the updated configuration dictionary.
-
     Returns:
         config: The configuration.
     """
@@ -21,15 +20,12 @@ def parse_arg():
     parser = ArgumentParserWithDefaults(
         description=textwrap.dedent("""        
     In the following we provide some examples.
-
     - Different Ns for confirmation time (CT) analysis
         - The output results will be put in [RESULTS_PATH]/var_N_CT
         - Usage: python3 main.py -rs -pf
-
     - Different Ks for double spending (DS) analysis, 100 times
         - The output results will be put in [RESULTS_PATH]/var_K_DS
         - Usage: python3 main.py -rs -pf -v K -vv 2 4 8 16 32 64 -df 1 -rt 100 -st DS
-
     - Different Ss for double spending (DS) analysis, 100 times
         - The output results will be put in [RESULTS_PATH]/var_S_DS
         - NOTE: Need to use -rp, -fop to specify different RESULTS_PATH and FIGURE_OUTPUT_PATH
@@ -38,19 +34,14 @@ def parse_arg():
         - Usage example of generating different Ss (0~2.2) and different Ks (2, 4, 8, 16, 32, 64)
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
               -rp 'YOUR_RESULT_PATH_1' -fop 'YOUR_FIGURE_OUTPUT_PATH_1' -exec 'go run . --tipsCount=2' -rt 100 -st DS
-
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
               -rp 'YOUR_RESULTS_PATH_2' -fop 'YOUR_FIGURE_OUTPUT_PATH_2' -exec 'go run . --tipsCount=4; -rt 100 -st DS
-
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
               -rp 'YOUR_RESULTS_PATH_3' -fop 'YOUR_FIGURE_OUTPUT_PATH_3' -exec 'go run . --tipsCount=8' -rt 100 -st DS
-
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
               -rp 'YOUR_RESULTS_PATH_4' -fop 'YOUR_FIGURE_OUTPUT_PATH_4' -exec 'go run . --tipsCount=16' -rt 100 -st DS
-
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
               -rp 'YOUR_RESULTS_PATH_5' -fop 'YOUR_FIGURE_OUTPUT_PATH_5' -exec 'go run . --tipsCount=32' -rt 100 -st DS
-
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
               -rp 'YOUR_RESULTS_PATH_6' -fop 'YOUR_FIGURE_OUTPUT_PATH_6' -exec 'go run . --tipsCount=64' -rt 100 -st DS
     """), formatter_class=argparse.RawTextHelpFormatter)
@@ -98,8 +89,8 @@ def parse_arg():
                         help="Plot the figures",
                         default=config.cd['PLOT_FIGURES'])
     parser.add_argument("-as", "--ADVERSARY_STRATEGY", dest='ADVERSARY_STRATEGY',
-                       help="Adversary types",
-                       default=config.cd['ADVERSARY_STRATEGY'])
+                        help="Adversary types",
+                        default=config.cd['ADVERSARY_STRATEGY'])
 
     # Update the che configuration dictionary
     args = parser.parse_args()
@@ -184,12 +175,20 @@ if __name__ == '__main__':
             elif var == 'AC':
                 for i, v in enumerate(vv):
                     if "adversaryMana" not in exec:
-                        logging.error(f'You must specify "-adversaryMana" parameter!')
+                        logging.error(
+                            f'You must specify "-adversaryMana" parameter!')
                         sys.exit(2)
 
                     v = str(int(float(v)/2))
                     os.system(
-                            f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
+            elif var == 'BS':
+                os.system(
+                    f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -decelerationFactor={df[i]}')
+            elif var == 'SU':
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -decelerationFactor={df[i]}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)

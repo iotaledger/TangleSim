@@ -646,7 +646,13 @@ func createWriter(fileName string, header []string, resultsWriters *[]*csv.Write
 
 func secureNetwork(testNetwork *network.Network) {
 	// In the simulation we let all nodes can send messages.
-	// largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
+
+	// Nodes Total Weighted Weight, which is used to simulate the congested honest nodes with speeded up adversary.
+	// The total throughput remains the same.
+	nodeTotalWeightedWeight := 0.0
+	for _, peer := range testNetwork.Peers {
+		nodeTotalWeightedWeight += float64(testNetwork.WeightDistribution.Weight(peer.ID)) * peer.AdversarySpeedup
+	}
 
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
@@ -664,7 +670,7 @@ func secureNetwork(testNetwork *network.Network) {
 		// Band widths summed up: 100000/121 + 20000/121 + 1000/121 = 1000
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
-		band := peer.AdversarySpeedup * weightOfPeer * float64(config.TPS) / float64(config.NodesTotalWeight)
+		band := peer.AdversarySpeedup * weightOfPeer * float64(config.TPS) / nodeTotalWeightedWeight
 		fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
 
 		go startSecurityWorker(peer, band)

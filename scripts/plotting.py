@@ -121,6 +121,51 @@ class FigurePlotter:
         self._distribution_boxplot(
             var, base_folder, ofn, fc, iters, title, 'convergence_time')
 
+    def unconfirmed_count_distribution_plot_modified(self, var, base_folder, ofn, fc, iters, title):
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 14}
+        matplotlib.rc('font', **font)
+
+        plt.figure(figsize=(12, 5), dpi=500, constrained_layout=True)
+        variation_data = {}
+
+        for i in range(iters):
+            fs = base_folder + f'/iter_{i}/cc*csv'
+
+            for f in glob.glob(fs):
+
+                try:
+                    # colored_node_counts, convergence_time, flips, unconfirming blue, unconfirming red, honest total weight, x_axis
+                    v, (cc, *_, ub, ur, _,
+                        x) = self.parser.parse_confirmed_color_file(f, var)
+                except:
+                    logging.error(f'{fs}: Incomplete Data!')
+                    continue
+                uc = ub+ur
+
+                if v not in variation_data:
+                    variation_data[v] = [uc]
+                else:
+                    variation_data[v].append(uc)
+
+        data = []
+        variations = []
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
+            data.append(d)
+            variations.append(v)
+
+        plt.boxplot(data)
+        plt.xlabel(var)
+        plt.title(title)
+        plt.xticks(ticks=list(range(1, 1 + len(variations))),
+                   labels=variations)
+        plt.ylabel('Counts')
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent)
+        plt.close()
+
     def unconfirmed_count_distribution_plot(self, var, base_folder, ofn, fc, iters, title):
         """The basic function of generating the distribution boxplot figures.
         Args:

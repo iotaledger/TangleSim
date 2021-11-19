@@ -231,7 +231,9 @@ if __name__ == '__main__':
                     plotter.flips_distribution_plot(
                         n, base_folder, f'DS_{n}_fl.png', len(vv), repetition, title=t_flips)
 
-                    plotter.unconfirmed_count_distribution_plot(
+                    # plotter.unconfirmed_count_distribution_plot(
+                    #     n, base_folder, f'DS_{n}_uc.png', len(vv), repetition, title=t_unconfirming)
+                    plotter.unconfirmed_count_distribution_plot_modified(
                         n, base_folder, f'DS_{n}_uc.png', len(vv), repetition, title=t_unconfirming)
 
                     plotter.confirmation_depth_distribution_plot(

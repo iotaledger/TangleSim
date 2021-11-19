@@ -192,8 +192,9 @@ if __name__ == '__main__':
                     os.system(
                         f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
             elif var == 'BS':
-                os.system(
-                    f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -decelerationFactor={df[i]}')
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -decelerationFactor={df[i]}')
             elif var == 'SU':
                 for i, v in enumerate(vv):
                     os.system(

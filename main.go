@@ -697,7 +697,7 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 				}
 			}
 			// The adversary will send the new colored message
-			if peer.ID == 99 {
+			if int64(peer.ID) >= int64(config.NodesCount-Sum(config.AdversaryNodeCounts)) {
 				sendMessage(peer, peer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Opinion())
 			} else {
 				sendMessage(peer)
@@ -715,6 +715,15 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 	}
 
 	peer.Node.(multiverse.NodeInterface).IssuePayload(multiverse.UndefinedColor)
+}
+
+// Sum returns the sum of an array.
+func Sum(xs []int) int {
+	results := 0
+	for _, x := range xs {
+		results += x
+	}
+	return results
 }
 
 // Max returns the larger of x or y.

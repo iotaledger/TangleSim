@@ -191,13 +191,15 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
-		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                 string
-		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                    []int
-		AdversarySpeedup, AdversaryMana                                                                                                                                         []float64
-		AdversaryInitColor, AccidentalMana                                                                                                                                      []string
-		AdversaryPeeringAll                                                                                                                                                     bool
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight int
+		MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS, GodMana         int
+		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS float64
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                     string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                        []int
+		AdversarySpeedup, AdversaryMana                                                             []float64
+		AdversaryInitColor, AccidentalMana                                                          []string
+		AdversaryPeeringAll                                                                         bool
+		GodDelay                                                                                    time.Duration
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -231,6 +233,8 @@ func dumpConfig(fileName string) {
 		AccidentalMana:          config.AccidentalMana,
 		AdversaryPeeringAll:     config.AdversaryPeeringAll,
 		AdversarySpeedup:        config.AdversarySpeedup,
+		GodMana:                 config.GodMana,
+		GodDelay:                config.GodDelay,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")

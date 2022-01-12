@@ -4,6 +4,7 @@ import (
 	"flag"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
@@ -11,7 +12,7 @@ import (
 
 var log = logger.New("Simulation")
 
-// Parse the flags and update the configuration
+// ParseFlags parse the flags and update the configuration
 func ParseFlags() {
 
 	// Define the configuration flags
@@ -79,6 +80,10 @@ func ParseFlags() {
 		flag.String("adversarySpeedup", "", "Adversary issuing speed relative to their mana, e.g. '10 10' means that nodes in each group will issue 10 times messages than would be allowed by their mana. SimulationTarget must be 'DS'")
 	adversaryPeeringAll :=
 		flag.Bool("adversaryPeeringAll", config.AdversaryPeeringAll, "Flag indicating whether adversary nodes should be able to gossip messages to all nodes in the network directly, or should follow the peering algorithm.")
+	godMana :=
+		flag.Int("godMana", config.GodMana, "Defines percentage of mana the adversary holds")
+	godDelay :=
+		flag.Duration("godDelay", time.Duration(0), "Defines the delay after which adversary is allowed to react to switch opinion")
 
 	// Parse the flags
 	flag.Parse()
@@ -110,6 +115,7 @@ func ParseFlags() {
 	config.SimulationMode = *simulationMode
 	parseAccidentalConfig(accidentalMana)
 	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll, adversarySpeedup)
+	parseGodConfig(godMana, godDelay)
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
@@ -143,7 +149,8 @@ func ParseFlags() {
 	log.Info("AccidentalMana: ", config.AccidentalMana)
 	log.Info("AdversaryPeeringAll: ", config.AdversaryPeeringAll)
 	log.Info("AdversarySpeedup: ", config.AdversarySpeedup)
-
+	log.Info("GodMana: ", config.GodMana)
+	log.Info("GodDelay", config.GodDelay)
 }
 
 func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors *string, adversaryPeeringAll *bool, adversarySpeedup *string) {
@@ -206,6 +213,11 @@ func parseAccidentalConfig(accidentalMana *string) {
 	if *accidentalMana != "" {
 		config.AccidentalMana = parseStr(*accidentalMana)
 	}
+}
+
+func parseGodConfig(godMana *int, godDelay *time.Duration) {
+	config.GodMana = *godMana
+	config.GodDelay = *godDelay
 }
 
 func parseStrToInt(strList string) []int {

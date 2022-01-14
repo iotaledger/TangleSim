@@ -65,6 +65,26 @@ func (g *GodMode) SetupGossipEvents() {
 }
 
 func (g *GodMode) IssueDoubleSpend() {
+	//peer1, peer2 := g.chooseThePoorestDoubleSpendTargets()
+	peer1, peers2 := g.chooseWealthiestEqualDoubleSpendTargets()
+
+	msgRed := g.PrepareMessage(multiverse.Red)
+	msgBlue := g.PrepareMessage(multiverse.Blue)
+	// process own message
+	go g.peer.ReceiveNetworkMessage(msgRed)
+	go g.peer.ReceiveNetworkMessage(msgBlue)
+	// send double spend
+	go func() {
+		peer1.Socket <- msgRed
+	}()
+	go func() {
+		for _, peer := range peers2 {
+			peer.Socket <- msgBlue
+		}
+	}()
+}
+
+func (g *GodMode) chooseThePoorestDoubleSpendTargets() (*network.Peer, *network.Peer) {
 	// the poorest node that is not an adversary
 	peer1 := g.net.Peer(g.godNetworkIndex - 1)
 	var peer2 *network.Peer
@@ -77,18 +97,26 @@ func (g *GodMode) IssueDoubleSpend() {
 		}
 		break
 	}
-	msgRed := g.PrepareMessage(multiverse.Red)
-	msgBlue := g.PrepareMessage(multiverse.Blue)
-	// process own message
-	go g.peer.ReceiveNetworkMessage(msgRed)
-	go g.peer.ReceiveNetworkMessage(msgBlue)
-	// send double spend
-	go func() {
-		peer1.Socket <- msgRed
-	}()
-	go func() {
-		peer2.Socket <- msgBlue
-	}()
+	return peer1, peer2
+}
+
+func (g *GodMode) chooseWealthiestEqualDoubleSpendTargets() (*network.Peer, []*network.Peer) {
+	// the wealthiest node
+	peer1 := g.net.Peer(0)
+	peer1Weight := g.net.WeightDistribution.Weight(peer1.ID)
+	peers2 := make([]*network.Peer, 0)
+	// collect target peers with sum of weights closest to the wealthiest one weight
+	var accumulatedWeight uint64 = 0
+	for i := 1; i < g.godNetworkIndex; i++ {
+		peer := g.net.Peer(i)
+		weight := g.net.WeightDistribution.Weight(peer.ID)
+		accumulatedWeight += weight
+		peers2 = append(peers2, peer)
+		if accumulatedWeight > peer1Weight {
+			break
+		}
+	}
+	return peer1, peers2
 }
 
 func (g *GodMode) PrepareMessage(color multiverse.Color) *multiverse.Message {
@@ -106,6 +134,11 @@ func (g *GodMode) gossipOwnProcessedMessage(messageID multiverse.MessageID) {
 	msg := node.Tangle().Storage.Message(messageID)
 	// gossip only your own messages
 	if g.peer.ID == msg.Issuer {
+		colorsSupport := node.Tangle().OpinionManager.ApprovalWeights()
+		// do nothing unless there are two colors
+		if len(colorsSupport) < 2 {
+			return
+		}
 		log.Info("OWN MESSAGE GOSSIPED")
 		// iterate over all honest nodes
 		for _, peer := range g.net.Peers[:g.godNetworkIndex] {

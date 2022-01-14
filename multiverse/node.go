@@ -14,6 +14,8 @@ type NodeInterface interface {
 	Peer() *network.Peer
 	Tangle() *Tangle
 	IssuePayload(payload Color)
+	HandleNetworkMessage(networkMessage interface{})
+	GossipHandler(messageID MessageID)
 }
 
 type Node struct {
@@ -43,9 +45,7 @@ func (n *Node) Setup(peer *network.Peer, weightDistribution *network.ConsensusWe
 	n.tangle.Requester.Events.Request.Attach(events.NewClosure(func(messageID MessageID) {
 		n.peer.GossipNetworkMessage(&MessageRequest{MessageID: messageID, Issuer: n.peer.ID})
 	}))
-	n.tangle.Booker.Events.MessageBooked.Attach(events.NewClosure(func(messageID MessageID) {
-		n.peer.GossipNetworkMessage(n.tangle.Storage.Message(messageID))
-	}))
+	n.tangle.Booker.Events.MessageBooked.Attach(events.NewClosure(n.GossipHandler))
 }
 
 // IssuePayload sends the Color to the socket for creating a new Message
@@ -64,6 +64,10 @@ func (n *Node) HandleNetworkMessage(networkMessage interface{}) {
 	case Color:
 		n.tangle.ProcessMessage(n.tangle.MessageFactory.CreateMessage(receivedNetworkMessage))
 	}
+}
+
+func (n *Node) GossipHandler(messageID MessageID) {
+	n.peer.GossipNetworkMessage(n.tangle.Storage.Message(messageID))
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

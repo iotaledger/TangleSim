@@ -34,7 +34,7 @@ func (n *NoGossipNode) AssignColor(color multiverse.Color) {
 }
 
 func (n *NoGossipNode) IssuePayload(payload multiverse.Color) {
-	// do nothing - this node will not issue DS message, to not allow other nodes count his opinion for any of colors
+	// do nothing - this peer will not issue DS message, to not allow other nodes count his opinion for any of colors
 	// user needs to define other adv group that will issue DS
 }
 

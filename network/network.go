@@ -112,6 +112,10 @@ func (c *Configuration) CreatePeers(network *Network) {
 				nodeType = network.AdversaryGroups[groupIndex].AdversaryType
 				speedupFactor = c.adversarySpeedup[groupIndex]
 			}
+			if godType, updated := UpdateNodeTypeForPeerCreation(i); updated {
+				log.Debugf("GOD CREATED")
+				nodeType = godType
+			}
 			nodeFactory := nodesSpecification.nodeFactories[nodeType]
 
 			peer := NewPeer(nodeFactory())
@@ -134,7 +138,15 @@ func (c *Configuration) ConnectPeers(network *Network) {
 		network.AdversaryGroups.ApplyNeighborsAdversaryNodes(network)
 	}
 	network.AdversaryGroups.ApplyNetworkDelayForAdversaryNodes(network)
+}
 
+func UpdateNodeTypeForPeerCreation(nodeIndex int) (nodeType AdversaryType, updated bool) {
+	// god mode - adversary peer
+	if config.SimulationMode == "God" && nodeIndex == config.NodesCount-1 {
+		nodeType = ShiftOpinion
+		updated = true
+	}
+	return
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -175,6 +187,11 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 			nodeWeights = network.AdversaryGroups.UpdateAdversaryNodes(nodeWeights)
 		case "Accidental":
 			nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+		case "God":
+			nodesCount = config.NodesCount - 1
+			totalWeight = float64((100-config.GodMana)*config.NodesTotalWeight) / 100
+			nodeWeights = n.weightGenerator(nodesCount, totalWeight)
+			nodeWeights = append(nodeWeights, uint64(config.GodMana))
 		}
 	} else {
 		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))

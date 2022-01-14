@@ -61,8 +61,6 @@ var (
 	honestOnlyMostLikedColor multiverse.Color
 	simulationStartTime      time.Time
 
-	gm *adversary.GodMode
-
 	// counters
 	colorCounters     = simulation.NewColorCounters()
 	adversaryCounters = simulation.NewColorCounters()
@@ -96,9 +94,8 @@ func main() {
 		network.Topology(network.WattsStrogatz(config.NeighbourCountWS, config.RandomnessWS)),
 		network.AdversaryPeeringAll(config.AdversaryPeeringAll),
 		network.AdversarySpeedup(config.AdversarySpeedup),
+		network.GodModeOption(config.SimulationMode, config.GodMana, config.GodDelay, config.GodNodeSplit, config.NodesCount),
 	)
-
-	gm = adversary.SetupGoMode(testNetwork)
 
 	testNetwork.Start()
 	defer testNetwork.Shutdown()
@@ -151,7 +148,7 @@ func SimulateDoubleSpent(testNetwork *network.Network) {
 		}
 	case "God":
 		log.Info("issue double spend")
-		gm.IssueDoubleSpend()
+		testNetwork.GodMode.IssueDoubleSpend()
 	}
 }
 
@@ -646,9 +643,12 @@ func secureNetwork(testNetwork *network.Network) {
 	}
 
 	for _, peer := range testNetwork.Peers {
-		if gm.IsGod(peer.ID) {
-			continue
+		if testNetwork.GodMode != nil {
+			if testNetwork.GodMode.IsGod(peer.ID) {
+				continue
+			}
 		}
+
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
 		// if float64(config.RelevantValidatorWeight)*weightOfPeer <= largestWeight {
 		// 	continue

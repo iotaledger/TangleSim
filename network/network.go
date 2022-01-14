@@ -1,6 +1,7 @@
 package network
 
 import (
+	"github.com/iotaledger/multivers-simulation/godmode"
 	"time"
 
 	"github.com/iotaledger/multivers-simulation/config"
@@ -18,6 +19,7 @@ type Network struct {
 	Peers              []*Peer
 	WeightDistribution *ConsensusWeightDistribution
 	AdversaryGroups    AdversaryGroups
+	GodMode            *godmode.GodMode
 }
 
 func New(option ...Option) (network *Network) {
@@ -32,6 +34,7 @@ func New(option ...Option) (network *Network) {
 	configuration := NewConfiguration(option...)
 	configuration.CreatePeers(network)
 	configuration.ConnectPeers(network)
+	configuration.setGodMode(network)
 
 	return
 }
@@ -76,6 +79,7 @@ type Configuration struct {
 	peeringStrategy     PeeringStrategy
 	adversaryPeeringAll bool
 	adversarySpeedup    []float64
+	godMode             *godmode.GodMode
 }
 
 func NewConfiguration(options ...Option) (configuration *Configuration) {
@@ -102,8 +106,16 @@ func (c *Configuration) CreatePeers(network *Network) {
 	network.WeightDistribution = NewConsensusWeightDistribution()
 
 	for _, nodesSpecification := range c.nodes {
+		if c.godMode != nil {
+			nodesSpecification.UpdateNodesCount(c.godMode.InitialNodeCount + c.godMode.Split - 1)
+		}
 		nodeWeights := nodesSpecification.ConfigureWeights(network)
-
+		if c.godMode != nil {
+			nodeWeights = append(nodeWeights, c.godMode.Weights...)
+			if len(nodeWeights) != config.NodesCount+config.GodNodeSplit-1 {
+				panic("Jest źle")
+			}
+		}
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
 			speedupFactor := 1.0
@@ -112,8 +124,8 @@ func (c *Configuration) CreatePeers(network *Network) {
 				nodeType = network.AdversaryGroups[groupIndex].AdversaryType
 				speedupFactor = c.adversarySpeedup[groupIndex]
 			}
-			if godType, updated := UpdateNodeTypeForPeerCreation(i); updated {
-				log.Debugf("GOD CREATED")
+			if godType, updated := c.updateNodeTypeForPeerCreation(i); updated {
+				log.Debugf("Creating God Node, index %d", i)
 				nodeType = godType
 			}
 			nodeFactory := nodesSpecification.nodeFactories[nodeType]
@@ -140,13 +152,25 @@ func (c *Configuration) ConnectPeers(network *Network) {
 	network.AdversaryGroups.ApplyNetworkDelayForAdversaryNodes(network)
 }
 
-func UpdateNodeTypeForPeerCreation(nodeIndex int) (nodeType AdversaryType, updated bool) {
+func (c *Configuration) updateNodeTypeForPeerCreation(nodeIndex int) (nodeType AdversaryType, updated bool) {
+	if c.godMode == nil {
+		return
+	}
 	// god mode - adversary peer
-	if config.SimulationMode == "God" && nodeIndex == config.NodesCount-1 {
+	if nodeIndex >= c.godMode.InitialNodeCount {
 		nodeType = ShiftOpinion
 		updated = true
 	}
 	return
+}
+
+func (c *Configuration) setGodMode(net *Network) {
+	if c.godMode == nil {
+		net.GodMode = nil
+		return
+	}
+	net.GodMode = c.godMode
+	net.GodMode.Setup(net)
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -188,7 +212,7 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 		case "Accidental":
 			nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
 		case "God":
-			nodesCount = config.NodesCount - 1
+			nodesCount = n.nodeCount - 1
 			totalWeight = float64((100-config.GodMana)*config.NodesTotalWeight) / 100
 			nodeWeights = n.weightGenerator(nodesCount, totalWeight)
 			nodeWeights = append(nodeWeights, uint64(config.GodMana))
@@ -198,6 +222,10 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 	}
 
 	return nodeWeights
+}
+
+func (n *NodesSpecification) UpdateNodesCount(count int) {
+	n.nodeCount = count
 }
 
 func Delay(minDelay time.Duration, maxDelay time.Duration) Option {
@@ -229,6 +257,17 @@ func AdversaryPeeringAll(adversaryPeeringAll bool) Option {
 func AdversarySpeedup(adversarySpeedupFactors []float64) Option {
 	return func(config *Configuration) {
 		config.adversarySpeedup = adversarySpeedupFactors
+	}
+}
+
+func GodModeOption(mode string, mana int, delay time.Duration, split int, initialNodeCount int) Option {
+	return func(config *Configuration) {
+		if mode != "God" {
+			config.godMode = nil
+			return
+		}
+		gm := godmode.NewGodMode(uint64(mana), delay, split, initialNodeCount)
+		config.godMode = gm
 	}
 }
 

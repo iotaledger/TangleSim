@@ -47,8 +47,9 @@ var (
 	AdversaryPeeringAll = false               // Defines a flag indicating whether adversarial nodes should be able to send messages to all nodes in the network, instead of following regular peering algorithm.
 	AdversarySpeedup    = []float64{1.0, 1.0} // Defines how many more messages should adversary nodes issue.
 
-	GodMana  = 10               // Defines percentage of mana the adversary holds
-	GodDelay = time.Duration(0) // Defines the delay after which adversary is allowed to react to switch opinion
+	GodMana      = 10               // Defines percentage of mana the adversary holds
+	GodDelay     = time.Duration(0) // Defines the delay after which adversary is allowed to react to switch opinion
+	GodNodeSplit = 10               // Define on how many nodes should split the God Node
 )
 
 var (

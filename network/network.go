@@ -1,7 +1,7 @@
 package network
 
 import (
-	"github.com/iotaledger/multivers-simulation/godmode"
+	"github.com/iotaledger/multivers-simulation/multiverse"
 	"time"
 
 	"github.com/iotaledger/multivers-simulation/config"
@@ -19,7 +19,7 @@ type Network struct {
 	Peers              []*Peer
 	WeightDistribution *ConsensusWeightDistribution
 	AdversaryGroups    AdversaryGroups
-	GodMode            *godmode.GodMode
+	GodMode            *multiverse.GodMode
 }
 
 func New(option ...Option) (network *Network) {
@@ -79,7 +79,7 @@ type Configuration struct {
 	peeringStrategy     PeeringStrategy
 	adversaryPeeringAll bool
 	adversarySpeedup    []float64
-	godMode             *godmode.GodMode
+	godMode             *multiverse.GodMode
 }
 
 func NewConfiguration(options ...Option) (configuration *Configuration) {
@@ -112,9 +112,6 @@ func (c *Configuration) CreatePeers(network *Network) {
 		nodeWeights := nodesSpecification.ConfigureWeights(network)
 		if c.godMode != nil {
 			nodeWeights = append(nodeWeights, c.godMode.Weights...)
-			if len(nodeWeights) != config.NodesCount+config.GodNodeSplit-1 {
-				panic("Jest źle")
-			}
 		}
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
@@ -157,7 +154,7 @@ func (c *Configuration) updateNodeTypeForPeerCreation(nodeIndex int) (nodeType A
 		return
 	}
 	// god mode - adversary peer
-	if nodeIndex >= c.godMode.InitialNodeCount {
+	if nodeIndex >= c.godMode.InitialNodeCount-1 {
 		nodeType = ShiftOpinion
 		updated = true
 	}
@@ -266,7 +263,7 @@ func GodModeOption(mode string, mana int, delay time.Duration, split int, initia
 			config.godMode = nil
 			return
 		}
-		gm := godmode.NewGodMode(uint64(mana), delay, split, initialNodeCount)
+		gm := multiverse.NewGodMode(uint64(mana), delay, split, initialNodeCount)
 		config.godMode = gm
 	}
 }

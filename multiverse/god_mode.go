@@ -1,15 +1,11 @@
-package godmode
+package multiverse
 
 import (
 	"github.com/iotaledger/hive.go/events"
-	"github.com/iotaledger/multivers-simulation/logger"
-	"github.com/iotaledger/multivers-simulation/multiverse"
 	"github.com/iotaledger/multivers-simulation/network"
 	"sync"
 	"time"
 )
-
-var log = logger.New("God Mode")
 
 // region GodMode //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -21,7 +17,7 @@ type GodMode struct {
 
 	net            *network.Network
 	peers          []*network.Peer
-	seenMessageIDs map[multiverse.MessageID]*multiverse.Message
+	seenMessageIDs map[MessageID]*Message
 	mu             sync.Mutex
 
 	trackingPeer    *network.Peer
@@ -41,7 +37,8 @@ func NewGodMode(weight uint64, adversaryDelay time.Duration, split int, initialN
 		adversaryDelay:   adversaryDelay,
 		Split:            split,
 		InitialNodeCount: initialNodeCount,
-		seenMessageIDs:   make(map[multiverse.MessageID]*multiverse.Message),
+		seenMessageIDs:   make(map[MessageID]*Message),
+		godNetworkIndex:  initialNodeCount - 1,
 	}
 	return mode
 }
@@ -71,7 +68,7 @@ func (g *GodMode) NextVotingPeer() *network.Peer {
 
 func (g *GodMode) ListenToAllNodes(net *network.Network) {
 	for _, peer := range g.net.Peers[:g.godNetworkIndex] {
-		t := peer.Node.(multiverse.NodeInterface).Tangle()
+		t := peer.Node.(NodeInterface).Tangle()
 		t.MessageFactory.Events.MessageCreated.Attach(events.NewClosure(g.onMessageStored))
 	}
 }
@@ -79,10 +76,10 @@ func (g *GodMode) ListenToAllNodes(net *network.Network) {
 func (g *GodMode) SetupGossipEvents() {
 	// TODO make sure that adversary is not processing messages in standard way
 	// track changes only on the first peer
-	g.peers[0].Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(g.issueMessageOnOpinionChange))
+	g.trackingPeer.Node.(NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(g.issueMessageOnOpinionChange))
 
 	for _, peer := range g.peers {
-		node := peer.Node.(multiverse.NodeInterface)
+		node := peer.Node.(NodeInterface)
 		// do not gossip in an honest way
 		node.Tangle().Booker.Events.MessageBooked.Detach(events.NewClosure(node.GossipHandler))
 
@@ -95,8 +92,8 @@ func (g *GodMode) IssueDoubleSpend() {
 	//peer1, peer2 := g.chooseThePoorestDoubleSpendTargets()
 	peer1, peers2 := g.chooseWealthiestEqualDoubleSpendTargets()
 
-	msgRed := g.PrepareMessage(multiverse.Red)
-	msgBlue := g.PrepareMessage(multiverse.Blue)
+	msgRed := g.PrepareMessage(Red)
+	msgBlue := g.PrepareMessage(Blue)
 	// process own message
 	go g.processOwnMessage(msgRed)
 	go g.processOwnMessage(msgBlue)
@@ -111,7 +108,7 @@ func (g *GodMode) IssueDoubleSpend() {
 	}()
 }
 
-func (g *GodMode) processOwnMessage(msg *multiverse.Message) {
+func (g *GodMode) processOwnMessage(msg *Message) {
 	for _, peer := range g.peers {
 		peer.ReceiveNetworkMessage(msg)
 	}
@@ -152,18 +149,18 @@ func (g *GodMode) chooseWealthiestEqualDoubleSpendTargets() (*network.Peer, []*n
 	return peer1, peers2
 }
 
-func (g *GodMode) PrepareMessage(color multiverse.Color) *multiverse.Message {
-	node := g.NextVotingPeer().Node.(multiverse.NodeInterface)
+func (g *GodMode) PrepareMessage(color Color) *Message {
+	node := g.NextVotingPeer().Node.(NodeInterface)
 	msg := node.Tangle().MessageFactory.CreateMessage(color)
 	return msg
 }
 
-func (g *GodMode) issueMessageOnOpinionChange(previousOpinion, newOpinion multiverse.Color, weight int64) {
+func (g *GodMode) issueMessageOnOpinionChange(previousOpinion, newOpinion Color, weight int64) {
 	g.NextVotingPeer().ReceiveNetworkMessage(newOpinion)
 }
 
-func (g *GodMode) gossipOwnProcessedMessage(messageID multiverse.MessageID) {
-	node := g.trackingPeer.Node.(multiverse.NodeInterface)
+func (g *GodMode) gossipOwnProcessedMessage(messageID MessageID) {
+	node := g.trackingPeer.Node.(NodeInterface)
 	msg := node.Tangle().Storage.Message(messageID)
 	// gossip only your own messages
 	if g.IsGod(msg.Issuer) {
@@ -179,11 +176,10 @@ func (g *GodMode) gossipOwnProcessedMessage(messageID multiverse.MessageID) {
 				peer.Socket <- msg
 			})
 		}
-		g.trackingPeer.GossipNetworkMessage(msg)
 	}
 }
 
-func (g *GodMode) updateSeenMessageIDs(message *multiverse.Message) (updated bool) {
+func (g *GodMode) updateSeenMessageIDs(message *Message) (updated bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if _, ok := g.seenMessageIDs[message.ID]; !ok {
@@ -193,7 +189,7 @@ func (g *GodMode) updateSeenMessageIDs(message *multiverse.Message) (updated boo
 	return false
 }
 
-func (g *GodMode) onMessageStored(message *multiverse.Message) {
+func (g *GodMode) onMessageStored(message *Message) {
 	firstTimeSeen := g.updateSeenMessageIDs(message)
 	if !firstTimeSeen {
 		return

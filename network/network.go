@@ -1,7 +1,6 @@
 package network
 
 import (
-	"github.com/iotaledger/multivers-simulation/multiverse"
 	"time"
 
 	"github.com/iotaledger/multivers-simulation/config"
@@ -19,7 +18,7 @@ type Network struct {
 	Peers              []*Peer
 	WeightDistribution *ConsensusWeightDistribution
 	AdversaryGroups    AdversaryGroups
-	GodMode            *multiverse.GodMode
+	GodMode            GodMode
 }
 
 func New(option ...Option) (network *Network) {
@@ -34,7 +33,7 @@ func New(option ...Option) (network *Network) {
 	configuration := NewConfiguration(option...)
 	configuration.CreatePeers(network)
 	configuration.ConnectPeers(network)
-	configuration.setGodMode(network)
+	configuration.SetGodMode(network)
 
 	return
 }
@@ -79,7 +78,7 @@ type Configuration struct {
 	peeringStrategy     PeeringStrategy
 	adversaryPeeringAll bool
 	adversarySpeedup    []float64
-	godMode             *multiverse.GodMode
+	godMode             GodMode
 }
 
 func NewConfiguration(options ...Option) (configuration *Configuration) {
@@ -106,12 +105,12 @@ func (c *Configuration) CreatePeers(network *Network) {
 	network.WeightDistribution = NewConsensusWeightDistribution()
 
 	for _, nodesSpecification := range c.nodes {
-		if c.godMode != nil {
-			nodesSpecification.UpdateNodesCount(c.godMode.InitialNodeCount + c.godMode.Split - 1)
+		if c.godMode.Enabled() {
+			nodesSpecification.UpdateNodesCount(c.godMode.InitialNodeCount() + c.godMode.Split() - 1)
 		}
 		nodeWeights := nodesSpecification.ConfigureWeights(network)
-		if c.godMode != nil {
-			nodeWeights = append(nodeWeights, c.godMode.Weights...)
+		if c.godMode.Enabled() {
+			nodeWeights = append(nodeWeights, c.godMode.Weights()...)
 		}
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
@@ -154,18 +153,14 @@ func (c *Configuration) updateNodeTypeForPeerCreation(nodeIndex int) (nodeType A
 		return
 	}
 	// god mode - adversary peer
-	if nodeIndex >= c.godMode.InitialNodeCount-1 {
+	if nodeIndex >= c.godMode.InitialNodeCount()-1 {
 		nodeType = ShiftOpinion
 		updated = true
 	}
 	return
 }
 
-func (c *Configuration) setGodMode(net *Network) {
-	if c.godMode == nil {
-		net.GodMode = nil
-		return
-	}
+func (c *Configuration) SetGodMode(net *Network) {
 	net.GodMode = c.godMode
 	net.GodMode.Setup(net)
 }
@@ -257,14 +252,9 @@ func AdversarySpeedup(adversarySpeedupFactors []float64) Option {
 	}
 }
 
-func GodModeOption(mode string, mana int, delay time.Duration, split int, initialNodeCount int) Option {
+func GodModeOption(mode GodMode) Option {
 	return func(config *Configuration) {
-		if mode != "God" {
-			config.godMode = nil
-			return
-		}
-		gm := multiverse.NewGodMode(uint64(mana), delay, split, initialNodeCount)
-		config.godMode = gm
+		config.godMode = mode
 	}
 }
 

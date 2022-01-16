@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/iotaledger/multivers-simulation/godmode"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -85,6 +86,8 @@ func main() {
 		network.TheSameOpinion: network.NodeClosure(adversary.NewSameOpinionNode),
 		network.NoGossip:       network.NodeClosure(adversary.NewNoGossipNode),
 	}
+	godMode := godmode.NewGodMode(config.SimulationMode, config.GodMana, config.GodDelay, config.GodNodeSplit, config.NodesCount)
+
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
 			config.ZipfParameter)),
@@ -94,7 +97,7 @@ func main() {
 		network.Topology(network.WattsStrogatz(config.NeighbourCountWS, config.RandomnessWS)),
 		network.AdversaryPeeringAll(config.AdversaryPeeringAll),
 		network.AdversarySpeedup(config.AdversarySpeedup),
-		network.GodModeOption(config.SimulationMode, config.GodMana, config.GodDelay, config.GodNodeSplit, config.NodesCount),
+		network.GodModeOption(godMode),
 	)
 
 	testNetwork.Start()

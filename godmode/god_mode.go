@@ -3,6 +3,7 @@ package godmode
 import (
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/types"
+	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/multiverse"
 	"github.com/iotaledger/multivers-simulation/network"
 	"sync"
@@ -33,8 +34,7 @@ func NewGodMode(simulationMode string, weight int, adversaryDelay time.Duration,
 	if simulationMode != "God" {
 		return &GodMode{enabled: false}
 	}
-	//godNode := NewGodNode(peer.Node.(*ShiftingOpinionNode))
-	partialWeight := uint64(weight) / uint64(split)
+	partialWeight := uint64(weight) / uint64(split) * uint64(config.NodesTotalWeight) / 100
 	weights := make([]uint64, split)
 	for i := range weights {
 		weights[i] = partialWeight

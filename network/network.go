@@ -207,7 +207,6 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 			nodesCount = n.nodeCount - 1
 			totalWeight = float64((100-config.GodMana)*config.NodesTotalWeight) / 100
 			nodeWeights = n.weightGenerator(nodesCount, totalWeight)
-			nodeWeights = append(nodeWeights, uint64(config.GodMana))
 		}
 	} else {
 		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))

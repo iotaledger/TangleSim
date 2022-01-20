@@ -43,6 +43,10 @@ type ConsensusWeightDistribution struct {
 	largestWeight uint64
 }
 
+func (c *ConsensusWeightDistribution) WeightsLength() int {
+	return len(c.weights)
+}
+
 func NewConsensusWeightDistribution() *ConsensusWeightDistribution {
 	return &ConsensusWeightDistribution{
 		weights: make(map[PeerID]uint64),

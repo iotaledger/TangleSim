@@ -106,7 +106,7 @@ func (c *Configuration) CreatePeers(network *Network) {
 
 	for _, nodesSpecification := range c.nodes {
 		if c.godMode.Enabled() {
-			nodesSpecification.UpdateNodesCount(c.godMode.InitialNodeCount() + c.godMode.Split() - 1)
+			nodesSpecification.UpdateNodesCount(c.godMode.InitialNodeCount() + c.godMode.Split())
 		}
 		nodeWeights := nodesSpecification.ConfigureWeights(network)
 		if c.godMode.Enabled() {
@@ -153,7 +153,7 @@ func (c *Configuration) updateNodeTypeForPeerCreation(nodeIndex int) (nodeType A
 		return
 	}
 	// god mode - adversary peer
-	if nodeIndex >= c.godMode.InitialNodeCount()-1 {
+	if nodeIndex >= c.godMode.InitialNodeCount() {
 		nodeType = ShiftOpinion
 		updated = true
 	}
@@ -163,6 +163,8 @@ func (c *Configuration) updateNodeTypeForPeerCreation(nodeIndex int) (nodeType A
 func (c *Configuration) SetGodMode(net *Network) {
 	net.GodMode = c.godMode
 	net.GodMode.Setup(net)
+	net.GodMode.RemoveAllGodPeeringConnections()
+
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,9 +206,8 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 		case "Accidental":
 			nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
 		case "God":
-			nodesCount = n.nodeCount - 1
 			totalWeight = float64((100-config.GodMana)*config.NodesTotalWeight) / 100
-			nodeWeights = n.weightGenerator(nodesCount, totalWeight)
+			nodeWeights = n.weightGenerator(config.NodesCount, totalWeight)
 		}
 	} else {
 		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
@@ -217,6 +218,7 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 
 func (n *NodesSpecification) UpdateNodesCount(count int) {
 	n.nodeCount = count
+	config.NodesCount = count
 }
 
 func Delay(minDelay time.Duration, maxDelay time.Duration) Option {

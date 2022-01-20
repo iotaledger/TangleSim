@@ -4,11 +4,14 @@ import (
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/types"
 	"github.com/iotaledger/multivers-simulation/config"
+	"github.com/iotaledger/multivers-simulation/logger"
 	"github.com/iotaledger/multivers-simulation/multiverse"
 	"github.com/iotaledger/multivers-simulation/network"
 	"sync"
 	"time"
 )
+
+var log = logger.New("god")
 
 // region GodMode //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -39,7 +42,6 @@ func NewGodMode(simulationMode string, weight int, adversaryDelay time.Duration,
 	for i := range weights {
 		weights[i] = partialWeight
 	}
-
 	mode := &GodMode{
 		enabled:          true,
 		weights:          weights,
@@ -48,7 +50,7 @@ func NewGodMode(simulationMode string, weight int, adversaryDelay time.Duration,
 		initialNodeCount: initialNodeCount,
 		seenMessageIDs:   make(messagePeerMap),
 		godPeerIDs:       make(map[network.PeerID]types.Empty),
-		godNetworkIndex:  initialNodeCount - 1,
+		godNetworkIndex:  initialNodeCount,
 	}
 	return mode
 }
@@ -58,6 +60,7 @@ func (g *GodMode) Setup(net *network.Network) {
 		return
 	}
 	g.net = net
+	log.Debugf("Setup GodMode, number of peers:%d, init nodeCount: %d, godNetworkIndex: %d", len(g.net.Peers), g.initialNodeCount, g.godNetworkIndex)
 	for _, peer := range g.godPeers() {
 		g.godPeerIDs[peer.ID] = types.Void
 	}
@@ -112,6 +115,26 @@ func (g *GodMode) IssueDoubleSpend() {
 			peer.ReceiveNetworkMessage(msgBlue)
 		}
 	}()
+}
+
+// RemoveAllGodPeeringConnections clears out all connections to and from God nodes.
+func (g *GodMode) RemoveAllGodPeeringConnections() {
+	if !g.Enabled() {
+		return
+	}
+
+	for _, peer := range g.godPeers() {
+		peer.Neighbors = make(map[network.PeerID]*network.Connection)
+	}
+
+	for _, peer := range g.honestPeers() {
+		for neighbor := range peer.Neighbors {
+			if g.IsGod(neighbor) {
+				delete(peer.Neighbors, neighbor)
+			}
+		}
+	}
+
 }
 
 func (g *GodMode) godPeers() (peers []*network.Peer) {
@@ -213,7 +236,10 @@ func (g *GodMode) prepareMessage(color multiverse.Color) *multiverse.Message {
 }
 
 func (g *GodMode) issueMessageOnOpinionChange(previousOpinion, newOpinion multiverse.Color, weight int64) {
-	g.nextVotingPeer().ReceiveNetworkMessage(newOpinion)
+	if previousOpinion != multiverse.UndefinedColor {
+		log.Debugf("Issue msg on opinion change %s %s", previousOpinion.String(), newOpinion.String())
+		g.nextVotingPeer().ReceiveNetworkMessage(newOpinion)
+	}
 }
 
 func (g *GodMode) gossipOwnProcessedMessage(messageID multiverse.MessageID, peerID network.PeerID) {

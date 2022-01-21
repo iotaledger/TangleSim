@@ -207,7 +207,7 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 			nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
 		case "God":
 			totalWeight = float64((100-config.GodMana)*config.NodesTotalWeight) / 100
-			nodeWeights = n.weightGenerator(config.NodesCount, totalWeight)
+			nodeWeights = n.weightGenerator(config.NodesCount-config.GodNodeSplit, totalWeight)
 		}
 	} else {
 		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))

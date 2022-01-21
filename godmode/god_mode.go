@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var log = logger.New("god")
+var log = logger.New("God mode")
 
 // region GodMode //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -28,6 +28,8 @@ type GodMode struct {
 	godPeerIDs     map[network.PeerID]types.Empty
 	seenMessageIDs messagePeerMap
 	mu             sync.RWMutex
+
+	supporters *GodSupporters
 
 	godNetworkIndex int
 	lastPeerUsed    int
@@ -65,8 +67,9 @@ func (g *GodMode) Setup(net *network.Network) {
 		g.godPeerIDs[peer.ID] = types.Void
 	}
 	// needs to be configured before the network start
-	g.ListenToAllHonestNodes()
+	g.listenToAllHonestNodes()
 	g.setupGossipEvents()
+	g.setupSupporters()
 
 	return
 }
@@ -157,7 +160,15 @@ func (g *GodMode) nextVotingPeer() *network.Peer {
 	return g.godPeers()[newIndex]
 }
 
-func (g *GodMode) ListenToAllHonestNodes() {
+func (g *GodMode) setupSupporters() {
+	godIDs := make([]network.PeerID, 0)
+	for _, peer := range g.godPeers() {
+		godIDs = append(godIDs, peer.ID)
+	}
+	g.supporters = NewGodSupporters(godIDs)
+}
+
+func (g *GodMode) listenToAllHonestNodes() {
 	for _, peer := range g.honestPeers() {
 		t := peer.Node.(multiverse.NodeInterface).Tangle()
 		t.MessageFactory.Events.MessageCreated.Attach(events.NewClosure(g.processOwnMessage))
@@ -290,5 +301,131 @@ func (g *GodMode) wasMessageSeenByGodNode(messageID multiverse.MessageID, peerId
 	}
 	return
 }
+
+// endregion //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// region supporters ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+type colorPeerMap map[multiverse.Color]map[network.PeerID]types.Empty
+
+type GodSupporters struct {
+	singleNodeWeight uint64
+	supporters       colorPeerMap
+	weights          map[multiverse.Color]uint64
+	sync.RWMutex
+}
+
+func NewGodSupporters(godPeers []network.PeerID) *GodSupporters {
+	return &GodSupporters{
+		singleNodeWeight: uint64(config.GodMana * config.NodesTotalWeight / config.GodNodeSplit / 100),
+		supporters:       createSupportersMap(godPeers),
+		weights:          make(map[multiverse.Color]uint64),
+	}
+}
+
+func createSupportersMap(allPeers []network.PeerID) colorPeerMap {
+	m := make(map[multiverse.Color]map[network.PeerID]types.Empty)
+	colors := multiverse.GetColorsArray()
+	for _, color := range colors {
+		m[color] = make(map[network.PeerID]types.Empty)
+	}
+	// all peers added to an undefined color
+	for _, peerID := range allPeers {
+		m[multiverse.UndefinedColor][peerID] = types.Void
+	}
+	return m
+}
+
+func (g *GodSupporters) CalculateSupportersNumber(maxOpinion, secondOpinion multiverse.Color) int {
+	diff := g.weights[maxOpinion] - g.weights[secondOpinion]
+	if diff <= 0 {
+		return 0
+	}
+	numberOfSupporters := diff/g.singleNodeWeight + 1
+	return int(numberOfSupporters)
+}
+
+// GetVoters selects supportersNeeded peers to be moved to support secondOpinion. Firstly, opinions are moved from maxOpinion
+// if there is still not enough supporters we check if there are any supporters that have not voted yet (from Undefined),
+// the last is checked third, the last one left color
+func (g *GodSupporters) GetVoters(supportersNeeded int, maxOpinion, secondOpinion multiverse.Color) colorPeerMap {
+	supporters := make(map[multiverse.Color]map[network.PeerID]types.Empty)
+	// missing supporters for the second color
+	missingSupporters := supportersNeeded - len(g.supporters[secondOpinion])
+	if missingSupporters <= 0 { // second color has enough supporters already
+		// todo check if anything needed here to do
+		panic("should it happen?")
+		return nil
+	}
+	movedSupportersCount := 0
+	// use max
+	movedSupportersCount, done := g.moveSupporters(missingSupporters, movedSupportersCount, supporters, maxOpinion, secondOpinion)
+	if done {
+		return supporters
+	}
+	// use any supporters that have not voted yet
+	movedSupportersCount, done = g.moveSupporters(missingSupporters, movedSupportersCount, supporters, multiverse.UndefinedColor, secondOpinion)
+	if done {
+		return supporters
+	}
+	// check if there are any supporters for the third one color
+	if leftColors := multiverse.GetLeftColors([]multiverse.Color{maxOpinion, secondOpinion}); len(leftColors) > 0 {
+		leftColor := leftColors[0]
+		g.moveSupporters(missingSupporters, movedSupportersCount, supporters, leftColor, secondOpinion)
+	}
+	return supporters
+}
+
+func (g *GodSupporters) moveSupporters(supportersNeeded, movedSupporters int, supporters colorPeerMap, fromOpinion, targetOpinion multiverse.Color) (int, bool) {
+	allMoved := false
+	for supporter := range g.supporters[fromOpinion] {
+		if movedSupporters == supportersNeeded {
+			allMoved = true
+			break
+		}
+		supporters[targetOpinion][supporter] = types.Void
+		movedSupporters += 1
+	}
+	// remove moved supporters from fromColor
+	for movedSupporter := range supporters[targetOpinion] {
+		delete(g.supporters[fromOpinion], movedSupporter)
+	}
+
+	return movedSupporters, allMoved
+}
+
+func (g *GodSupporters) UpdateSupportersAfterCastVotes(castedVotes colorPeerMap) {
+	for color, supporters := range castedVotes {
+		for supporterID := range supporters {
+			g.supporters[color][supporterID] = types.Void
+		}
+	}
+}
+
+func (g *GodSupporters) MoveLeftVotersFromMaxOpinion(maxOpinion, secondOpinion multiverse.Color, supporters colorPeerMap) {
+	missingSupporters := len(g.supporters[maxOpinion])
+	if missingSupporters == 0 {
+		return
+	}
+	// check if there is a third color
+	if leftColors := multiverse.GetLeftColors([]multiverse.Color{maxOpinion, secondOpinion}); len(leftColors) > 0 {
+		leftColor := leftColors[0]
+		movedSupportersCount := 0
+		g.moveSupporters(missingSupporters, movedSupportersCount, supporters, maxOpinion, leftColor)
+	}
+}
+
+//
+//func (g *GodMode) updateNetworkOpinions(prevOpinion, newOpinion multiverse.Color, weight uint64) {
+//	g.netMu.Lock()
+//	defer g.netMu.Unlock()
+//
+//	if prevOpinion == multiverse.UndefinedColor {
+//		g.networkOpinions[newOpinion] += weight
+//		return
+//	}
+//	g.networkOpinions[prevOpinion] -= weight
+//	g.networkOpinions[newOpinion] += weight
+//}
 
 // endregion //////////////////////////////////////////////////////////////////////////////////////////////////////

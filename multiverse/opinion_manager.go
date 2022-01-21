@@ -147,10 +147,10 @@ func (o *OpinionManager) UpdateConfirmation(oldOpinion Color, maxOpinion Color) 
 	}
 }
 
-// Update the opinions counter and ownOpinion based on the highest peer color value and maxApprovalWeight
+// WeightsUpdated updates the opinions counter and ownOpinion based on the highest peer color value and maxApprovalWeight
 // Each Color has approvalWeight. The Color with maxApprovalWeight determines the ownOpinion
 func (o *OpinionManager) WeightsUpdated() {
-	maxOpinion := getMaxOpinion(o.approvalWeights)
+	maxOpinion := GetMaxOpinion(o.approvalWeights)
 	oldOpinion := o.ownOpinion
 	if maxOpinion != oldOpinion {
 		o.ownOpinion = maxOpinion
@@ -169,12 +169,12 @@ func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {
 				aw[key] = value
 			}
 		}
-		alternativeOpinion := getMaxOpinion(aw)
+		alternativeOpinion := GetMaxOpinion(aw)
 		return float64(o.approvalWeights[newOpinion])-float64(o.approvalWeights[alternativeOpinion]) > float64(config.NodesTotalWeight)*config.WeightThreshold
 	}
 }
 
-func getMaxOpinion(aw map[Color]uint64) Color {
+func GetMaxOpinion(aw map[Color]uint64) Color {
 	maxApprovalWeight := uint64(0)
 	maxOpinion := UndefinedColor
 	for color, approvalWeight := range aw {

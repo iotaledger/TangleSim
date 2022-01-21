@@ -216,4 +216,24 @@ var (
 	Green          = Color(3)
 )
 
+func GetLeftColors(colors []Color) (leftColors []Color) {
+	allColors := map[Color]types.Empty{
+		Red:   types.Void,
+		Blue:  types.Void,
+		Green: types.Void,
+	}
+	for _, color := range colors {
+		delete(allColors, color)
+	}
+
+	for leftColor := range allColors {
+		leftColors = append(leftColors, leftColor)
+	}
+	return
+}
+
+func GetColorsArray() []Color {
+	return []Color{UndefinedColor, Red, Blue, Green}
+}
+
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

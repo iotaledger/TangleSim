@@ -154,7 +154,7 @@ func (c *Configuration) updateNodeTypeForPeerCreation(nodeIndex int) (nodeType A
 	}
 	// god mode - adversary peer
 	if nodeIndex >= c.godMode.InitialNodeCount() {
-		nodeType = ShiftOpinion
+		nodeType = TheSameOpinion
 		updated = true
 	}
 	return

@@ -49,7 +49,7 @@ var (
 
 	GodMana      = 10               // Defines percentage of mana the adversary holds
 	GodDelay     = time.Duration(0) // Defines the delay after which adversary is allowed to react to switch opinion
-	GodNodeSplit = 10               // Define on how many nodes should split the God Node
+	GodNodeSplit = 10               // Define on how many nodes should split the God Node, God Nodes are not included in config.NodesCount
 )
 
 var (

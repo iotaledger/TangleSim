@@ -3,6 +3,7 @@ package godmode
 import (
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/types"
+	"github.com/iotaledger/multivers-simulation/adversary"
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
 	"github.com/iotaledger/multivers-simulation/multiverse"
@@ -27,10 +28,8 @@ type GodMode struct {
 	godNetworkIndex int
 	lastPeerUsed    int
 
-	net            *network.Network
-	godPeerIDs     map[network.PeerID]types.Empty
-	seenMessageIDs messagePeerMap
-	mu             sync.RWMutex
+	net        *network.Network
+	godPeerIDs map[network.PeerID]types.Empty
 
 	supporters     *GodSupporters
 	opinionManager *GodOpinionManager
@@ -51,7 +50,6 @@ func NewGodMode(simulationMode string, weight int, adversaryDelay time.Duration,
 		adversaryDelay:   adversaryDelay,
 		split:            split,
 		initialNodeCount: initialNodeCount,
-		seenMessageIDs:   make(messagePeerMap),
 		godPeerIDs:       make(map[network.PeerID]types.Empty),
 		godNetworkIndex:  initialNodeCount,
 	}
@@ -105,8 +103,10 @@ func (g *GodMode) IssueDoubleSpend() {
 	//peer1, peer2 := g.chooseThePoorestDoubleSpendTargets()
 	peer1, peers2 := g.chooseWealthiestEqualDoubleSpendTargets()
 
-	msgRed := g.prepareMessage(multiverse.Red)
-	msgBlue := g.prepareMessage(multiverse.Blue)
+	// todo get votes nodes
+
+	msgRed := g.prepareMessageForDoubleSpend(node1, multiverse.Red)
+	msgBlue := g.prepareMessageForDoubleSpend(node2, multiverse.Blue)
 	// process own message
 	go g.processMessage(msgRed)
 	go g.processMessage(msgBlue)
@@ -155,12 +155,6 @@ func (g *GodMode) honestPeers() (peers []*network.Peer) {
 	return g.net.Peers[:g.godNetworkIndex]
 }
 
-func (g *GodMode) nextVotingPeer() *network.Peer {
-	newIndex := (g.lastPeerUsed + 1) % g.split
-	g.lastPeerUsed = newIndex
-	return g.godPeers()[newIndex]
-}
-
 func (g *GodMode) setupSupporters() {
 	godIDs := make([]network.PeerID, 0)
 	for _, peer := range g.godPeers() {
@@ -173,22 +167,23 @@ func (g *GodMode) setupOpinionManager() {
 	g.opinionManager = NewGodOpinionManager()
 }
 
+// listenToAllHonestNodes listen to all honest messages created in the network to update godNodes tangles, and attaches
+// to opinion change events of honest nodes, to track opinions in the network and initiates supporters votes change
 func (g *GodMode) listenToAllHonestNodes() {
 	for _, peer := range g.honestPeers() {
 		t := peer.Node.(multiverse.NodeInterface).Tangle()
-		t.MessageFactory.Events.MessageCreated.Attach(events.NewClosure(g.processOwnMessage))
+		t.MessageFactory.Events.MessageCreated.Attach(events.NewClosure(g.processMessage))
+		t.OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(prevOpinion, newOpinion multiverse.Color, weight uint64) {
+			g.opinionManager.updateNetworkOpinions(prevOpinion, newOpinion, weight)
+			g.updateSupport()
+		}))
 	}
 }
 
 func (g *GodMode) setupGossipEvents() {
-	// track changes only on the first God peer and issue new opinion if prev opinion changed
-	g.godPeers()[0] = g.net.Peers[g.godNetworkIndex]
-	g.godPeers()[0].Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(g.issueMessageOnOpinionChange))
 	for _, peer := range g.godPeers() {
 		peerID := peer.ID
 		node := peer.Node.(multiverse.NodeInterface)
-		// do not gossip in an honest way
-		node.Tangle().Booker.Events.MessageBooked.Detach(events.NewClosure(node.GossipHandler))
 		// gossip own message to all nodes with possible delay for honest targets
 		node.Tangle().Booker.Events.MessageBooked.Attach(events.NewClosure(
 			func(messageID multiverse.MessageID) {
@@ -198,23 +193,43 @@ func (g *GodMode) setupGossipEvents() {
 	}
 }
 
-func (g *GodMode) receiveNetworkMessage(message *multiverse.Message, peer *network.Peer) {
-	g.updateSeenMessagesMap(message.ID, peer.ID)
-	peer.ReceiveNetworkMessage(message)
+// updateSupport get current honest opinions state and checks if change of support is needed to keep network
+// in the undecided state
+func (g *GodMode) updateSupport() {
+	maxOpinion, secondOpinion := g.opinionManager.getMaxSecondOpinions()
+	maxWeight := g.opinionManager.GetOpinionWeight(maxOpinion)
+	secondWeight := g.opinionManager.GetOpinionWeight(secondOpinion)
+
+	supportersNeeded := g.supporters.CalculateSupportersNumber(maxWeight, secondWeight)
+	votersForColor := g.supporters.GetVoters(supportersNeeded, maxOpinion, secondOpinion)
+	g.supporters.MoveLeftVotersFromMaxOpinion(maxOpinion, secondOpinion, votersForColor)
+	g.castVotes(votersForColor)
+}
+
+// castVotes makes each peer that needs to change its opinion: create a colored message
+func (g *GodMode) castVotes(votersForColor colorPeerMap) {
+	for color, voters := range votersForColor {
+		// todo if third color not introduced issue colored payload
+		for _, peer := range g.godPeers() {
+			// if peer needs to change opinion
+			if _, ok := voters[peer.ID]; ok {
+				// todo create message (color)
+				msg := g.prepareMessage(peer, color)
+				// todo issue msg
+			}
+		}
+	}
+	g.supporters.UpdateSupportersAfterCastVotes(votersForColor)
 }
 
 func (g *GodMode) processMessage(message *multiverse.Message) {
 	for _, peer := range g.godPeers() {
-		// filter already seen messages
-		if messageSeen := g.wasMessageSeenByGodNode(message.ID, peer.ID); messageSeen {
-			continue
-		}
 		// adversary nodes will receive messages after honest node's network delay
 		// thanks to that when they issue change of opinion they do not help to propagate messages through the network
 		// without the delay (honest nodes would request missing parents through solidification)
 		// and it does not matter for godMode to have most up-to-date tangle
 		time.AfterFunc(time.Millisecond*time.Duration(config.MinDelay), func() {
-			g.receiveNetworkMessage(message, peer)
+			peer.ReceiveNetworkMessage(message)
 		})
 	}
 }
@@ -252,17 +267,20 @@ func (g *GodMode) chooseWealthiestEqualDoubleSpendTargets() (*network.Peer, []*n
 	return peer1, peers2
 }
 
-func (g *GodMode) prepareMessage(color multiverse.Color) *multiverse.Message {
-	node := g.nextVotingPeer().Node.(multiverse.NodeInterface)
-	msg := node.Tangle().MessageFactory.CreateMessage(color)
+// prepareMessage creates valid message, it changes nodes opinion to color right before creation
+func (g *GodMode) prepareMessage(peer *network.Peer, color multiverse.Color) *multiverse.Message {
+	node := peer.Node.(multiverse.NodeInterface)
+
+	// update the opinion in node's opinion manager, so during message creation the right tips will be selected
+	adversary.CastAdversary(peer.Node).AssignColor(color)
+	msg := node.Tangle().MessageFactory.CreateMessage(multiverse.UndefinedColor)
 	return msg
 }
 
-func (g *GodMode) issueMessageOnOpinionChange(previousOpinion, newOpinion multiverse.Color, weight int64) {
-	if previousOpinion != multiverse.UndefinedColor {
-		log.Debugf("Issue msg on opinion change %s %s", previousOpinion.String(), newOpinion.String())
-		g.nextVotingPeer().ReceiveNetworkMessage(newOpinion)
-	}
+func (g *GodMode) prepareMessageForDoubleSpend(peer *network.Peer, color multiverse.Color) *multiverse.Message {
+	node := peer.Node.(multiverse.NodeInterface)
+	msg := node.Tangle().MessageFactory.CreateMessage(color)
+	return msg
 }
 
 func (g *GodMode) gossipOwnProcessedMessage(messageID multiverse.MessageID, peerID network.PeerID) {
@@ -285,32 +303,6 @@ func (g *GodMode) gossipOwnProcessedMessage(messageID multiverse.MessageID, peer
 	}
 }
 
-func (g *GodMode) updateSeenMessagesMap(messageID multiverse.MessageID, peerId network.PeerID) (updated bool) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	if _, ok := g.seenMessageIDs[messageID]; !ok {
-		g.seenMessageIDs[messageID] = make(map[network.PeerID]types.Empty)
-	}
-	if _, ok := g.seenMessageIDs[messageID][peerId]; !ok {
-		g.seenMessageIDs[messageID][peerId] = types.Void
-		updated = true
-	}
-	return
-}
-
-func (g *GodMode) wasMessageSeenByGodNode(messageID multiverse.MessageID, peerId network.PeerID) (seen bool) {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-
-	if peerMap, ok := g.seenMessageIDs[messageID]; ok {
-		if _, okPeer := peerMap[peerId]; okPeer {
-			seen = true
-		}
-	}
-	return
-}
-
 // endregion //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // region supporters ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -318,8 +310,9 @@ func (g *GodMode) wasMessageSeenByGodNode(messageID multiverse.MessageID, peerId
 type colorPeerMap map[multiverse.Color]map[network.PeerID]types.Empty
 
 type GodSupporters struct {
-	singleNodeWeight uint64
-	supporters       colorPeerMap
+	singleNodeWeight     uint64
+	supporters           colorPeerMap
+	thirdColorIntroduced bool
 	sync.RWMutex
 }
 
@@ -429,7 +422,6 @@ func (g *GodSupporters) MoveLeftVotersFromMaxOpinion(maxOpinion, secondOpinion m
 type GodOpinionManager struct {
 	networkOpinions map[multiverse.Color]uint64
 	mu              sync.RWMutex
-	prevMaxOpinion  multiverse.Color
 }
 
 func NewGodOpinionManager() *GodOpinionManager {
@@ -439,7 +431,6 @@ func NewGodOpinionManager() *GodOpinionManager {
 	}
 	return &GodOpinionManager{
 		networkOpinions: opinions,
-		prevMaxOpinion:  multiverse.UndefinedColor,
 	}
 }
 

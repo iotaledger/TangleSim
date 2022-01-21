@@ -703,6 +703,7 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 
 	if len(optionalColor) >= 1 {
 		peer.Node.(multiverse.NodeInterface).IssuePayload(optionalColor[0])
+		return
 	}
 
 	peer.Node.(multiverse.NodeInterface).IssuePayload(multiverse.UndefinedColor)

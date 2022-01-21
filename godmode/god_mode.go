@@ -125,10 +125,9 @@ func (g *GodMode) IssueDoubleSpend() {
 func (g *GodMode) IssueThirdDoubleSpend(issuerID network.PeerID) {
 	msgGreen := g.prepareMessageForDoubleSpend(g.godPeerIDs[issuerID], multiverse.Red)
 	go g.processMessageByGodNodes(msgGreen)
-	// todo send to the poorest honest node
-
+	poorestNode := g.honestPeers()[len(g.honestPeers())-1]
+	poorestNode.ReceiveNetworkMessage(msgGreen)
 	g.supporters.thirdColorIntroduced = true
-
 }
 
 // RemoveAllGodPeeringConnections clears out all connections to and from God nodes.
@@ -197,12 +196,15 @@ func (g *GodMode) updateSupport() {
 
 	supportersNeeded := g.supporters.CalculateSupportersNumber(maxWeight, secondWeight)
 	votersForColor := g.supporters.GetVoters(supportersNeeded, maxOpinion, secondOpinion)
+	if votersForColor == nil {
+		return
+	}
 	g.supporters.MoveLeftVotersFromMaxOpinion(maxOpinion, secondOpinion, votersForColor)
 	g.castVotes(votersForColor)
 }
 
 // castVotes makes each peer that needs to change its opinion: create a colored message
-func (g *GodMode) castVotes(votersForColor colorPeerMap) {
+func (g *GodMode) castVotes(votersForColor ColorPeerMap) {
 	for color, voters := range votersForColor {
 
 		for peerID := range voters {
@@ -226,7 +228,6 @@ func (g *GodMode) processMessageByGodNodes(message *multiverse.Message) {
 		// thanks to that when they issue change of opinion they do not help to propagate messages through the network
 		// without the delay (honest nodes would request missing parents through solidification)
 		// and it does not matter for godMode to have most up-to-date tangle
-		// todo look for replacement
 		time.AfterFunc(time.Millisecond*time.Duration(config.MinDelay), func() {
 			peer.ReceiveNetworkMessage(message)
 		})
@@ -283,11 +284,11 @@ func (g *GodMode) gossipMessageToHonestNodes(msg *multiverse.Message) {
 
 // region supporters ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-type colorPeerMap map[multiverse.Color]map[network.PeerID]types.Empty
+type ColorPeerMap map[multiverse.Color]map[network.PeerID]types.Empty
 
 type GodSupporters struct {
 	singleNodeWeight     uint64
-	supporters           colorPeerMap
+	supporters           ColorPeerMap
 	thirdColorIntroduced bool
 	sync.RWMutex
 }
@@ -299,8 +300,8 @@ func NewGodSupporters(godPeers []network.PeerID) *GodSupporters {
 	}
 }
 
-func createSupportersMap(allPeers []network.PeerID) colorPeerMap {
-	m := make(colorPeerMap)
+func createSupportersMap(allPeers []network.PeerID) ColorPeerMap {
+	m := make(ColorPeerMap)
 	colors := multiverse.GetColorsArray()
 	for _, color := range colors {
 		m[color] = make(map[network.PeerID]types.Empty)
@@ -324,7 +325,10 @@ func (g *GodSupporters) CalculateSupportersNumber(maxOpinionWeight, secondOpinio
 // GetVoters selects supportersNeeded peers to be moved to support secondOpinion. Firstly, opinions are moved from maxOpinion
 // if there is still not enough supporters we check if there are any supporters that have not voted yet (from Undefined),
 // the last is checked third, the last one left color
-func (g *GodSupporters) GetVoters(supportersNeeded int, maxOpinion, secondOpinion multiverse.Color) colorPeerMap {
+func (g *GodSupporters) GetVoters(supportersNeeded int, maxOpinion, secondOpinion multiverse.Color) ColorPeerMap {
+	g.Lock()
+	defer g.Unlock()
+
 	supporters := make(map[multiverse.Color]map[network.PeerID]types.Empty)
 	colors := multiverse.GetColorsArray()
 	for _, color := range colors {
@@ -355,7 +359,7 @@ func (g *GodSupporters) GetVoters(supportersNeeded int, maxOpinion, secondOpinio
 	return supporters
 }
 
-func (g *GodSupporters) moveSupporters(supportersNeeded, movedSupporters int, supporters colorPeerMap, fromOpinion, targetOpinion multiverse.Color) (int, bool) {
+func (g *GodSupporters) moveSupporters(supportersNeeded, movedSupporters int, supporters ColorPeerMap, fromOpinion, targetOpinion multiverse.Color) (int, bool) {
 	allMoved := false
 	for supporter := range g.supporters[fromOpinion] {
 		if movedSupporters == supportersNeeded {
@@ -373,7 +377,10 @@ func (g *GodSupporters) moveSupporters(supportersNeeded, movedSupporters int, su
 	return movedSupporters, allMoved
 }
 
-func (g *GodSupporters) UpdateSupportersAfterCastVotes(castedVotes colorPeerMap) {
+func (g *GodSupporters) UpdateSupportersAfterCastVotes(castedVotes ColorPeerMap) {
+	g.Lock()
+	defer g.Unlock()
+
 	for color, supporters := range castedVotes {
 		for supporterID := range supporters {
 			g.supporters[color][supporterID] = types.Void
@@ -381,7 +388,10 @@ func (g *GodSupporters) UpdateSupportersAfterCastVotes(castedVotes colorPeerMap)
 	}
 }
 
-func (g *GodSupporters) MoveLeftVotersFromMaxOpinion(maxOpinion, secondOpinion multiverse.Color, supporters colorPeerMap) {
+func (g *GodSupporters) MoveLeftVotersFromMaxOpinion(maxOpinion, secondOpinion multiverse.Color, supporters ColorPeerMap) {
+	g.Lock()
+	defer g.Unlock()
+
 	missingSupporters := len(g.supporters[maxOpinion])
 	if missingSupporters == 0 {
 		return
@@ -455,6 +465,9 @@ func (g *GodOpinionManager) updateNetworkOpinions(prevOpinion, newOpinion multiv
 }
 
 func (g *GodOpinionManager) getMaxSecondOpinions() (maxOpinion, secondOpinion multiverse.Color) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
 	if len(g.networkOpinions) <= 1 {
 		return
 	}

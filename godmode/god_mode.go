@@ -24,15 +24,16 @@ type GodMode struct {
 	split            int
 	initialNodeCount int
 
+	godNetworkIndex int
+	lastPeerUsed    int
+
 	net            *network.Network
 	godPeerIDs     map[network.PeerID]types.Empty
 	seenMessageIDs messagePeerMap
 	mu             sync.RWMutex
 
-	supporters *GodSupporters
-
-	godNetworkIndex int
-	lastPeerUsed    int
+	supporters     *GodSupporters
+	opinionManager *GodOpinionManager
 }
 
 func NewGodMode(simulationMode string, weight int, adversaryDelay time.Duration, split int, initialNodeCount int) *GodMode {
@@ -70,7 +71,7 @@ func (g *GodMode) Setup(net *network.Network) {
 	g.listenToAllHonestNodes()
 	g.setupGossipEvents()
 	g.setupSupporters()
-
+	g.setupOpinionManager()
 	return
 }
 
@@ -107,8 +108,8 @@ func (g *GodMode) IssueDoubleSpend() {
 	msgRed := g.prepareMessage(multiverse.Red)
 	msgBlue := g.prepareMessage(multiverse.Blue)
 	// process own message
-	go g.processOwnMessage(msgRed)
-	go g.processOwnMessage(msgBlue)
+	go g.processMessage(msgRed)
+	go g.processMessage(msgBlue)
 	// send double spend
 	go func() {
 		peer1.ReceiveNetworkMessage(msgRed)
@@ -168,6 +169,10 @@ func (g *GodMode) setupSupporters() {
 	g.supporters = NewGodSupporters(godIDs)
 }
 
+func (g *GodMode) setupOpinionManager() {
+	g.opinionManager = NewGodOpinionManager()
+}
+
 func (g *GodMode) listenToAllHonestNodes() {
 	for _, peer := range g.honestPeers() {
 		t := peer.Node.(multiverse.NodeInterface).Tangle()
@@ -198,12 +203,19 @@ func (g *GodMode) receiveNetworkMessage(message *multiverse.Message, peer *netwo
 	peer.ReceiveNetworkMessage(message)
 }
 
-func (g *GodMode) processOwnMessage(message *multiverse.Message) {
+func (g *GodMode) processMessage(message *multiverse.Message) {
 	for _, peer := range g.godPeers() {
+		// filter already seen messages
 		if messageSeen := g.wasMessageSeenByGodNode(message.ID, peer.ID); messageSeen {
 			continue
 		}
-		g.receiveNetworkMessage(message, peer)
+		// adversary nodes will receive messages after honest node's network delay
+		// thanks to that when they issue change of opinion they do not help to propagate messages through the network
+		// without the delay (honest nodes would request missing parents through solidification)
+		// and it does not matter for godMode to have most up-to-date tangle
+		time.AfterFunc(time.Millisecond*time.Duration(config.MinDelay), func() {
+			g.receiveNetworkMessage(message, peer)
+		})
 	}
 }
 
@@ -254,9 +266,6 @@ func (g *GodMode) issueMessageOnOpinionChange(previousOpinion, newOpinion multiv
 }
 
 func (g *GodMode) gossipOwnProcessedMessage(messageID multiverse.MessageID, peerID network.PeerID) {
-	if !g.Enabled() {
-		return
-	}
 	// need to gossip only once
 	if peerID != g.godPeers()[0].ID {
 		return
@@ -266,7 +275,7 @@ func (g *GodMode) gossipOwnProcessedMessage(messageID multiverse.MessageID, peer
 	// gossip only your own messages
 	if g.IsGod(msg.Issuer) {
 		// make sure all god node have the message
-		g.processOwnMessage(msg)
+		g.processMessage(msg)
 		// iterate over all honest nodes
 		for _, peer := range g.honestPeers() {
 			time.AfterFunc(g.adversaryDelay, func() {
@@ -311,7 +320,6 @@ type colorPeerMap map[multiverse.Color]map[network.PeerID]types.Empty
 type GodSupporters struct {
 	singleNodeWeight uint64
 	supporters       colorPeerMap
-	weights          map[multiverse.Color]uint64
 	sync.RWMutex
 }
 
@@ -319,7 +327,6 @@ func NewGodSupporters(godPeers []network.PeerID) *GodSupporters {
 	return &GodSupporters{
 		singleNodeWeight: uint64(config.GodMana * config.NodesTotalWeight / config.GodNodeSplit / 100),
 		supporters:       createSupportersMap(godPeers),
-		weights:          make(map[multiverse.Color]uint64),
 	}
 }
 
@@ -336,8 +343,8 @@ func createSupportersMap(allPeers []network.PeerID) colorPeerMap {
 	return m
 }
 
-func (g *GodSupporters) CalculateSupportersNumber(maxOpinion, secondOpinion multiverse.Color) int {
-	diff := g.weights[maxOpinion] - g.weights[secondOpinion]
+func (g *GodSupporters) CalculateSupportersNumber(maxOpinionWeight, secondOpinionWeight uint64) int {
+	diff := maxOpinionWeight - secondOpinionWeight
 	if diff <= 0 {
 		return 0
 	}
@@ -415,17 +422,60 @@ func (g *GodSupporters) MoveLeftVotersFromMaxOpinion(maxOpinion, secondOpinion m
 	}
 }
 
-//
-//func (g *GodMode) updateNetworkOpinions(prevOpinion, newOpinion multiverse.Color, weight uint64) {
-//	g.netMu.Lock()
-//	defer g.netMu.Unlock()
-//
-//	if prevOpinion == multiverse.UndefinedColor {
-//		g.networkOpinions[newOpinion] += weight
-//		return
-//	}
-//	g.networkOpinions[prevOpinion] -= weight
-//	g.networkOpinions[newOpinion] += weight
-//}
+// endregion //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// region GodOpinionManager //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+type GodOpinionManager struct {
+	networkOpinions map[multiverse.Color]uint64
+	mu              sync.RWMutex
+	prevMaxOpinion  multiverse.Color
+}
+
+func NewGodOpinionManager() *GodOpinionManager {
+	opinions := make(map[multiverse.Color]uint64)
+	for _, color := range multiverse.GetColorsArray() {
+		opinions[color] = 0
+	}
+	return &GodOpinionManager{
+		networkOpinions: opinions,
+		prevMaxOpinion:  multiverse.UndefinedColor,
+	}
+}
+
+func (g *GodOpinionManager) GetOpinionWeight(opinion multiverse.Color) uint64 {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	return g.networkOpinions[opinion]
+}
+
+// updateNetworkOpinions tracks opinion changes in the network, triggered on opinion change of honest nodes only
+func (g *GodOpinionManager) updateNetworkOpinions(prevOpinion, newOpinion multiverse.Color, weight uint64) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if prevOpinion == multiverse.UndefinedColor {
+		g.networkOpinions[newOpinion] += weight
+		return
+	}
+	g.networkOpinions[prevOpinion] -= weight
+	g.networkOpinions[newOpinion] += weight
+}
+
+func (g *GodOpinionManager) getMaxSecondOpinions() (maxOpinion, secondOpinion multiverse.Color) {
+	if len(g.networkOpinions) <= 1 {
+		return
+	}
+	// copy the map
+	opinions := make(map[multiverse.Color]uint64)
+	for key, value := range g.networkOpinions {
+		opinions[key] = value
+	}
+	maxOpinion = multiverse.GetMaxOpinion(opinions)
+	delete(opinions, maxOpinion)
+	secondOpinion = multiverse.GetMaxOpinion(opinions)
+	return
+}
 
 // endregion //////////////////////////////////////////////////////////////////////////////////////////////////////

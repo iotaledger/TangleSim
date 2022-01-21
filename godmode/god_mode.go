@@ -29,7 +29,7 @@ type GodMode struct {
 	lastPeerUsed    int
 
 	net        *network.Network
-	godPeerIDs map[network.PeerID]types.Empty
+	godPeerIDs map[network.PeerID]*network.Peer
 
 	supporters     *GodSupporters
 	opinionManager *GodOpinionManager
@@ -50,7 +50,7 @@ func NewGodMode(simulationMode string, weight int, adversaryDelay time.Duration,
 		adversaryDelay:   adversaryDelay,
 		split:            split,
 		initialNodeCount: initialNodeCount,
-		godPeerIDs:       make(map[network.PeerID]types.Empty),
+		godPeerIDs:       make(map[network.PeerID]*network.Peer),
 		godNetworkIndex:  initialNodeCount,
 	}
 	return mode
@@ -63,11 +63,10 @@ func (g *GodMode) Setup(net *network.Network) {
 	g.net = net
 	log.Debugf("Setup GodMode, number of peers:%d, init nodeCount: %d, godNetworkIndex: %d", len(g.net.Peers), g.initialNodeCount, g.godNetworkIndex)
 	for _, peer := range g.godPeers() {
-		g.godPeerIDs[peer.ID] = types.Void
+		g.godPeerIDs[peer.ID] = peer
 	}
 	// needs to be configured before the network start
 	g.listenToAllHonestNodes()
-	g.setupGossipEvents()
 	g.setupSupporters()
 	g.setupOpinionManager()
 	return
@@ -100,17 +99,15 @@ func (g *GodMode) IsGod(peerID network.PeerID) bool {
 }
 
 func (g *GodMode) IssueDoubleSpend() {
-	//peer1, peer2 := g.chooseThePoorestDoubleSpendTargets()
 	peer1, peers2 := g.chooseWealthiestEqualDoubleSpendTargets()
 
-	// todo get votes nodes
-
-	msgRed := g.prepareMessageForDoubleSpend(node1, multiverse.Red)
-	msgBlue := g.prepareMessageForDoubleSpend(node2, multiverse.Blue)
+	peer1ID, peer2ID := g.supporters.getInitiatorsForDoubleSpend()
+	msgRed := g.prepareMessageForDoubleSpend(g.godPeerIDs[peer1ID], multiverse.Red)
+	msgBlue := g.prepareMessageForDoubleSpend(g.godPeerIDs[peer2ID], multiverse.Blue)
 	// process own message
-	go g.processMessage(msgRed)
-	go g.processMessage(msgBlue)
-	// send double spend
+	go g.processMessageByGodNodes(msgRed)
+	go g.processMessageByGodNodes(msgBlue)
+	// send double spend to chosen honest peers
 	go func() {
 		peer1.ReceiveNetworkMessage(msgRed)
 	}()
@@ -119,6 +116,19 @@ func (g *GodMode) IssueDoubleSpend() {
 			peer.ReceiveNetworkMessage(msgBlue)
 		}
 	}()
+
+	g.supporters.UpdateSupportersAfterDoubleSpend(peer1ID, multiverse.Red)
+	g.supporters.UpdateSupportersAfterDoubleSpend(peer2ID, multiverse.Blue)
+}
+
+// IssueThirdDoubleSpend introduces third color, to have more flexibility when moving adversary support for colors
+func (g *GodMode) IssueThirdDoubleSpend(issuerID network.PeerID) {
+	msgGreen := g.prepareMessageForDoubleSpend(g.godPeerIDs[issuerID], multiverse.Red)
+	go g.processMessageByGodNodes(msgGreen)
+	// todo send to the poorest honest node
+
+	g.supporters.thirdColorIntroduced = true
+
 }
 
 // RemoveAllGodPeeringConnections clears out all connections to and from God nodes.
@@ -126,11 +136,9 @@ func (g *GodMode) RemoveAllGodPeeringConnections() {
 	if !g.Enabled() {
 		return
 	}
-
 	for _, peer := range g.godPeers() {
 		peer.Neighbors = make(map[network.PeerID]*network.Connection)
 	}
-
 	for _, peer := range g.honestPeers() {
 		for neighbor := range peer.Neighbors {
 			if g.IsGod(neighbor) {
@@ -172,24 +180,11 @@ func (g *GodMode) setupOpinionManager() {
 func (g *GodMode) listenToAllHonestNodes() {
 	for _, peer := range g.honestPeers() {
 		t := peer.Node.(multiverse.NodeInterface).Tangle()
-		t.MessageFactory.Events.MessageCreated.Attach(events.NewClosure(g.processMessage))
-		t.OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(prevOpinion, newOpinion multiverse.Color, weight uint64) {
-			g.opinionManager.updateNetworkOpinions(prevOpinion, newOpinion, weight)
+		t.MessageFactory.Events.MessageCreated.Attach(events.NewClosure(g.processMessageByGodNodes))
+		t.OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(prevOpinion, newOpinion multiverse.Color, weight int64) {
+			g.opinionManager.updateNetworkOpinions(prevOpinion, newOpinion, uint64(weight))
 			g.updateSupport()
 		}))
-	}
-}
-
-func (g *GodMode) setupGossipEvents() {
-	for _, peer := range g.godPeers() {
-		peerID := peer.ID
-		node := peer.Node.(multiverse.NodeInterface)
-		// gossip own message to all nodes with possible delay for honest targets
-		node.Tangle().Booker.Events.MessageBooked.Attach(events.NewClosure(
-			func(messageID multiverse.MessageID) {
-				g.gossipOwnProcessedMessage(messageID, peerID)
-			},
-		))
 	}
 }
 
@@ -209,44 +204,33 @@ func (g *GodMode) updateSupport() {
 // castVotes makes each peer that needs to change its opinion: create a colored message
 func (g *GodMode) castVotes(votersForColor colorPeerMap) {
 	for color, voters := range votersForColor {
-		// todo if third color not introduced issue colored payload
-		for _, peer := range g.godPeers() {
-			// if peer needs to change opinion
-			if _, ok := voters[peer.ID]; ok {
-				// todo create message (color)
-				msg := g.prepareMessage(peer, color)
-				// todo issue msg
+
+		for peerID := range voters {
+			// if third color was not introduced until now issue the double spend first
+			if color == multiverse.Green && !g.supporters.thirdColorIntroduced {
+				g.IssueThirdDoubleSpend(peerID)
+				continue
 			}
+			peer := g.godPeerIDs[peerID]
+			msg := g.prepareMessage(peer, color)
+			g.processMessageByGodNodes(msg)
+			g.gossipMessageToHonestNodes(msg)
 		}
 	}
 	g.supporters.UpdateSupportersAfterCastVotes(votersForColor)
 }
 
-func (g *GodMode) processMessage(message *multiverse.Message) {
+func (g *GodMode) processMessageByGodNodes(message *multiverse.Message) {
 	for _, peer := range g.godPeers() {
 		// adversary nodes will receive messages after honest node's network delay
 		// thanks to that when they issue change of opinion they do not help to propagate messages through the network
 		// without the delay (honest nodes would request missing parents through solidification)
 		// and it does not matter for godMode to have most up-to-date tangle
+		// todo look for replacement
 		time.AfterFunc(time.Millisecond*time.Duration(config.MinDelay), func() {
 			peer.ReceiveNetworkMessage(message)
 		})
 	}
-}
-
-func (g *GodMode) chooseThePoorestDoubleSpendTargets() (*network.Peer, *network.Peer) {
-	// the poorest node that is not an adversary
-	peer1 := g.net.Peer(g.godNetworkIndex - 1)
-	var peer2 *network.Peer
-
-	for i := g.godNetworkIndex - 2; i >= 0; i-- {
-		peer2 = g.net.Peer(i)
-		if _, ok := peer1.Neighbors[peer2.ID]; ok {
-			continue
-		}
-		break
-	}
-	return peer1, peer2
 }
 
 func (g *GodMode) chooseWealthiestEqualDoubleSpendTargets() (*network.Peer, []*network.Peer) {
@@ -283,21 +267,13 @@ func (g *GodMode) prepareMessageForDoubleSpend(peer *network.Peer, color multive
 	return msg
 }
 
-func (g *GodMode) gossipOwnProcessedMessage(messageID multiverse.MessageID, peerID network.PeerID) {
-	// need to gossip only once
-	if peerID != g.godPeers()[0].ID {
-		return
-	}
-	node := g.godPeers()[0].Node.(multiverse.NodeInterface)
-	msg := node.Tangle().Storage.Message(messageID)
+func (g *GodMode) gossipMessageToHonestNodes(msg *multiverse.Message) {
 	// gossip only your own messages
 	if g.IsGod(msg.Issuer) {
-		// make sure all god node have the message
-		g.processMessage(msg)
 		// iterate over all honest nodes
-		for _, peer := range g.honestPeers() {
+		for _, honestPeer := range g.honestPeers() {
 			time.AfterFunc(g.adversaryDelay, func() {
-				peer.ReceiveNetworkMessage(msg)
+				honestPeer.ReceiveNetworkMessage(msg)
 			})
 		}
 	}
@@ -324,7 +300,7 @@ func NewGodSupporters(godPeers []network.PeerID) *GodSupporters {
 }
 
 func createSupportersMap(allPeers []network.PeerID) colorPeerMap {
-	m := make(map[multiverse.Color]map[network.PeerID]types.Empty)
+	m := make(colorPeerMap)
 	colors := multiverse.GetColorsArray()
 	for _, color := range colors {
 		m[color] = make(map[network.PeerID]types.Empty)
@@ -350,11 +326,14 @@ func (g *GodSupporters) CalculateSupportersNumber(maxOpinionWeight, secondOpinio
 // the last is checked third, the last one left color
 func (g *GodSupporters) GetVoters(supportersNeeded int, maxOpinion, secondOpinion multiverse.Color) colorPeerMap {
 	supporters := make(map[multiverse.Color]map[network.PeerID]types.Empty)
+	colors := multiverse.GetColorsArray()
+	for _, color := range colors {
+		supporters[color] = make(map[network.PeerID]types.Empty)
+	}
 	// missing supporters for the second color
 	missingSupporters := supportersNeeded - len(g.supporters[secondOpinion])
 	if missingSupporters <= 0 { // second color has enough supporters already
-		// todo check if anything needed here to do
-		panic("should it happen?")
+		// todo handle this situation
 		return nil
 	}
 	movedSupportersCount := 0
@@ -413,6 +392,27 @@ func (g *GodSupporters) MoveLeftVotersFromMaxOpinion(maxOpinion, secondOpinion m
 		movedSupportersCount := 0
 		g.moveSupporters(missingSupporters, movedSupportersCount, supporters, maxOpinion, leftColor)
 	}
+}
+
+func (g *GodSupporters) getInitiatorsForDoubleSpend() (network.PeerID, network.PeerID) {
+	var peer1, peer2 network.PeerID
+	for supporter := range g.supporters[multiverse.UndefinedColor] {
+		if peer1 == 0 {
+			peer1 = supporter
+			continue
+		}
+		if peer2 == 0 {
+			peer2 = supporter
+			break
+		}
+	}
+	return peer1, peer2
+}
+
+// UpdateSupportersAfterDoubleSpend updates support by moving supporter from Undefined color to double spend color
+func (g *GodSupporters) UpdateSupportersAfterDoubleSpend(peerID network.PeerID, opinion multiverse.Color) {
+	delete(g.supporters[multiverse.UndefinedColor], peerID)
+	g.supporters[opinion][peerID] = types.Void
 }
 
 // endregion //////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -186,6 +186,11 @@ if __name__ == '__main__':
                 for i, v in enumerate(vv):
                     os.system(
                         f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -decelerationFactor={df[i]}')
+            elif var == 'GD':
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -simulationMode=God -godMana="{v}" -decelerationFactor={df[i]}')
+
             elif var == 'SU':
                 for i, v in enumerate(vv):
                     os.system(

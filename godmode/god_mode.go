@@ -1,6 +1,9 @@
 package godmode
 
 import (
+	"sync"
+	"time"
+
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/types"
 	"github.com/iotaledger/multivers-simulation/adversary"
@@ -8,8 +11,6 @@ import (
 	"github.com/iotaledger/multivers-simulation/logger"
 	"github.com/iotaledger/multivers-simulation/multiverse"
 	"github.com/iotaledger/multivers-simulation/network"
-	"sync"
-	"time"
 )
 
 var log = logger.New("God mode")
@@ -127,7 +128,7 @@ func (g *GodMode) IssueThirdDoubleSpend(issuerID network.PeerID) {
 	go g.processMessageByGodNodes(msgGreen)
 	poorestNode := g.honestPeers()[len(g.honestPeers())-1]
 	poorestNode.ReceiveNetworkMessage(msgGreen)
-	g.supporters.thirdColorIntroduced = true
+	g.supporters.thirdColorIntroduced = false
 }
 
 // RemoveAllGodPeeringConnections clears out all connections to and from God nodes.
@@ -193,33 +194,17 @@ func (g *GodMode) updateSupport() {
 	maxOpinion, secondOpinion := g.opinionManager.getMaxSecondOpinions()
 	maxWeight := g.opinionManager.GetOpinionWeight(maxOpinion)
 	secondWeight := g.opinionManager.GetOpinionWeight(secondOpinion)
-
-	supportersNeeded := g.supporters.CalculateSupportersNumber(maxWeight, secondWeight)
-	votersForColor := g.supporters.GetVoters(supportersNeeded, maxOpinion, secondOpinion)
-	if votersForColor == nil {
-		return
-	}
-	g.supporters.MoveLeftVotersFromMaxOpinion(maxOpinion, secondOpinion, votersForColor)
-	g.castVotes(votersForColor)
+	log.Debugf("maxOpinion %s, maxWeight %d, secondOpinion %s, secondWeight %d", maxOpinion, maxWeight, secondOpinion, secondWeight)
+	g.castVotes(secondOpinion)
 }
 
 // castVotes makes each peer that needs to change its opinion: create a colored message
-func (g *GodMode) castVotes(votersForColor ColorPeerMap) {
-	for color, voters := range votersForColor {
+func (g *GodMode) castVotes(color multiverse.Color) {
+	log.Debugf("!!Debug cast ", color)
+	peer := g.net.Peers[g.godNetworkIndex]
 
-		for peerID := range voters {
-			// if third color was not introduced until now issue the double spend first
-			if color == multiverse.Green && !g.supporters.thirdColorIntroduced {
-				g.IssueThirdDoubleSpend(peerID)
-				continue
-			}
-			peer := g.godPeerIDs[peerID]
-			msg := g.prepareMessage(peer, color)
-			g.processMessageByGodNodes(msg)
-			g.gossipMessageToHonestNodes(msg)
-		}
-	}
-	g.supporters.UpdateSupportersAfterCastVotes(votersForColor)
+	msg := g.prepareMessage(peer, color)
+	g.gossipMessageToHonestNodes(msg, time.Nanosecond*time.Duration(config.GodDelay))
 }
 
 func (g *GodMode) processMessageByGodNodes(message *multiverse.Message) {
@@ -258,7 +243,7 @@ func (g *GodMode) prepareMessage(peer *network.Peer, color multiverse.Color) *mu
 
 	// update the opinion in node's opinion manager, so during message creation the right tips will be selected
 	adversary.CastAdversary(peer.Node).AssignColor(color)
-	msg := node.Tangle().MessageFactory.CreateMessage(multiverse.UndefinedColor)
+	msg := node.Tangle().MessageFactory.CreateMessage(color)
 	return msg
 }
 
@@ -268,12 +253,12 @@ func (g *GodMode) prepareMessageForDoubleSpend(peer *network.Peer, color multive
 	return msg
 }
 
-func (g *GodMode) gossipMessageToHonestNodes(msg *multiverse.Message) {
+func (g *GodMode) gossipMessageToHonestNodes(msg *multiverse.Message, delay time.Duration) {
 	// gossip only your own messages
 	if g.IsGod(msg.Issuer) {
 		// iterate over all honest nodes
 		for _, honestPeer := range g.honestPeers() {
-			time.AfterFunc(g.adversaryDelay, func() {
+			time.AfterFunc(delay, func() {
 				honestPeer.ReceiveNetworkMessage(msg)
 			})
 		}
@@ -415,6 +400,9 @@ func (g *GodSupporters) getInitiatorsForDoubleSpend() (network.PeerID, network.P
 			peer2 = supporter
 			break
 		}
+	}
+	if peer2 == 0 {
+		peer2 = peer1
 	}
 	return peer1, peer2
 }

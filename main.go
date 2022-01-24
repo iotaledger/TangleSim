@@ -668,7 +668,7 @@ func secureNetwork(testNetwork *network.Network) {
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
 		band := peer.AdversarySpeedup * weightOfPeer * float64(config.TPS) / nodeTotalWeightedWeight
-		fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
+		log.Debugf("speedup %f band %f\n", peer.AdversarySpeedup, band)
 
 		go startSecurityWorker(peer, band)
 	}

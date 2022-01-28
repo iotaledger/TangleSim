@@ -9,6 +9,7 @@ import (
 	"github.com/iotaledger/multivers-simulation/logger"
 	"github.com/iotaledger/multivers-simulation/multiverse"
 	"github.com/iotaledger/multivers-simulation/network"
+	"math"
 	"sync"
 	"time"
 )
@@ -72,6 +73,7 @@ func (g *GodMode) Setup(net *network.Network) {
 	g.listenToAllHonestNodes()
 	g.setupSupporters()
 	g.setupOpinionManager()
+
 	return
 }
 
@@ -116,7 +118,7 @@ func (g *GodMode) IssueDoubleSpend() {
 	}()
 	go func() {
 		for _, peer := range peers2 {
-			peer.ReceiveNetworkMessage(msgBlue)
+			go peer.ReceiveNetworkMessage(msgBlue)
 		}
 	}()
 
@@ -129,7 +131,7 @@ func (g *GodMode) IssueThirdDoubleSpend(issuerID network.PeerID) {
 	msgGreen := g.prepareMessageForDoubleSpend(g.godPeerIDs[issuerID], multiverse.Red)
 	go g.processMessageByGodNodes(msgGreen)
 	poorestNode := g.honestPeers()[len(g.honestPeers())-1]
-	poorestNode.ReceiveNetworkMessage(msgGreen)
+	go poorestNode.ReceiveNetworkMessage(msgGreen)
 	g.supporters.thirdColorIntroduced = true
 }
 
@@ -175,6 +177,8 @@ func (g *GodMode) setupSupporters() {
 
 func (g *GodMode) setupOpinionManager() {
 	g.opinionManager = NewGodOpinionManager()
+	g.opinionManager.Events.updateNeeded.Attach(events.NewClosure(g.updateSupport))
+
 }
 
 // listenToAllHonestNodes listen to all honest messages created in the network to update godNodes tangles, and attaches
@@ -184,15 +188,14 @@ func (g *GodMode) listenToAllHonestNodes() {
 		t := peer.Node.(multiverse.NodeInterface).Tangle()
 		t.MessageFactory.Events.MessageCreated.Attach(events.NewClosure(g.processMessageByGodNodes))
 		t.OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(prevOpinion, newOpinion multiverse.Color, weight int64) {
-			g.opinionManager.updateNetworkOpinions(prevOpinion, newOpinion, uint64(weight))
-			g.updateSupport()
+			go g.opinionManager.updateNetworkOpinions(prevOpinion, newOpinion, weight)
 		}))
 	}
 }
 
 // updateSupport get current honest opinions state and checks if change of support is needed to keep network
 // in the undecided state
-func (g *GodMode) updateSupport() {
+func (g *GodMode) updateSupport(maxOpinion, secondOpinion multiverse.Color, maxWeight, secondWeight uint64) {
 	if g.updating.IsSet() {
 		log.Debugf("Already updating")
 		return
@@ -202,6 +205,7 @@ func (g *GodMode) updateSupport() {
 	defer g.supporters.Unlock()
 
 	g.updating.Set()
+	defer g.updating.UnSet()
 	log.Debugf("Start updating votes")
 
 	log.Debugf("Start current setup:  U: %d, R: %d, B: %d, G: %d",
@@ -211,34 +215,28 @@ func (g *GodMode) updateSupport() {
 		len(g.supporters.supporters[multiverse.Green]),
 	)
 
-	maxOpinion, secondOpinion := g.opinionManager.getMaxSecondOpinions()
-	if secondOpinion == multiverse.UndefinedColor {
-		g.updating.UnSet()
-		log.Debugf("End updateing - undefined")
+	if maxOpinion == multiverse.UndefinedColor {
+		log.Debugf("opinions are undefined")
 		return
 	}
-	maxWeight := g.opinionManager.GetOpinionWeight(maxOpinion)
-	secondWeight := g.opinionManager.GetOpinionWeight(secondOpinion)
-	log.Debugf("Updating support, single weight %d;  max %s - %d, second %s - %d", g.supporters.singleNodeWeight/1000000, maxOpinion.String(), maxWeight/1000000, secondOpinion.String(), secondWeight/1000000)
+	log.Debugf("Updating support, single weight %d;  max %s - %d, second %s - %d", g.supporters.singleNodeWeight/100000, maxOpinion.String(), maxWeight/100000, secondOpinion.String(), secondWeight/100000)
 
 	supportersNeeded := g.supporters.CalculateSupportersNumber(maxWeight, secondWeight, maxOpinion)
 	votersForColor := g.supporters.GetVoters(supportersNeeded, maxOpinion, secondOpinion)
 	if votersForColor == nil {
-		g.updating.UnSet()
 		log.Debugf("End updating - voters nil")
 		return
-	}
+	} // todo
 	g.supporters.MoveLeftVotersFromMaxOpinion(maxOpinion, secondOpinion, votersForColor)
 
 	log.Debugf("Votes for color: %v", votersForColor)
 	g.castVotes(votersForColor)
-	log.Debugf("End of updates - current setup:  U: %d, R: %d, B: %d, G: %dd",
+	log.Debugf("End of updates - current setup:  U: %d, R: %d, B: %d, G: %d",
 		len(g.supporters.supporters[multiverse.UndefinedColor]),
 		len(g.supporters.supporters[multiverse.Red]),
 		len(g.supporters.supporters[multiverse.Blue]),
 		len(g.supporters.supporters[multiverse.Green]),
 	)
-	g.updating.UnSet()
 	log.Debugf("End updating - end")
 }
 
@@ -263,13 +261,7 @@ func (g *GodMode) castVotes(votersForColor ColorPeerMap) {
 
 func (g *GodMode) processMessageByGodNodes(message *multiverse.Message) {
 	for _, peer := range g.godPeers() {
-		// adversary nodes will receive messages after honest node's network delay
-		// thanks to that when they issue change of opinion they do not help to propagate messages through the network
-		// without the delay (honest nodes would request missing parents through solidification)
-		// and it does not matter for godMode to have most up-to-date tangle
-		time.AfterFunc(time.Millisecond*time.Duration(config.MinDelay), func() {
-			peer.ReceiveNetworkMessage(message)
-		})
+		peer.ReceiveNetworkMessage(message)
 	}
 }
 
@@ -337,8 +329,8 @@ type GodSupporters struct {
 func NewGodSupporters(godPeers []network.PeerID) *GodSupporters {
 	return &GodSupporters{
 		singleNodeWeight: uint64(config.GodMana * config.NodesTotalWeight / 100 / config.GodNodeSplit),
-		supporters:       createSupportersMap(godPeers),
 		numOfSupporters:  uint64(config.GodNodeSplit),
+		supporters:       createSupportersMap(godPeers),
 	}
 }
 
@@ -360,7 +352,7 @@ func (g *GodSupporters) CalculateSupportersNumber(maxOpinionWeight, secondOpinio
 		return 0
 	}
 	diff := maxOpinionWeight - secondOpinionWeight
-	log.Debugf("Calculate supporters num, maxColor - %d, secColor - %d, diff: %d", maxOpinionWeight/1000000, secondOpinionWeight/1000000, diff/1000000)
+	log.Debugf("Calculate supporters num, maxColor - %d, secColor - %d, diff: %d", maxOpinionWeight/100000, secondOpinionWeight/100000, diff/100000)
 
 	// if the diff is higher than half of adv total mana, move all adv mana
 	if diff+uint64(len(g.supporters[maxOpinion]))*g.singleNodeWeight > g.singleNodeWeight*g.numOfSupporters/2 {
@@ -368,11 +360,8 @@ func (g *GodSupporters) CalculateSupportersNumber(maxOpinionWeight, secondOpinio
 		return int(g.numOfSupporters)
 	}
 
-	if diff <= 0 {
-		return 0
-	}
-	numberOfSupporters := diff/g.singleNodeWeight + 1
-	log.Debugf("Calculate supporters num, number of supporters: %d", numberOfSupporters)
+	numberOfSupporters := diff/g.singleNodeWeight + 2
+	log.Debugf("Calculate supporters num, number of supporters: %d, single: %d", numberOfSupporters, g.singleNodeWeight/100000)
 
 	return int(numberOfSupporters)
 }
@@ -388,9 +377,16 @@ func (g *GodSupporters) GetVoters(supportersNeeded int, maxOpinion, secondOpinio
 	}
 	// missing supporters for the second color
 	missingSupporters := supportersNeeded - len(g.supporters[secondOpinion])
-	if missingSupporters <= 0 { // second color has enough supporters already
-		// todo handle this situation
-		return nil
+	if missingSupporters == 0 {
+		return supporters
+	}
+	if missingSupporters < 0 { // second color has enough supporters already
+		log.Info("Too many supporters on second color moving to third one")
+		if leftColors := multiverse.GetLeftColors([]multiverse.Color{maxOpinion, secondOpinion}); len(leftColors) > 0 {
+			leftColor := leftColors[0]
+			g.moveSupporters(-missingSupporters, 0, supporters, secondOpinion, leftColor)
+		}
+		return supporters
 	}
 	movedSupportersCount := 0
 	// use max
@@ -478,18 +474,40 @@ func (g *GodSupporters) UpdateSupportersAfterDoubleSpend(peerID network.PeerID, 
 
 // region GodOpinionManager //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+type OpinionManagerEvents struct {
+	updateNeeded *events.Event
+}
+
+func updateNeededEventCaller(handler interface{}, params ...interface{}) {
+	handler.(func(maxOpinion, secondOpinion multiverse.Color, maxWeight, secondWeight uint64))(params[0].(multiverse.Color), params[1].(multiverse.Color), params[2].(uint64), params[3].(uint64))
+}
+
 type GodOpinionManager struct {
-	networkOpinions map[multiverse.Color]uint64
-	mu              sync.RWMutex
+	networkOpinions                 map[multiverse.Color]uint64
+	diffToPrevOpinionFromLastUpdate map[multiverse.Color]int64
+	mu                              sync.RWMutex
+
+	singleNodeWeight uint64
+	numOfSupporters  uint64
+
+	Events *OpinionManagerEvents
 }
 
 func NewGodOpinionManager() *GodOpinionManager {
 	opinions := make(map[multiverse.Color]uint64)
+	opinionDiff := make(map[multiverse.Color]int64)
 	for _, color := range multiverse.GetColorsArray() {
 		opinions[color] = 0
+		opinionDiff[color] = 0
 	}
 	return &GodOpinionManager{
-		networkOpinions: opinions,
+		networkOpinions:                 opinions,
+		diffToPrevOpinionFromLastUpdate: opinionDiff,
+		singleNodeWeight:                uint64(config.GodMana * config.NodesTotalWeight / 100 / config.GodNodeSplit),
+		numOfSupporters:                 uint64(config.GodNodeSplit),
+		Events: &OpinionManagerEvents{
+			updateNeeded: events.NewEvent(updateNeededEventCaller),
+		},
 	}
 }
 
@@ -501,36 +519,48 @@ func (g *GodOpinionManager) GetOpinionWeight(opinion multiverse.Color) uint64 {
 }
 
 // updateNetworkOpinions tracks opinion changes in the network, triggered on opinion change of honest nodes only
-func (g *GodOpinionManager) updateNetworkOpinions(prevOpinion, newOpinion multiverse.Color, weight uint64) {
+func (g *GodOpinionManager) updateNetworkOpinions(prevOpinion, newOpinion multiverse.Color, weight int64) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	if prevOpinion == multiverse.UndefinedColor {
-		g.networkOpinions[newOpinion] += weight
-		log.Debugf("Network opinions updated, U: %d, R: %d, B: %d, G: %d",
-			g.networkOpinions[multiverse.UndefinedColor]/1000000,
-			g.networkOpinions[multiverse.Red]/1000000,
-			g.networkOpinions[multiverse.Blue]/1000000,
-			g.networkOpinions[multiverse.Green]/1000000,
-		)
-		return
+	if prevOpinion != multiverse.UndefinedColor {
+		g.networkOpinions[prevOpinion] -= uint64(weight)
+		g.diffToPrevOpinionFromLastUpdate[newOpinion] -= weight
+
 	}
-	g.networkOpinions[prevOpinion] -= weight
-	g.networkOpinions[newOpinion] += weight
-	log.Debugf("Network opinions updated,  U: %d, R: %d, B: %d, G: %d",
-		g.networkOpinions[multiverse.UndefinedColor]/1000000,
-		g.networkOpinions[multiverse.Red]/1000000,
-		g.networkOpinions[multiverse.Blue]/1000000,
-		g.networkOpinions[multiverse.Green]/1000000,
+	g.networkOpinions[newOpinion] += uint64(weight)
+	g.diffToPrevOpinionFromLastUpdate[newOpinion] += weight
+
+	log.Debugf("Network opinions updated, U: %d, R: %d, B: %d, G: %d",
+		g.networkOpinions[multiverse.UndefinedColor]/100000,
+		g.networkOpinions[multiverse.Red]/100000,
+		g.networkOpinions[multiverse.Blue]/100000,
+		g.networkOpinions[multiverse.Green]/100000,
 	)
+
+	g.triggerUpdateIfNeeded()
+}
+
+// triggerUpdateIfNeeded initiates an update of voters by triggering an updateNeeded event when the difference from previous opinions changed significantly
+func (g *GodOpinionManager) triggerUpdateIfNeeded() {
+	for _, diff := range g.diffToPrevOpinionFromLastUpdate {
+		// any change comparing to last update is two times higher than single node weight
+		if g.ifDiffIsTwiceAsSingleGodWeight(diff) || g.numOfSupporters <= 3 {
+			maxOpinion, secondOpinion := g.getMaxSecondOpinions()
+			// todo maybe it blocks go routine of honest nodes!
+			go g.Events.updateNeeded.Trigger(maxOpinion, secondOpinion, g.networkOpinions[maxOpinion], g.networkOpinions[secondOpinion])
+		}
+	}
+}
+
+func (g *GodOpinionManager) ifDiffIsTwiceAsSingleGodWeight(diff int64) bool {
+	return uint64(math.Abs(float64(diff))) >= 2*g.singleNodeWeight
 }
 
 func (g *GodOpinionManager) getMaxSecondOpinions() (maxOpinion, secondOpinion multiverse.Color) {
 	if len(g.networkOpinions) <= 1 {
 		return
 	}
-	g.mu.RLock()
-	defer g.mu.RUnlock()
 
 	// copy the map
 	opinions := make(map[multiverse.Color]uint64)
@@ -540,6 +570,9 @@ func (g *GodOpinionManager) getMaxSecondOpinions() (maxOpinion, secondOpinion mu
 	maxOpinion = multiverse.GetMaxOpinion(opinions)
 	delete(opinions, maxOpinion)
 	secondOpinion = multiverse.GetMaxOpinion(opinions)
+	if g.networkOpinions[maxOpinion] == 0 {
+		return multiverse.UndefinedColor, multiverse.UndefinedColor
+	}
 	return
 }
 

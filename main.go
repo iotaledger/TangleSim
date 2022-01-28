@@ -668,7 +668,6 @@ func secureNetwork(testNetwork *network.Network) {
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
 		band := peer.AdversarySpeedup * weightOfPeer * float64(config.TPS) / nodeTotalWeightedWeight
-		log.Debugf("speedup %f band %f\n", peer.AdversarySpeedup, band)
 
 		go startSecurityWorker(peer, band)
 	}
@@ -678,6 +677,8 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 	pace := time.Duration(float64(time.Second) * float64(config.DecelerationFactor) / band)
 
 	log.Debug("Peer ID: ", peer.ID, " Pace: ", pace)
+	log.Debugf("speedup %f band %f\n", peer.AdversarySpeedup, band)
+
 	if pace == time.Duration(0) {
 		log.Warn("Peer ID: ", peer.ID, " has 0 pace!")
 		return

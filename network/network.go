@@ -313,7 +313,6 @@ func WattsStrogatz(meanDegree int, randomness float64) PeeringStrategy {
 		}
 		totalNeighborCount := 0
 		for _, peer := range network.Peers {
-			log.Debugf("%d %d", peer.ID, len(peer.Neighbors))
 			totalNeighborCount += len(peer.Neighbors)
 		}
 		log.Infof("Average number of neighbors: %.1f", float64(totalNeighborCount)/float64(nodeCount))

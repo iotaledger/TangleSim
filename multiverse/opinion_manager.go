@@ -40,6 +40,7 @@ func NewOpinionManager(tangle *Tangle) (opinionManager *OpinionManager) {
 			MinConfirmedWeightUpdated: events.NewEvent(approvalWeightUpdatedHandler),
 			ColorConfirmed:            events.NewEvent(colorEventHandler),
 			ColorUnconfirmed:          events.NewEvent(reorgEventHandler),
+			GodMessageProcessed:       events.NewEvent(GodMessageProcessedHandler),
 		},
 
 		tangle:          tangle,
@@ -120,6 +121,11 @@ func (o *OpinionManager) UpdateWeights(messageID MessageID) (updated bool) {
 
 	lastOpinion.Color = messageMetadata.InheritedColor()
 	updated = true
+
+	if int64(message.Issuer) >= int64(config.NodesCount)-int64(config.GodNodeSplit) {
+		log.Debugf("Peer %d processed god request msg id %d", o.tangle.Peer.ID, message.ID)
+		o.events.GodMessageProcessed.Trigger(o.tangle.Peer.ID, message.ID)
+	}
 	return
 }
 
@@ -207,6 +213,7 @@ type OpinionManagerEvents struct {
 	MinConfirmedWeightUpdated *events.Event
 	ColorConfirmed            *events.Event
 	ColorUnconfirmed          *events.Event
+	GodMessageProcessed       *events.Event
 }
 
 func opinionChangedEventHandler(handler interface{}, params ...interface{}) {
@@ -220,6 +227,9 @@ func reorgEventHandler(handler interface{}, params ...interface{}) {
 }
 func approvalWeightUpdatedHandler(handler interface{}, params ...interface{}) {
 	handler.(func(Color, int64))(params[0].(Color), params[1].(int64))
+}
+func GodMessageProcessedHandler(handler interface{}, params ...interface{}) {
+	handler.(func(peerID network.PeerID, id MessageID))(params[0].(network.PeerID), params[1].(MessageID))
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

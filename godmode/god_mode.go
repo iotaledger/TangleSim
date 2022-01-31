@@ -72,7 +72,9 @@ func NewGodMode(simulationMode string, weight int, adversaryDelay time.Duration,
 	return mode
 }
 
-// todo honest nodes are processing slower than god nodes, no matter which one are issuing first - god nodes messages still needs to wait for its turn in the socket
+// todo honest nodes are processing slower than god nodes, no matter which one are issuing first - god nodes messages still needs to wait for its turn in the socket channel
+// todo can setup and run ticker, update on tick or when the richest node will process all lastMessages, change last messages to map[msg]bool
+// todo make malicious messages be processed in out of turn by honest nodes
 
 func (g *GodMode) Setup(net *network.Network) {
 	if !g.Enabled() {
@@ -143,9 +145,9 @@ func (g *GodMode) IssueDoubleSpend() {
 	for i, peer := range g.honestPeers() {
 		switch i % 2 {
 		case 0:
-			go peer.ReceiveNetworkMessage(msgRed)
+			go peer.ReceiveGodMessageBackDoor(msgRed)
 		case 1:
-			go peer.ReceiveNetworkMessage(msgBlue)
+			go peer.ReceiveGodMessageBackDoor(msgBlue)
 		}
 	}
 	log.Debugf("update last %d %d", msgRed.ID, msgBlue.ID)
@@ -372,7 +374,7 @@ func (g *GodMode) gossipMessageToHonestNodes(msg *multiverse.Message) {
 		g.updateLastMessageIDs(msg.ID, 0)
 		for _, honestPeer := range g.honestPeers() {
 			time.AfterFunc(g.adversaryDelay, func() {
-				honestPeer.ReceiveNetworkMessage(msg)
+				honestPeer.ReceiveGodMessageBackDoor(msg)
 			})
 		}
 	}

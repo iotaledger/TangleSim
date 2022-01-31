@@ -123,7 +123,9 @@ func (o *OpinionManager) UpdateWeights(messageID MessageID) (updated bool) {
 	updated = true
 
 	if int64(message.Issuer) >= int64(config.NodesCount)-int64(config.GodNodeSplit) {
-		log.Debugf("Peer %d processed god request msg id %d", o.tangle.Peer.ID, message.ID)
+		if o.tangle.Peer.ID == 0 {
+			log.Debugf("Peer %d processed god request msg id %d", o.tangle.Peer.ID, message.ID)
+		}
 		o.events.GodMessageProcessed.Trigger(o.tangle.Peer.ID, message.ID)
 	}
 	return

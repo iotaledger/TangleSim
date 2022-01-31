@@ -16,6 +16,7 @@ type Peer struct {
 	ID               PeerID
 	Neighbors        map[PeerID]*Connection
 	Socket           chan interface{}
+	GodSocket        chan interface{}
 	Node             Node
 	AdversarySpeedup float64
 
@@ -29,6 +30,7 @@ func NewPeer(node Node) (peer *Peer) {
 		ID:        NewPeerID(),
 		Neighbors: make(map[PeerID]*Connection),
 		Socket:    make(chan interface{}, 1024),
+		GodSocket: make(chan interface{}, 1024),
 		Node:      node,
 
 		shutdownSignal: make(chan struct{}, 1),
@@ -57,6 +59,10 @@ func (p *Peer) ReceiveNetworkMessage(message interface{}) {
 	p.Socket <- message
 }
 
+func (p *Peer) ReceiveGodMessageBackDoor(message interface{}) {
+	p.GodSocket <- message
+}
+
 func (p *Peer) GossipNetworkMessage(message interface{}) {
 	for _, neighborConnection := range p.Neighbors {
 		neighborConnection.Send(message)
@@ -74,6 +80,8 @@ func (p *Peer) run() {
 			return
 		case networkMessage := <-p.Socket:
 			p.Node.HandleNetworkMessage(networkMessage)
+		case networkMessage := <-p.GodSocket:
+			go p.Node.HandleNetworkMessage(networkMessage)
 		}
 	}
 }

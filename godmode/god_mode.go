@@ -43,11 +43,10 @@ type GodMode struct {
 	supporters     *GodSupporters
 	opinionManager *GodOpinionManager
 
-	updating           typeutils.AtomicBool
-	maxIdleTime        time.Duration
-	lastMessageIDsUsed map[multiverse.MessageID]types.Empty
-	weightCount        *atomic.Uint64
-	lastIDMutex        sync.Mutex
+	updating    typeutils.AtomicBool
+	maxIdleTime time.Duration
+	weightCount *atomic.Uint64
+	lastIDMutex sync.Mutex
 
 	shutdown chan types.Empty
 }
@@ -62,18 +61,17 @@ func NewGodMode(simulationMode string, weight int, adversaryDelay time.Duration,
 		weights[i] = partialWeight
 	}
 	mode := &GodMode{
-		godTicker:          time.NewTicker(1 * time.Millisecond),
-		enabled:            true,
-		weights:            weights,
-		adversaryDelay:     adversaryDelay,
-		split:              split,
-		initialNodeCount:   initialNodeCount,
-		godPeerIDs:         make(map[network.PeerID]*network.Peer),
-		godNetworkIndex:    initialNodeCount,
-		maxIdleTime:        time.Nanosecond,
-		lastMessageIDsUsed: make(map[multiverse.MessageID]types.Empty),
-		weightCount:        atomic.NewUint64(0),
-		shutdown:           make(chan types.Empty),
+		godTicker:        time.NewTicker(10 * time.Millisecond),
+		enabled:          true,
+		weights:          weights,
+		adversaryDelay:   adversaryDelay,
+		split:            split,
+		initialNodeCount: initialNodeCount,
+		godPeerIDs:       make(map[network.PeerID]*network.Peer),
+		godNetworkIndex:  initialNodeCount,
+		maxIdleTime:      time.Nanosecond,
+		weightCount:      atomic.NewUint64(0),
+		shutdown:         make(chan types.Empty),
 	}
 	return mode
 }
@@ -140,13 +138,6 @@ func (g *GodMode) IsGod(peerID network.PeerID) bool {
 	return false
 }
 
-func (g *GodMode) updateLastMessageIDs(id multiverse.MessageID, weight uint64) {
-	g.lastIDMutex.Lock()
-	g.lastMessageIDsUsed[id] = types.Void
-	g.lastIDMutex.Unlock()
-	g.weightCount = atomic.NewUint64(weight)
-}
-
 func (g *GodMode) increaseLastMessageWeight(weight uint64) {
 	g.weightCount.Add(weight)
 }
@@ -158,9 +149,6 @@ func (g *GodMode) IssueDoubleSpend() {
 	// process own message
 	go g.processMessageByGodNodes(msgRed)
 	go g.processMessageByGodNodes(msgBlue)
-	// update god messages used in trackOwnProcessedMessages
-	g.updateLastMessageIDs(msgBlue.ID, 0)
-	g.updateLastMessageIDs(msgRed.ID, 0)
 
 	// send red to odd peers, and blue to even
 	for i, peer := range g.honestPeers() {
@@ -194,7 +182,6 @@ func (g *GodMode) IssueThirdDoubleSpend(issuerID network.PeerID) {
 	log.Debugf("Introducing green color, msgID: %d", msgGreen.ID)
 	g.processMessageByGodNodes(msgGreen)
 	g.gossipMessageToHonestNodes(msgGreen)
-	g.updateLastMessageIDs(msgGreen.ID, 0)
 	g.supporters.thirdColorIntroduced = true
 }
 
@@ -289,13 +276,14 @@ func (g *GodMode) updateSupport() {
 	)
 
 	g.lastIDMutex.Lock()
-	g.lastMessageIDsUsed = make(map[multiverse.MessageID]types.Empty)
 	g.lastIDMutex.Unlock()
 
 	maxWeight := g.opinionManager.GetOpinionWeight(maxOpinion)
 	secondWeight := g.opinionManager.GetOpinionWeight(secondOpinion)
 
 	log.Debugf("Updating support, single weight %d;  max %s - %d, second %s - %d", g.supporters.singleNodeWeight/divide, maxOpinion.String(), maxWeight/divide, secondOpinion.String(), secondWeight/divide)
+	log.Debugf("Updating support, single weight %d;  max %s - %d, second %s - %d", g.supporters.singleNodeWeight, maxOpinion.String(), maxWeight, secondOpinion.String(), secondWeight)
+	//maxWeight, secondWeight, maxOpinion, secondOpinion = g.supporters.CalculateHonestOpinion(maxWeight, secondWeight, maxOpinion, secondOpinion)
 	supportersNeeded := g.supporters.CalculateSupportersNumber(maxWeight, secondWeight, maxOpinion, secondOpinion)
 	votersForColor := g.supporters.GetVoters(supportersNeeded, maxOpinion, secondOpinion)
 	if votersForColor == nil {
@@ -371,7 +359,6 @@ func (g *GodMode) gossipMessageToHonestNodes(msg *multiverse.Message) {
 	// gossip only your own messages
 	if g.IsGod(msg.Issuer) {
 		// iterate over all honest nodes
-		g.updateLastMessageIDs(msg.ID, 0)
 		for _, honestPeer := range g.honestPeers() {
 			time.AfterFunc(g.adversaryDelay, func() {
 				honestPeer.ReceiveGodMessageBackDoor(msg)
@@ -416,29 +403,33 @@ func createSupportersMap(allPeers []network.PeerID) ColorPeerMap {
 	return m
 }
 
-func (g *GodSupporters) CalculateSupportersNumber(maxOpinionWeight, secondOpinionWeight uint64, maxOpinion, secondOpinion multiverse.Color) int {
-
+func (g *GodSupporters) CalculateHonestOpinion(maxWeight, secondWeight uint64, maxOpinion, secondOpinion multiverse.Color) (uint64, uint64, multiverse.Color, multiverse.Color) {
 	advMaxWeight := uint64(len(g.supporters[maxOpinion])) * g.singleNodeWeight
 	advSecondWeight := uint64(len(g.supporters[secondOpinion])) * g.singleNodeWeight
-	honestMaxWeight := maxOpinionWeight - advMaxWeight
-	if maxOpinionWeight < advMaxWeight {
-		honestMaxWeight = maxOpinionWeight
+
+	honestMaxWeight := maxWeight - advMaxWeight
+	if maxWeight < advMaxWeight {
+		honestMaxWeight = maxWeight
 	}
-	honestSecondWeight := secondOpinionWeight - advSecondWeight
-	if secondOpinionWeight < advSecondWeight {
-		honestSecondWeight = secondOpinionWeight
-	}
-	log.Debugf("??? m%d s %d am %d as %d hm %d Hs%d", maxOpinionWeight/divide, secondOpinionWeight/divide, advMaxWeight/divide, advSecondWeight/divide, honestMaxWeight/divide, honestSecondWeight/divide)
-	if honestSecondWeight > honestMaxWeight {
-		log.Debugf("??? zero")
-		return 0
+	honestSecondWeight := secondWeight - advSecondWeight
+	if secondWeight < advSecondWeight {
+		honestSecondWeight = secondWeight
 	}
 
+	// switch max with second if honestSecond is greater than honestMax
+	if honestSecondWeight > honestMaxWeight {
+		return honestSecondWeight, honestMaxWeight, secondOpinion, maxOpinion
+	}
+
+	return honestMaxWeight, honestSecondWeight, maxOpinion, secondOpinion
+}
+
+func (g *GodSupporters) CalculateSupportersNumber(honestMaxWeight, honestSecondWeight uint64, maxOpinion, secondOpinion multiverse.Color) int {
+
 	diff := honestMaxWeight - honestSecondWeight
-	log.Debugf("??? Calculate supporters num, maxColor - %d, secColor - %d, diff: %d", maxOpinionWeight/divide, secondOpinionWeight/divide, diff/divide)
-	log.Debugf("??? Calculate supporters num, honest maxColor - %d, secColor - %d, diff: %d", honestMaxWeight/divide, honestSecondWeight/divide, diff/divide)
-	if diff > (g.numOfSupporters+1)*g.singleNodeWeight {
-		log.Debugf("??? diff %d, numOfSupporters %d, singleNodeWeight %d", diff/divide, g.numOfSupporters, g.singleNodeWeight/divide)
+	log.Debugf("Calculate supporters num, honest maxColor - %d, secColor - %d, diff: %d", honestMaxWeight/divide, honestSecondWeight/divide, diff/divide)
+	if diff > (g.numOfSupporters+2)*g.singleNodeWeight {
+		log.Debugf("diff %d, numOfSupporters %d, singleNodeWeight %d", diff/divide, g.numOfSupporters, g.singleNodeWeight/divide)
 		panic("We are lost!")
 	}
 	// if the diff is higher than half of adv total mana, move all adv mana
@@ -481,16 +472,17 @@ func (g *GodSupporters) GetVoters(supportersNeeded int, maxOpinion, secondOpinio
 	if done {
 		return supporters
 	}
-	// use any supporters that have not voted yet
-	movedSupportersCount, done = g.moveSupporters(missingSupporters, movedSupportersCount, supporters, multiverse.UndefinedColor, secondOpinion)
-	if done {
-		return supporters
-	}
 	// check if there are any supporters for the third one color
 	if leftColors := multiverse.GetLeftColors([]multiverse.Color{maxOpinion, secondOpinion}); len(leftColors) > 0 {
 		leftColor := leftColors[0]
-		g.moveSupporters(missingSupporters, movedSupportersCount, supporters, leftColor, secondOpinion)
+		movedSupportersCount, done = g.moveSupporters(missingSupporters, movedSupportersCount, supporters, leftColor, secondOpinion)
 	}
+	if done {
+		return supporters
+	}
+	// use any supporters that have not voted yet
+	g.moveSupporters(missingSupporters, movedSupportersCount, supporters, multiverse.UndefinedColor, secondOpinion)
+
 	return supporters
 }
 
@@ -604,14 +596,14 @@ func (g *GodOpinionManager) updateNetworkOpinions(prevOpinion, newOpinion multiv
 
 	}
 	g.networkOpinions[newOpinion] += weight
-
-	log.Debugf("Network opinions updated for peer %d, U: %d, R: %d, B: %d, G: %d",
-		peerID,
-		g.networkOpinions[multiverse.UndefinedColor]/divide,
-		g.networkOpinions[multiverse.Red]/divide,
-		g.networkOpinions[multiverse.Blue]/divide,
-		g.networkOpinions[multiverse.Green]/divide,
-	)
+	//
+	//log.Debugf("Network opinions updated for peer %d, U: %d, R: %d, B: %d, G: %d",
+	//	peerID,
+	//	g.networkOpinions[multiverse.UndefinedColor]/divide,
+	//	g.networkOpinions[multiverse.Red]/divide,
+	//	g.networkOpinions[multiverse.Blue]/divide,
+	//	g.networkOpinions[multiverse.Green]/divide,
+	//)
 }
 
 func (g *GodOpinionManager) ifDiffIsTwiceAsSingleGodWeight(diff int64) bool {
@@ -619,6 +611,8 @@ func (g *GodOpinionManager) ifDiffIsTwiceAsSingleGodWeight(diff int64) bool {
 }
 
 func (g *GodOpinionManager) getMaxSecondOpinions() (maxOpinion, secondOpinion multiverse.Color) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 	if len(g.networkOpinions) <= 1 {
 		return
 	}

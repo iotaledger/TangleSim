@@ -103,6 +103,9 @@ func main() {
 	testNetwork.Start()
 	defer testNetwork.Shutdown()
 
+	go godMode.Run()
+	defer godMode.Shutdown()
+
 	resultsWriters := monitorNetworkState(testNetwork)
 	defer flushWriters(resultsWriters)
 	secureNetwork(testNetwork)

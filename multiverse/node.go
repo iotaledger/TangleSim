@@ -60,6 +60,9 @@ func (n *Node) HandleNetworkMessage(networkMessage interface{}) {
 			n.peer.Neighbors[receivedNetworkMessage.Issuer].Send(requestedMessage)
 		}
 	case *Message:
+		if n.peer.ID == 0 && receivedNetworkMessage.Issuer >= 100 {
+			log.Debugf("!!! received network message %v", networkMessage.(*Message).ID)
+		}
 		n.tangle.ProcessMessage(receivedNetworkMessage)
 	case Color:
 		n.tangle.ProcessMessage(n.tangle.MessageFactory.CreateMessage(receivedNetworkMessage))

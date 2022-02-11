@@ -23,6 +23,8 @@ type Peer struct {
 	startOnce      sync.Once
 	shutdownOnce   sync.Once
 	shutdownSignal chan struct{}
+
+	mu sync.Mutex
 }
 
 func NewPeer(node Node) (peer *Peer) {
@@ -79,9 +81,15 @@ func (p *Peer) run() {
 		case <-p.shutdownSignal:
 			return
 		case networkMessage := <-p.Socket:
+			p.mu.Lock()
 			p.Node.HandleNetworkMessage(networkMessage)
+			p.mu.Unlock()
+
 		case networkMessage := <-p.GodSocket:
-			go p.Node.HandleNetworkMessage(networkMessage)
+			p.mu.Lock()
+			p.Node.HandleNetworkMessage(networkMessage)
+			p.mu.Unlock()
+
 		}
 	}
 }

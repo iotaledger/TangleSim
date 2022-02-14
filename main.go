@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/multivers-simulation/adversary"
+	"github.com/iotaledger/multivers-simulation/fpcs"
 	"github.com/iotaledger/multivers-simulation/simulation"
 
 	"github.com/iotaledger/hive.go/types"
@@ -98,6 +99,10 @@ func main() {
 	)
 	testNetwork.Start()
 	defer testNetwork.Shutdown()
+
+	fpcs := fpcs.NewFPCS(config.FPCSEpochPeriod, config.FPCSLowerBound, config.FPCSUpperBound)
+	go fpcs.Run()
+	defer fpcs.Shutdown()
 
 	resultsWriters := monitorNetworkState(testNetwork)
 	defer flushWriters(resultsWriters)

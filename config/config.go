@@ -33,6 +33,9 @@ var (
 	AdversaryInitColors     = []string{"B"}      // Defines initial color for adversary group, one of following: 'R', 'G', 'B'. Mandatory for each group.
 	AdversaryPeeringAll     = false              // Defines a flag indicating whether adversarial nodes should be able to send messages to all nodes in the network, instead of following regular peering algorithm.
 	AdversarySpeedup        = []float64{1.0}     // Defines how many more messages should adversary nodes issue.
+	FPCSEpochPeriod         = 5                  // The period of generation a new random number in seconds.
+	FPCSLowerBound          = 500                // The lower bound of the generated random number.
+	FPCSUpperBound          = 660                // The upper bound of the generated random number.
 )
 
 var (

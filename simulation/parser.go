@@ -79,6 +79,9 @@ func ParseFlags() {
 		flag.String("adversarySpeedup", "", "Adversary issuing speed relative to their mana, e.g. '10 10' means that nodes in each group will issue 10 times messages than would be allowed by their mana. SimulationTarget must be 'DS'")
 	adversaryPeeringAll :=
 		flag.Bool("adversaryPeeringAll", config.AdversaryPeeringAll, "Flag indicating whether adversary nodes should be able to gossip messages to all nodes in the network directly, or should follow the peering algorithm.")
+	fpcsEpochPeriod := flag.Int("fpcsEpochPeriod", config.FPCSEpochPeriod, "The period of generation a new random number in seconds.")
+	fpcsLowerBound := flag.Int("fpcsLowerBound", config.FPCSLowerBound, "The lower bound of the generated random number.")
+	fpcsUpperBound := flag.Int("fpcsUpperBound", config.FPCSUpperBound, "The upper bound of the generated random number")
 
 	// Parse the flags
 	flag.Parse()
@@ -108,6 +111,9 @@ func ParseFlags() {
 	config.RandomnessWS = *randomnessWS
 	config.NeighbourCountWS = *neighbourCountWS
 	config.SimulationMode = *simulationMode
+	config.FPCSEpochPeriod = *fpcsEpochPeriod
+	config.FPCSLowerBound = *fpcsLowerBound
+	config.FPCSUpperBound = *fpcsUpperBound
 	parseAccidentalConfig(accidentalMana)
 	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll, adversarySpeedup)
 	log.Info("Current configuration:")
@@ -143,6 +149,9 @@ func ParseFlags() {
 	log.Info("AccidentalMana: ", config.AccidentalMana)
 	log.Info("AdversaryPeeringAll: ", config.AdversaryPeeringAll)
 	log.Info("AdversarySpeedup: ", config.AdversarySpeedup)
+	log.Info("FPCSEpochPeriod: ", config.FPCSEpochPeriod)
+	log.Info("FPCSLowerBound: ", config.FPCSLowerBound)
+	log.Info("FPCSUpperBound: ", config.FPCSUpperBound)
 
 }
 

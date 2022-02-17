@@ -1,6 +1,8 @@
 package multiverse
 
 import (
+	"math/big"
+
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/network"
@@ -138,11 +140,13 @@ func (o *OpinionManager) UpdateConfirmation(oldOpinion Color, maxOpinion Color) 
 	if o.colorConfirmed && maxOpinion != oldOpinion {
 		o.colorConfirmed = false
 		o.Events().ColorUnconfirmed.Trigger(oldOpinion, int64(o.approvalWeights[o.ownOpinion]), int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
+		log.Debugf("Peer ID %d unconfirmed color %s", o.tangle.Peer.ID, oldOpinion)
 	}
 
 	if o.checkColorConfirmed(maxOpinion) && !o.colorConfirmed {
 		// Here we accumulate the approval weights in our local tangle.
 		o.Events().ColorConfirmed.Trigger(maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
+		log.Debugf("Peer ID %d confirmed color %s, ownOpinion %s", o.tangle.Peer.ID, maxOpinion, o.ownOpinion)
 		o.colorConfirmed = true
 	}
 }
@@ -156,22 +160,65 @@ func (o *OpinionManager) WeightsUpdated() {
 		o.ownOpinion = maxOpinion
 		o.Events().OpinionChanged.Trigger(oldOpinion, maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
 	}
+	log.Debugf("Peer ID %d WeightsUpdated(), ownOpinion %s", o.tangle.Peer.ID, o.ownOpinion)
 	o.UpdateConfirmation(oldOpinion, maxOpinion)
 }
 
 func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {
-	if config.WeightThresholdAbsolute {
-		return float64(o.approvalWeights[newOpinion]) > float64(config.NodesTotalWeight)*config.WeightThreshold
-	} else {
-		aw := make(map[Color]uint64)
-		for key, value := range o.approvalWeights {
-			if key != newOpinion {
-				aw[key] = value
-			}
-		}
-		alternativeOpinion := getMaxOpinion(aw)
-		return float64(o.approvalWeights[newOpinion])-float64(o.approvalWeights[alternativeOpinion]) > float64(config.NodesTotalWeight)*config.WeightThreshold
+	// The adversary will always make the color unconfirmed
+	if o.tangle.Peer.ID == 99 {
+		return false
 	}
+	if config.WeightThresholdRandom {
+		randomNumber := o.tangle.Fpcs.GetRandomNumber()
+
+		log.Debugf("Peer %d get randomNumber %f", o.tangle.Peer.ID, randomNumber)
+		// If the approval weight > randomNumber, confirm and voter for the color
+		if float64(o.approvalWeights[newOpinion]) > float64(config.NodesTotalWeight)*randomNumber {
+			log.Debugf("Peer %d with Color %s has weight %f > randomNumber*Weight %f",
+				o.tangle.Peer.ID, newOpinion.String(), float64(o.approvalWeights[newOpinion]), float64(config.NodesTotalWeight)*randomNumber)
+			return true
+		} else {
+			// Vote for the color with the minimum hash
+			var minHash big.Int
+			votedColor := UndefinedColor
+			for color := range o.approvalWeights {
+				if color != UndefinedColor {
+					if votedColor == UndefinedColor {
+						votedColor = color
+						minHash = o.tangle.Fpcs.GetHash(int(color), randomNumber)
+					} else {
+						newHash := o.tangle.Fpcs.GetHash(int(color), randomNumber)
+						// log.Debugf("Run FPCS, Peer %d calculate color %s with Hash %s", o.tangle.Peer.ID, color.String(), newHash.String())
+						// If newHash is smaller, update the votedColor and the minHash
+						if newHash.Cmp(&minHash) == -1 {
+							votedColor = color
+							minHash = newHash
+						}
+					}
+				}
+			}
+			log.Debugf("Run FPCS, Peer %d votes for color %s with minHash %s", o.tangle.Peer.ID, votedColor.String(), minHash.String())
+			// Vote for the votedColor
+			o.SetOpinion(votedColor)
+			return false
+		}
+
+	} else {
+		if config.WeightThresholdAbsolute {
+			return float64(o.approvalWeights[newOpinion]) > float64(config.NodesTotalWeight)*config.WeightThreshold
+		} else {
+			aw := make(map[Color]uint64)
+			for key, value := range o.approvalWeights {
+				if key != newOpinion {
+					aw[key] = value
+				}
+			}
+			alternativeOpinion := getMaxOpinion(aw)
+			return float64(o.approvalWeights[newOpinion])-float64(o.approvalWeights[alternativeOpinion]) > float64(config.NodesTotalWeight)*config.WeightThreshold
+		}
+	}
+
 }
 
 func getMaxOpinion(aw map[Color]uint64) Color {

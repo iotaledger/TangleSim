@@ -205,13 +205,14 @@ func dumpConfig(fileName string) {
 		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                    []int
 		AdversarySpeedup, AdversaryMana                                                                                                                                         []float64
 		AdversaryInitColor, AccidentalMana                                                                                                                                      []string
-		AdversaryPeeringAll                                                                                                                                                     bool
+		AdversaryPeeringAll, WeightThresholdRandom                                                                                                                              bool
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
 		NodesTotalWeight:        config.NodesTotalWeight,
 		ZipfParameter:           config.ZipfParameter,
 		WeightThreshold:         fmt.Sprintf("%.2f-%v", config.WeightThreshold, config.WeightThresholdAbsolute),
+		WeightThresholdRandom:   config.WeightThresholdRandom,
 		TipsCount:               config.TipsCount,
 		WeakTipsRatio:           config.WeakTipsRatio,
 		TSA:                     config.TSA,

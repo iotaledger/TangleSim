@@ -5,9 +5,10 @@ var (
 	NodesTotalWeight        = 100_000_000
 	ZipfParameter           = 0.0
 	WeightThreshold         = 0.66
-	WeightThresholdAbsolute = true
-	TipsCount               = 8   // The TipsCount for a message
-	WeakTipsRatio           = 0.0 // The ratio of weak tips
+	WeightThresholdAbsolute = false
+	WeightThresholdRandom   = true // If set to true, set the threshold to be in the range of [0.5,  WeightThreshold).
+	TipsCount               = 8    // The TipsCount for a message
+	WeakTipsRatio           = 0.0  // The ratio of weak tips
 	TSA                     = "URTS"
 	TPS                     = 100
 	DecelerationFactor      = 1                  // The factor to control the speed in the simulation.
@@ -28,12 +29,12 @@ var (
 	AccidentalMana          = []string{"random"} // Defines nodes which will be used: 'min', 'max', 'random' or valid nodeID
 	AdversaryDelays         = []int{}            // Delays in ms of adversary nodes, eg '50 100 200', SimulationTarget must be 'DS'
 	AdversaryTypes          = []int{4}           // Defines group attack strategy, one of the following: 0 - honest node behavior, 1 - shifts opinion, 2 - keeps the same opinion, 3 - nodes not gossiping anything, even DS. SimulationTarget must be 'DS', 4 - creating new opinion
-	AdversaryMana           = []float64{10}      // Adversary nodes mana in %, e.g. '10 10'. Default value: 1%. SimulationTarget must be 'DS'
+	AdversaryMana           = []float64{25}      // Adversary nodes mana in %, e.g. '10 10'. Default value: 1%. SimulationTarget must be 'DS'
 	AdversaryNodeCounts     = []int{1}           // Defines number of adversary nodes in the group. Leave empty for default value: 1.
 	AdversaryInitColors     = []string{"B"}      // Defines initial color for adversary group, one of following: 'R', 'G', 'B'. Mandatory for each group.
 	AdversaryPeeringAll     = false              // Defines a flag indicating whether adversarial nodes should be able to send messages to all nodes in the network, instead of following regular peering algorithm.
 	AdversarySpeedup        = []float64{1.0}     // Defines how many more messages should adversary nodes issue.
-	FPCSEpochPeriod         = 5                  // The period of generation a new random number in seconds.
+	FPCSEpochPeriod         = 10                 // The period of generation a new random number in seconds.
 	FPCSLowerBound          = 500                // The lower bound of the generated random number.
 	FPCSUpperBound          = 660                // The upper bound of the generated random number.
 )

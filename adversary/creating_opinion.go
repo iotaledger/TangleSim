@@ -53,7 +53,7 @@ func (sm *CreatingOpinionManager) FormOpinion(messageID multiverse.MessageID) {
 func (sm *CreatingOpinionManager) weightsUpdated() {
 	// Always confirm on a new color, mod 30 to avoid out of memory
 	oldOpinion := sm.Opinion()
-	newOpinion := (int(oldOpinion) + 1) % 30
+	newOpinion := (int(oldOpinion) + 1) % 20
 	newOpinionColor := multiverse.ColorFromInt(newOpinion)
 	sm.SetOpinion(newOpinionColor)
 	sm.UpdateConfirmation(oldOpinion, newOpinionColor)

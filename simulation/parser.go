@@ -25,6 +25,8 @@ func ParseFlags() {
 		flag.Float64("weightThreshold", config.WeightThreshold, "The weightThreshold of confirmed messages/color")
 	weightThresholdAbsolutePtr :=
 		flag.Bool("weightThresholdAbsolute", config.WeightThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
+	weightThresholdRandomPtr :=
+		flag.Bool("weightThresholdRandom", config.WeightThresholdRandom, "If set to true, set the threshold to be in the range of [0.5,  WeightThreshold).")
 	tipsCountPtr :=
 		flag.Int("tipsCount", config.TipsCount, "The tips count for a message")
 	weakTipsRatioPtr :=
@@ -92,6 +94,7 @@ func ParseFlags() {
 	config.ZipfParameter = *zipfParameterPtr
 	config.WeightThreshold = *weightThresholdPtr
 	config.WeightThresholdAbsolute = *weightThresholdAbsolutePtr
+	config.WeightThresholdRandom = *weightThresholdRandomPtr
 	config.TipsCount = *tipsCountPtr
 	config.WeakTipsRatio = *weakTipsRatioPtr
 	config.TSA = *tsaPtr
@@ -122,6 +125,7 @@ func ParseFlags() {
 	log.Info("ZipfParameter: ", config.ZipfParameter)
 	log.Info("WeightThreshold: ", config.WeightThreshold)
 	log.Info("WeightThresholdAbsolute: ", config.WeightThresholdAbsolute)
+	log.Info("WeightThresholdRandom: ", config.WeightThresholdRandom)
 	log.Info("TipsCount: ", config.TipsCount)
 	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
 	log.Info("TSA: ", config.TSA)

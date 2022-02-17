@@ -12,17 +12,9 @@ import (
 	"github.com/iotaledger/multivers-simulation/logger"
 )
 
-func getRandomNumber(lowerBound int, upperBound int) int {
+func generateNumber(lowerBound int, upperBound int) int {
 	n := rng.Intn(upperBound - lowerBound)
 	return lowerBound + n
-}
-
-func getHash(color int, randomNumber int) big.Int {
-	n := new(big.Int)
-	bs := []byte(strconv.Itoa(color + randomNumber))
-	sum := sha256.Sum256(bs)
-	n.SetBytes(sum[:])
-	return *n
 }
 
 // The granularity of the theta (confirmation threshold) in the rng is 0.001
@@ -75,8 +67,22 @@ func (fpcs *FPCS) Shutdown() {
 func (fpcs *FPCS) updateRandomNumber() {
 	fpcs.mutex.Lock()
 	defer fpcs.mutex.Unlock()
-	fpcs.randomNumber = getRandomNumber(fpcs.lowerBound, fpcs.upperBound)
+	fpcs.randomNumber = generateNumber(fpcs.lowerBound, fpcs.upperBound)
 	log.Debugf("Generated random number: %d", fpcs.randomNumber)
+}
+
+func (fpcs *FPCS) GetRandomNumber() float64 {
+	fpcs.mutex.RLock()
+	defer fpcs.mutex.RUnlock()
+	return float64(fpcs.randomNumber) / granularity
+}
+
+func (fpcs *FPCS) GetHash(color int, randomNumber float64) big.Int {
+	n := new(big.Int)
+	bs := []byte(strconv.Itoa(color + int(randomNumber*granularity)))
+	sum := sha256.Sum256(bs)
+	n.SetBytes(sum[:])
+	return *n
 }
 
 // endregion //////////////////////////////////////////////////////////////////////////////////////////////////////

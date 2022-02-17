@@ -1,8 +1,10 @@
 package network
 
+import "github.com/iotaledger/multivers-simulation/fpcs"
+
 // region Node /////////////////////////////////////////////////////////////////////////////////////////////////////////
 type Node interface {
-	Setup(peer *Peer, weightDistribution *ConsensusWeightDistribution)
+	Setup(peer *Peer, weightDistribution *ConsensusWeightDistribution, fpcs *fpcs.FPCS)
 	HandleNetworkMessage(networkMessage interface{})
 }
 

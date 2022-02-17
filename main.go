@@ -87,7 +87,13 @@ func main() {
 		network.NoGossip:       network.NodeClosure(adversary.NewNoGossipNode),
 		network.CreateOpinion:  network.NodeClosure(adversary.NewCreatingOpinionNode),
 	}
+
+	fpcs := fpcs.NewFPCS(config.FPCSEpochPeriod, config.FPCSLowerBound, config.FPCSUpperBound)
+	go fpcs.Run()
+	defer fpcs.Shutdown()
+
 	testNetwork := network.New(
+		fpcs,
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
 			config.ZipfParameter)),
 		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
@@ -99,10 +105,6 @@ func main() {
 	)
 	testNetwork.Start()
 	defer testNetwork.Shutdown()
-
-	fpcs := fpcs.NewFPCS(config.FPCSEpochPeriod, config.FPCSLowerBound, config.FPCSUpperBound)
-	go fpcs.Run()
-	defer fpcs.Shutdown()
 
 	resultsWriters := monitorNetworkState(testNetwork)
 	defer flushWriters(resultsWriters)

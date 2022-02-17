@@ -8,6 +8,7 @@ import (
 
 	"github.com/iotaledger/hive.go/crypto"
 	"github.com/iotaledger/hive.go/timedexecutor"
+	"github.com/iotaledger/multivers-simulation/fpcs"
 )
 
 // region Peer /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,8 +38,8 @@ func NewPeer(node Node) (peer *Peer) {
 	return
 }
 
-func (p *Peer) SetupNode(consensusWeightDistribution *ConsensusWeightDistribution) {
-	p.Node.Setup(p, consensusWeightDistribution)
+func (p *Peer) SetupNode(consensusWeightDistribution *ConsensusWeightDistribution, fpcs *fpcs.FPCS) {
+	p.Node.Setup(p, consensusWeightDistribution, fpcs)
 }
 
 func (p *Peer) Start() {

@@ -2,6 +2,7 @@ package multiverse
 
 import (
 	"github.com/iotaledger/multivers-simulation/config"
+	"github.com/iotaledger/multivers-simulation/fpcs"
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
@@ -17,6 +18,7 @@ type Tangle struct {
 	TipManager         *TipManager
 	MessageFactory     *MessageFactory
 	Utils              *Utils
+	Fpcs               *fpcs.FPCS
 }
 
 func NewTangle() (tangle *Tangle) {
@@ -35,9 +37,10 @@ func NewTangle() (tangle *Tangle) {
 	return
 }
 
-func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution) {
+func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution, fpcs *fpcs.FPCS) {
 	t.Peer = peer
 	t.WeightDistribution = weightDistribution
+	t.Fpcs = fpcs
 
 	t.Solidifier.Setup()
 	t.Requester.Setup()

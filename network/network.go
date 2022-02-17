@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/multivers-simulation/config"
+	"github.com/iotaledger/multivers-simulation/fpcs"
 	"github.com/iotaledger/multivers-simulation/logger"
 
 	"github.com/iotaledger/hive.go/crypto"
@@ -18,19 +19,21 @@ type Network struct {
 	Peers              []*Peer
 	WeightDistribution *ConsensusWeightDistribution
 	AdversaryGroups    AdversaryGroups
+	Fpcs               *fpcs.FPCS
 }
 
-func New(option ...Option) (network *Network) {
+func New(fpcs *fpcs.FPCS, option ...Option) (network *Network) {
 	log.Debug("Creating Network ...")
 	defer log.Info("Creating Network ... [DONE]")
 
 	network = &Network{
 		Peers:           make([]*Peer, 0),
 		AdversaryGroups: NewAdversaryGroups(),
+		Fpcs:            fpcs,
 	}
 
 	configuration := NewConfiguration(option...)
-	configuration.CreatePeers(network)
+	configuration.CreatePeers(network, fpcs)
 	configuration.ConnectPeers(network)
 
 	return
@@ -95,7 +98,7 @@ func (c *Configuration) RandomPacketLoss() float64 {
 	return c.minPacketLoss + crypto.Randomness.Float64()*(c.maxPacketLoss-c.minPacketLoss)
 }
 
-func (c *Configuration) CreatePeers(network *Network) {
+func (c *Configuration) CreatePeers(network *Network, fpcs *fpcs.FPCS) {
 	log.Debugf("Creating peers ...")
 	defer log.Info("Creating peers ... [DONE]")
 
@@ -120,7 +123,7 @@ func (c *Configuration) CreatePeers(network *Network) {
 			log.Debugf("Created %s ... [DONE]", peer)
 
 			network.WeightDistribution.SetWeight(peer.ID, nodeWeights[i])
-			peer.SetupNode(network.WeightDistribution)
+			peer.SetupNode(network.WeightDistribution, fpcs)
 		}
 	}
 }

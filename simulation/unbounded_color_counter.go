@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"bytes"
 	"fmt"
 	"sync"
 
@@ -44,7 +45,60 @@ func (ac *AtomicUnboundedColorCounter) Get(counterKey string, color multiverse.C
 	return counter[color].Load()
 }
 
-func (ac *AtomicUnboundedColorCounter) GeColorWithMaxCount(counterKey string) multiverse.Color {
+func (ac *AtomicUnboundedColorCounter) GetHonestColorWithMaxCount(counterKey string, adversaryCounters *AtomicUnboundedColorCounter) multiverse.Color {
+	ac.countersMutex.RLock()
+	adversaryCounters.countersMutex.RLock()
+	defer ac.countersMutex.RUnlock()
+	defer adversaryCounters.countersMutex.RUnlock()
+	counter, ok := ac.counters[counterKey]
+	if !ok {
+		panic(fmt.Sprintf("Trying get from not initiated counter, key: %s", counterKey))
+	}
+	adCounter, ok := adversaryCounters.counters[counterKey]
+	if !ok {
+		panic(fmt.Sprintf("Trying get from not initiated counter, key: %s", counterKey))
+	}
+
+	colorWithMaxValue := multiverse.UndefinedColor
+	maxCount := int64(0)
+	for color, count := range counter {
+		currentCount := count.Load()
+		adCount := int64(0)
+		if val, ok := adCounter[color]; ok {
+			adCount = val.Load()
+		}
+		currentCount -= adCount
+		if currentCount >= maxCount {
+			colorWithMaxValue = color
+			maxCount = currentCount
+		}
+	}
+	return colorWithMaxValue
+}
+
+func (ac *AtomicUnboundedColorCounter) GetColorNodes(counterKey string) string {
+	ac.countersMutex.RLock()
+	defer ac.countersMutex.RUnlock()
+	counter, ok := ac.counters[counterKey]
+	if !ok {
+		panic(fmt.Sprintf("Trying get from not initiated counter, key: %s", counterKey))
+	}
+	var b bytes.Buffer
+	b.WriteString(fmt.Sprintf("Network Status: %s Consensus[ ", counterKey))
+	for color, count := range counter {
+		currentCount := count.Load()
+		if currentCount > 100 {
+			panic(fmt.Sprintf("Color %s has count %d", color.String(), currentCount))
+		}
+		if currentCount != 0 {
+			b.WriteString(fmt.Sprintf(" %3d %s", currentCount, color.String()))
+		}
+	}
+	b.WriteString(" ]")
+	return b.String()
+}
+
+func (ac *AtomicUnboundedColorCounter) GetColorWithMaxCount(counterKey string) (multiverse.Color, int64) {
 	ac.countersMutex.RLock()
 	defer ac.countersMutex.RUnlock()
 	counter, ok := ac.counters[counterKey]
@@ -55,38 +109,10 @@ func (ac *AtomicUnboundedColorCounter) GeColorWithMaxCount(counterKey string) mu
 	maxCount := int64(0)
 	for color, count := range counter {
 		currentCount := count.Load()
+		log.Debugf("GetHonestColorWithMaxCount color %s count %d", color.String(), currentCount)
 		if currentCount >= maxCount {
 			colorWithMaxValue = color
 			maxCount = currentCount
-		}
-	}
-	return colorWithMaxValue
-}
-
-func (ac *AtomicUnboundedColorCounter) GeHonestColorWithMaxCount(counterKey string, acAdversary *AtomicUnboundedColorCounter) (multiverse.Color, int64) {
-	ac.countersMutex.RLock()
-	acAdversary.countersMutex.RLock()
-	defer ac.countersMutex.RUnlock()
-	defer acAdversary.countersMutex.RUnlock()
-	counter, ok := ac.counters[counterKey]
-	if !ok {
-		panic(fmt.Sprintf("Trying get from not initiated counter, key: %s", counterKey))
-	}
-	adCounter, ok := acAdversary.counters[counterKey]
-	if !ok {
-		panic(fmt.Sprintf("Trying get from not initiated counter, key: %s", counterKey))
-	}
-
-	colorWithMaxValue := multiverse.UndefinedColor
-	maxCount := int64(0)
-	for color, count := range counter {
-		adCount, ok := adCounter[color]
-		if ok {
-			currentCount := count.Load() - adCount.Load()
-			if currentCount >= maxCount {
-				colorWithMaxValue = color
-				maxCount = currentCount
-			}
 		}
 	}
 	return colorWithMaxValue, maxCount

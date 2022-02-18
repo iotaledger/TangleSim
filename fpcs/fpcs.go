@@ -46,6 +46,7 @@ func NewFPCS(epochPeriod int, lowerBound int, upperBound int) *FPCS {
 		upperBound:   upperBound,
 		shutdown:     make(chan types.Empty),
 	}
+	fpcs.updateRandomNumber()
 	return fpcs
 }
 

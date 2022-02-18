@@ -199,13 +199,13 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
-		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                 string
-		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                    []int
-		AdversarySpeedup, AdversaryMana                                                                                                                                         []float64
-		AdversaryInitColor, AccidentalMana                                                                                                                                      []string
-		AdversaryPeeringAll, WeightThresholdRandom                                                                                                                              bool
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS, FPCSEpochPeriod, FPCSLowerBound, FPCSUpperBound int
+		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                                              float64
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                                                                  string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                                                     []int
+		AdversarySpeedup, AdversaryMana                                                                                                                                                                                          []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                                                                       []string
+		AdversaryPeeringAll, WeightThresholdRandom                                                                                                                                                                               bool
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -240,6 +240,9 @@ func dumpConfig(fileName string) {
 		AccidentalMana:          config.AccidentalMana,
 		AdversaryPeeringAll:     config.AdversaryPeeringAll,
 		AdversarySpeedup:        config.AdversarySpeedup,
+		FPCSEpochPeriod:         config.FPCSEpochPeriod,
+		FPCSLowerBound:          config.FPCSLowerBound,
+		FPCSUpperBound:          config.FPCSUpperBound,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")
@@ -391,7 +394,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			colorCounters.Add("likeAccumulatedWeight", oldOpinion, -weight)
 			colorCounters.Add("likeAccumulatedWeight", newOpinion, weight)
 
-			currentMostLikedColor := colorCounters.GeColorWithMaxCount("opinions")
+			currentMostLikedColor, _ := colorCounters.GetColorWithMaxCount("opinions")
 			if currentMostLikedColor != mostLikedColor {
 				atomicCounters.Add("flips", 1)
 				mostLikedColor = currentMostLikedColor
@@ -407,7 +410,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				adversaryCounters.Add("opinions", newOpinion, 1)
 			}
 
-			currentHonestOnlyMostLikedColor, _ := colorCounters.GeHonestColorWithMaxCount("opinions", adversaryCounters)
+			currentHonestOnlyMostLikedColor := colorCounters.GetHonestColorWithMaxCount("opinions", adversaryCounters)
 			if currentHonestOnlyMostLikedColor != honestOnlyMostLikedColor {
 				atomicCounters.Add("honestFlips", 1)
 				honestOnlyMostLikedColor = currentHonestOnlyMostLikedColor
@@ -489,22 +492,8 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 	simulationWg.Add(1)
 	simulationWg.Done()
 
-	log.Infof("New opinions counter[ %3d Undefined / %3d Blue / %3d Red / %3d Green ]",
-		colorCounters.Get("opinions", multiverse.UndefinedColor),
-		colorCounters.Get("opinions", multiverse.Blue),
-		colorCounters.Get("opinions", multiverse.Red),
-		colorCounters.Get("opinions", multiverse.Green),
-	)
-	log.Infof("Network Status: %3d TPS :: Consensus[ %3d Undefined / %3d Blue / %3d Red / %3d Green ] :: %d  Honest Nodes :: %d Adversary Nodes :: %d Validators",
-		atomicCounters.Get("tps"),
-		colorCounters.Get("confirmedNodes", multiverse.UndefinedColor),
-		colorCounters.Get("confirmedNodes", multiverse.Blue),
-		colorCounters.Get("confirmedNodes", multiverse.Red),
-		colorCounters.Get("confirmedNodes", multiverse.Green),
-		honestNodesCount,
-		adversaryNodesCount,
-		atomicCounters.Get("relevantValidators"),
-	)
+	log.Infof("%s", colorCounters.GetColorNodes("confirmedNodes"))
+	log.Infof("%s", colorCounters.GetColorNodes("opinions"))
 
 	sinceIssuance := "0"
 	if !dsIssuanceTime.IsZero() {
@@ -517,12 +506,12 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 	dumpResultsCC(ccResultsWriter, sinceIssuance)
 
 	// determines whether consensus has been reached and simulation is over
-
-	// r, g, b := getLikesPerRGB(colorCounters, "confirmedNodes")
-	// aR, aG, aB := getLikesPerRGB(adversaryCounters, "confirmedNodes")
-	// hR, hG, hB := r-aR, g-aG, b-aB
-	_, honestConfirmedNodeCount := colorCounters.GeHonestColorWithMaxCount("confirmedNodes", adversaryCounters)
+	// Note that the adversary will never confirm a branch, so we can get count by the colorCounters
+	_, honestConfirmedNodeCount := colorCounters.GetColorWithMaxCount("confirmedNodes")
+	log.Debugf("honestConfirmedNodeCount %d", honestConfirmedNodeCount)
 	if honestConfirmedNodeCount >= int64(config.SimulationStopThreshold*float64(honestNodesCount)) {
+		log.Infof("%s", colorCounters.GetColorNodes("confirmedNodes"))
+		log.Infof("%s", colorCounters.GetColorNodes("opinions"))
 		shutdownSignal <- types.Void
 	}
 	atomicCounters.Set("tps", 0)

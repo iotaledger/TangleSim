@@ -137,12 +137,11 @@ func (o *OpinionManager) SetOpinion(opinion Color) {
 }
 
 func (o *OpinionManager) UpdateConfirmation(oldOpinion Color, maxOpinion Color) {
-	if o.colorConfirmed && maxOpinion != oldOpinion {
+	if o.colorConfirmed && (maxOpinion != oldOpinion) {
 		o.colorConfirmed = false
 		o.Events().ColorUnconfirmed.Trigger(oldOpinion, int64(o.approvalWeights[o.ownOpinion]), int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
 		log.Debugf("Peer ID %d unconfirmed color %s", o.tangle.Peer.ID, oldOpinion)
 	}
-
 	if o.checkColorConfirmed(maxOpinion) && !o.colorConfirmed {
 		// Here we accumulate the approval weights in our local tangle.
 		o.Events().ColorConfirmed.Trigger(maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
@@ -154,14 +153,24 @@ func (o *OpinionManager) UpdateConfirmation(oldOpinion Color, maxOpinion Color) 
 // Update the opinions counter and ownOpinion based on the highest peer color value and maxApprovalWeight
 // Each Color has approvalWeight. The Color with maxApprovalWeight determines the ownOpinion
 func (o *OpinionManager) WeightsUpdated() {
-	maxOpinion := getMaxOpinion(o.approvalWeights)
-	oldOpinion := o.ownOpinion
-	if maxOpinion != oldOpinion {
-		o.ownOpinion = maxOpinion
-		o.Events().OpinionChanged.Trigger(oldOpinion, maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
+	if config.WeightThresholdRandom {
+		maxOpinion := getMaxOpinion(o.approvalWeights)
+		oldOpinion := o.ownOpinion
+		// Check if current ownOpinion is already the maxOpinion
+		// Note that the opinionchanged for FPCS is triggered in UpdateConfirmation()
+		o.UpdateConfirmation(oldOpinion, maxOpinion)
+		newOpinion := o.ownOpinion
+		log.Debugf("Peer ID %d WeightsUpdated(), oldOpinion %s newOpinion %s", o.tangle.Peer.ID, oldOpinion, newOpinion)
+	} else {
+		maxOpinion := getMaxOpinion(o.approvalWeights)
+		oldOpinion := o.ownOpinion
+		if maxOpinion != oldOpinion {
+			o.ownOpinion = maxOpinion
+			o.Events().OpinionChanged.Trigger(oldOpinion, maxOpinion, int64(o.tangle.WeightDistribution.Weight(o.tangle.Peer.ID)))
+		}
+		log.Debugf("Peer ID %d WeightsUpdated(), ownOpinion %s", o.tangle.Peer.ID, o.ownOpinion)
+		o.UpdateConfirmation(oldOpinion, maxOpinion)
 	}
-	log.Debugf("Peer ID %d WeightsUpdated(), ownOpinion %s", o.tangle.Peer.ID, o.ownOpinion)
-	o.UpdateConfirmation(oldOpinion, maxOpinion)
 }
 
 func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {
@@ -172,7 +181,7 @@ func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {
 	if config.WeightThresholdRandom {
 		randomNumber := o.tangle.Fpcs.GetRandomNumber()
 
-		log.Debugf("Peer %d get randomNumber %f", o.tangle.Peer.ID, randomNumber)
+		// log.Debugf("Peer %d get randomNumber %f", o.tangle.Peer.ID, randomNumber)
 		// If the approval weight > randomNumber, confirm and voter for the color
 		if float64(o.approvalWeights[newOpinion]) > float64(config.NodesTotalWeight)*randomNumber {
 			log.Debugf("Peer %d with Color %s has weight %f > randomNumber*Weight %f",
@@ -198,7 +207,7 @@ func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {
 					}
 				}
 			}
-			log.Debugf("Run FPCS, Peer %d votes for color %s with minHash %s", o.tangle.Peer.ID, votedColor.String(), minHash.String())
+			log.Debugf("Run FPCS, Peer %d votes for color %s with minHash %s, %d colors", o.tangle.Peer.ID, votedColor.String(), minHash.String(), len(o.approvalWeights))
 			// Vote for the votedColor
 			o.SetOpinion(votedColor)
 			return false

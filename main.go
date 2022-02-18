@@ -86,7 +86,7 @@ func main() {
 		network.TheSameOpinion: network.NodeClosure(adversary.NewSameOpinionNode),
 		network.NoGossip:       network.NodeClosure(adversary.NewNoGossipNode),
 	}
-	godMode := godmode.NewGodMode(config.SimulationMode, config.GodMana, config.GodDelay, config.GodNodeSplit, config.NodesCount)
+	godMode := godmode.NewGodMode(config.SimulationMode, config.GodMana, config.GodDelay, config.NodesTotalWeight, config.NodesCount)
 
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(

@@ -106,7 +106,7 @@ func (c *Configuration) CreatePeers(network *Network) {
 
 	for _, nodesSpecification := range c.nodes {
 		if c.godMode.Enabled() {
-			nodesSpecification.UpdateNodesCount(c.godMode.InitialNodeCount() + c.godMode.Split())
+			nodesSpecification.UpdateNodesCount(c.godMode.InitialNodeCount() + 3)
 		}
 		nodeWeights := nodesSpecification.ConfigureWeights(network)
 		if c.godMode.Enabled() {
@@ -207,7 +207,7 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 			nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
 		case "God":
 			totalWeight = float64((100-config.GodMana)*config.NodesTotalWeight) / 100
-			nodeWeights = n.weightGenerator(config.NodesCount-config.GodNodeSplit, totalWeight)
+			nodeWeights = n.weightGenerator(config.NodesCount-3, totalWeight)
 		}
 	} else {
 		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))

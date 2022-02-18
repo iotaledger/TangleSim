@@ -82,13 +82,11 @@ func (p *Peer) run() {
 			return
 		case networkMessage := <-p.Socket:
 			p.mu.Lock()
-			log.Debugf("Peer ID %d processing HONEST message, Honest Channel Size %d, God Channel Size %d", p.ID, len(p.Socket), len(p.GodSocket))
 			p.Node.HandleNetworkMessage(networkMessage)
 			p.mu.Unlock()
 
 		case networkMessage := <-p.GodSocket:
 			p.mu.Lock()
-			log.Debugf("Peer ID %d processing GOD message, Honest Channel Size %d, God Channel Size %d", p.ID, len(p.Socket), len(p.GodSocket))
 			p.Node.HandleNetworkMessage(networkMessage)
 			p.mu.Unlock()
 

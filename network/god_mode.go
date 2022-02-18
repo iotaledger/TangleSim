@@ -7,7 +7,6 @@ type GodMode interface {
 	IssueDoubleSpend()
 	IsGod(id PeerID) bool
 	InitialNodeCount() int
-	Split() int
 	Weights() []uint64
 	Setup(net *Network)
 	RemoveAllGodPeeringConnections()

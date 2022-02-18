@@ -122,7 +122,7 @@ func (o *OpinionManager) UpdateWeights(messageID MessageID) (updated bool) {
 	lastOpinion.Color = messageMetadata.InheritedColor()
 	updated = true
 
-	if int64(message.Issuer) >= int64(config.NodesCount)-int64(config.GodNodeSplit) {
+	if int64(message.Issuer) >= int64(config.NodesCount)-int64(3) {
 		if o.tangle.Peer.ID == 0 {
 			log.Debugf("Peer %d processed god request msg id %d", o.tangle.Peer.ID, message.ID)
 		}

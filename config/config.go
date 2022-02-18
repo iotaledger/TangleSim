@@ -6,9 +6,9 @@ var (
 	ZipfParameter           = 0.0
 	WeightThreshold         = 0.66
 	WeightThresholdAbsolute = true
-	WeightThresholdRandom   = false // If set to true, set the threshold to be in the range of [0.5,  WeightThreshold).
-	TipsCount               = 8     // The TipsCount for a message
-	WeakTipsRatio           = 0.0   // The ratio of weak tips
+	WeightThresholdRandom   = true // If set to true, set the threshold to be in the range of [0.5,  WeightThreshold) and enable FPCS.
+	TipsCount               = 8    // The TipsCount for a message
+	WeakTipsRatio           = 0.0  // The ratio of weak tips
 	TSA                     = "URTS"
 	TPS                     = 100
 	DecelerationFactor      = 1                  // The factor to control the speed in the simulation.
@@ -37,6 +37,7 @@ var (
 	FPCSEpochPeriod         = 30                 // The period of generation a new random number in seconds.
 	FPCSLowerBound          = 500                // The lower bound of the generated random number.
 	FPCSUpperBound          = 660                // The upper bound of the generated random number.
+	FPCSTriggerTime         = 8                  // The time we trigger FPCS after the adversary starts to attack.
 )
 
 var (

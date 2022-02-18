@@ -34,6 +34,7 @@ type FPCS struct {
 	randomNumber int
 	lowerBound   int
 	upperBound   int
+	start        bool
 	mutex        sync.RWMutex
 	shutdown     chan types.Empty
 }
@@ -45,12 +46,14 @@ func NewFPCS(epochPeriod int, lowerBound int, upperBound int) *FPCS {
 		lowerBound:   lowerBound,
 		upperBound:   upperBound,
 		shutdown:     make(chan types.Empty),
+		start:        false,
 	}
 	fpcs.updateRandomNumber()
 	return fpcs
 }
 
 func (fpcs *FPCS) Run() {
+	fpcs.setStart(true)
 	for {
 		select {
 		case <-fpcs.shutdown:
@@ -59,6 +62,12 @@ func (fpcs *FPCS) Run() {
 			go fpcs.updateRandomNumber()
 		}
 	}
+}
+
+func (fpcs *FPCS) setStart(start bool) {
+	fpcs.mutex.Lock()
+	defer fpcs.mutex.Unlock()
+	fpcs.start = start
 }
 
 func (fpcs *FPCS) Shutdown() {
@@ -70,6 +79,12 @@ func (fpcs *FPCS) updateRandomNumber() {
 	defer fpcs.mutex.Unlock()
 	fpcs.randomNumber = generateNumber(fpcs.lowerBound, fpcs.upperBound)
 	log.Debugf("Generated random number: %d", fpcs.randomNumber)
+}
+
+func (fpcs *FPCS) IsStart() bool {
+	fpcs.mutex.RLock()
+	defer fpcs.mutex.RUnlock()
+	return fpcs.start
 }
 
 func (fpcs *FPCS) GetRandomNumber() float64 {

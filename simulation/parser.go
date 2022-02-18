@@ -26,7 +26,7 @@ func ParseFlags() {
 	weightThresholdAbsolutePtr :=
 		flag.Bool("weightThresholdAbsolute", config.WeightThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
 	weightThresholdRandomPtr :=
-		flag.Bool("weightThresholdRandom", config.WeightThresholdRandom, "If set to true, set the threshold to be in the range of [0.5,  WeightThreshold).")
+		flag.Bool("weightThresholdRandom", config.WeightThresholdRandom, "If set to true, set the threshold to be in the range of [0.5,  WeightThreshold) and enable FPCS.")
 	tipsCountPtr :=
 		flag.Int("tipsCount", config.TipsCount, "The tips count for a message")
 	weakTipsRatioPtr :=
@@ -83,7 +83,8 @@ func ParseFlags() {
 		flag.Bool("adversaryPeeringAll", config.AdversaryPeeringAll, "Flag indicating whether adversary nodes should be able to gossip messages to all nodes in the network directly, or should follow the peering algorithm.")
 	fpcsEpochPeriod := flag.Int("fpcsEpochPeriod", config.FPCSEpochPeriod, "The period of generation a new random number in seconds.")
 	fpcsLowerBound := flag.Int("fpcsLowerBound", config.FPCSLowerBound, "The lower bound of the generated random number.")
-	fpcsUpperBound := flag.Int("fpcsUpperBound", config.FPCSUpperBound, "The upper bound of the generated random number")
+	fpcsUpperBound := flag.Int("fpcsUpperBound", config.FPCSUpperBound, "The upper bound of the generated random number.")
+	fpcsTriggerTime := flag.Int("fpcsTriggerTIme", config.FPCSTriggerTime, "The time we trigger FPCS after the adversary starts to attack.")
 
 	// Parse the flags
 	flag.Parse()
@@ -117,6 +118,7 @@ func ParseFlags() {
 	config.FPCSEpochPeriod = *fpcsEpochPeriod
 	config.FPCSLowerBound = *fpcsLowerBound
 	config.FPCSUpperBound = *fpcsUpperBound
+	config.FPCSTriggerTime = *fpcsTriggerTime
 	parseAccidentalConfig(accidentalMana)
 	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll, adversarySpeedup)
 	log.Info("Current configuration:")
@@ -156,6 +158,7 @@ func ParseFlags() {
 	log.Info("FPCSEpochPeriod: ", config.FPCSEpochPeriod)
 	log.Info("FPCSLowerBound: ", config.FPCSLowerBound)
 	log.Info("FPCSUpperBound: ", config.FPCSUpperBound)
+	log.Info("FPCSTriggerTime: ", config.FPCSTriggerTime)
 
 }
 

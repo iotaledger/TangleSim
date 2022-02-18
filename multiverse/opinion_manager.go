@@ -153,7 +153,7 @@ func (o *OpinionManager) UpdateConfirmation(oldOpinion Color, maxOpinion Color) 
 // Update the opinions counter and ownOpinion based on the highest peer color value and maxApprovalWeight
 // Each Color has approvalWeight. The Color with maxApprovalWeight determines the ownOpinion
 func (o *OpinionManager) WeightsUpdated() {
-	if config.WeightThresholdRandom {
+	if config.WeightThresholdRandom && o.tangle.Fpcs.IsStart() {
 		maxOpinion := getMaxOpinion(o.approvalWeights)
 		oldOpinion := o.ownOpinion
 		// Check if current ownOpinion is already the maxOpinion
@@ -178,7 +178,7 @@ func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {
 	if o.tangle.Peer.ID == 99 {
 		return false
 	}
-	if config.WeightThresholdRandom {
+	if config.WeightThresholdRandom && o.tangle.Fpcs.IsStart() {
 		randomNumber := o.tangle.Fpcs.GetRandomNumber()
 
 		// log.Debugf("Peer %d get randomNumber %f", o.tangle.Peer.ID, randomNumber)

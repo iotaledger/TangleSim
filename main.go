@@ -89,8 +89,6 @@ func main() {
 	}
 
 	fpcs := fpcs.NewFPCS(config.FPCSEpochPeriod, config.FPCSLowerBound, config.FPCSUpperBound)
-	go fpcs.Run()
-	defer fpcs.Shutdown()
 
 	testNetwork := network.New(
 		fpcs,
@@ -113,6 +111,13 @@ func main() {
 	// To simulate the confirmation time w/o any double spending, the colored msgs are not to be sent
 	if config.SimulationTarget == "DS" {
 		SimulateDoubleSpent(testNetwork)
+	}
+
+	if config.WeightThresholdRandom {
+		time.Sleep(time.Duration(config.FPCSTriggerTime*config.DecelerationFactor) * time.Second)
+		log.Info("Start FPCS...")
+		go fpcs.Run()
+		defer fpcs.Shutdown()
 	}
 
 	select {
@@ -199,13 +204,13 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS, FPCSEpochPeriod, FPCSLowerBound, FPCSUpperBound int
-		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                                              float64
-		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                                                                  string
-		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                                                     []int
-		AdversarySpeedup, AdversaryMana                                                                                                                                                                                          []float64
-		AdversaryInitColor, AccidentalMana                                                                                                                                                                                       []string
-		AdversaryPeeringAll, WeightThresholdRandom                                                                                                                                                                               bool
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS, FPCSEpochPeriod, FPCSLowerBound, FPCSUpperBound, FPCSTriggerTime int
+		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                                                               float64
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                                                                                   string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                                                                      []int
+		AdversarySpeedup, AdversaryMana                                                                                                                                                                                                           []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                                                                                        []string
+		AdversaryPeeringAll, WeightThresholdRandom                                                                                                                                                                                                bool
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -243,6 +248,7 @@ func dumpConfig(fileName string) {
 		FPCSEpochPeriod:         config.FPCSEpochPeriod,
 		FPCSLowerBound:          config.FPCSLowerBound,
 		FPCSUpperBound:          config.FPCSUpperBound,
+		FPCSTriggerTime:         config.FPCSTriggerTime,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")

@@ -87,9 +87,9 @@ func (ac *AtomicUnboundedColorCounter) GetColorNodes(counterKey string) string {
 	b.WriteString(fmt.Sprintf("Network Status: %s Consensus[ ", counterKey))
 	for color, count := range counter {
 		currentCount := count.Load()
-		if currentCount > 100 {
-			panic(fmt.Sprintf("Color %s has count %d", color.String(), currentCount))
-		}
+		// if currentCount > 100 {
+		// 	panic(fmt.Sprintf("Color %s has count %d", color.String(), currentCount))
+		// }
 		if currentCount != 0 {
 			b.WriteString(fmt.Sprintf(" %3d %s", currentCount, color.String()))
 		}

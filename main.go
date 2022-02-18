@@ -88,7 +88,7 @@ func main() {
 		network.CreateOpinion:  network.NodeClosure(adversary.NewCreatingOpinionNode),
 	}
 
-	fpcs := fpcs.NewFPCS(config.FPCSEpochPeriod, config.FPCSLowerBound, config.FPCSUpperBound)
+	fpcs := fpcs.NewFPCS(config.FPCSEpochPeriod*config.DecelerationFactor, config.FPCSLowerBound, config.FPCSUpperBound)
 
 	testNetwork := network.New(
 		fpcs,

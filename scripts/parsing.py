@@ -151,6 +151,10 @@ class FileParser:
         adversary_confirmed_aw_red = data['Red (Confirmed Adversary Weight)']
 
         convergence_time = data['ns since issuance'].iloc[-1]
+        # If the time gap is larger than 150ms, then it is introduced by the sleeping time of FPCS
+        sec_latest_convergence_time = data['ns since issuance'].iloc[-2]
+        if (convergence_time - 150000000) > sec_latest_convergence_time:
+            convergence_time = sec_latest_convergence_time
         convergence_time /= self.one_second
         convergence_time /= float(c["DecelerationFactor"])
 

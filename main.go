@@ -293,6 +293,9 @@ func dumpNetwork(net *network.Network, fileName string) {
 
 func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Writer) {
 	adversaryNodesCount := len(network.AdversaryNodeIDToGroupIDMap)
+	if config.SimulationMode == "God" {
+		adversaryNodesCount = 3
+	}
 	honestNodesCount := config.NodesCount - adversaryNodesCount
 
 	allColors := []multiverse.Color{multiverse.UndefinedColor, multiverse.Red, multiverse.Green, multiverse.Blue}

@@ -7,7 +7,7 @@ var (
 	NodesCount              = 100
 	NodesTotalWeight        = 100_000_000
 	ZipfParameter           = 0.9
-	WeightThreshold         = 0.66
+	WeightThreshold         = 0.75
 	WeightThresholdAbsolute = true
 	TipsCount               = 8   // The TipsCount for a message
 	WeakTipsRatio           = 0.0 // The ratio of weak tips
@@ -18,9 +18,9 @@ var (
 	RelevantValidatorWeight = 0         // The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages (disabled now)
 	IMIF                    = "poisson" // Inter Message Issuing Function for time delay between activity messages: poisson or uniform
 	PayloadLoss             = 0.0       // The payload loss in the network.
-	MinDelay                = 100       // The minimum network delay in ms.
-	MaxDelay                = 100       // The maximum network delay in ms.
-	DoubleSpendDelay        = 20        // Delay after which double spending transactions will be issued. In seconds.
+	MinDelay                = 1         // The minimum network delay in ms.
+	MaxDelay                = 1         // The maximum network delay in ms.
+	DoubleSpendDelay        = 2         // Delay after which double spending transactions will be issued. In seconds.
 	DeltaURTS               = 5.0       // in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199
 	SimulationStopThreshold = 1.0       // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
 	SimulationTarget        = "DS"      // The simulation target, CT: Confirmation Time, DS: Double Spending
@@ -47,9 +47,9 @@ var (
 	AdversaryPeeringAll = false               // Defines a flag indicating whether adversarial nodes should be able to send messages to all nodes in the network, instead of following regular peering algorithm.
 	AdversarySpeedup    = []float64{1.0, 1.0} // Defines how many more messages should adversary nodes issue.
 
-	GodMana      = 10               // Defines percentage of mana the adversary holds
-	GodDelay     = time.Duration(0) // Defines the delay after which adversary is allowed to react to switch opinion
-	GodNodeSplit = 10               // Define on how many nodes should split the God Node, God Nodes are not included in config.NodesCount
+	GodMana       = 24               // Defines percentage of mana the adversary holds
+	GodDelay      = time.Duration(0) // Defines the delay after which adversary is allowed to react to switch opinion
+	WatchedWhales = 5                // The number of the richest honest nodes that will be watched closer by the adversary
 )
 
 var (

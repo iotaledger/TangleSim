@@ -28,6 +28,8 @@ type GodMode struct {
 	adversaryDelay   time.Duration
 	initialNodeCount int
 	godNetworkIndex  int
+	// the index of the honest node, that is the last tracked whale
+	lastWatchedIndex int
 	totalWeights     uint64
 	godMana          uint64
 
@@ -43,7 +45,7 @@ type GodMode struct {
 	shutdown chan types.Empty
 }
 
-func NewGodMode(simulationMode string, weight int, adversaryDelay time.Duration, totalWeight int, initialNodeCount int) *GodMode {
+func NewGodMode(simulationMode string, weight int, adversaryDelay time.Duration, totalWeight, lastWatchedIndex, initialNodeCount int) *GodMode {
 	if simulationMode != "God" {
 		return &GodMode{enabled: false}
 	}
@@ -57,6 +59,7 @@ func NewGodMode(simulationMode string, weight int, adversaryDelay time.Duration,
 		adversaryDelay:   adversaryDelay,
 		godNetworkIndex:  initialNodeCount,
 		initialNodeCount: initialNodeCount,
+		lastWatchedIndex: lastWatchedIndex,
 		shutdown:         make(chan types.Empty),
 	}
 	return mode
@@ -195,7 +198,7 @@ func (g *GodMode) honestPeers() (peers []*network.Peer) {
 }
 
 func (g *GodMode) setupOpinionManager() {
-	g.opinionManager = NewGodOpinionManager(g.godMana, g.totalWeights)
+	g.opinionManager = NewGodOpinionManager(g.godMana, g.totalWeights, g.lastWatchedIndex+1)
 	g.opinionManager.Events.updateNeeded.Attach(events.NewClosure(g.updateSupport))
 }
 
@@ -210,6 +213,13 @@ func (g *GodMode) listenToAllHonestNodes() {
 			go g.opinionManager.UpdateNetworkOpinions(prevOpinion, newOpinion, weight, peerID)
 		}))
 	}
+
+	// listen to the richest whale
+	whale := g.net.Peer(0)
+	t := whale.Node.(multiverse.NodeInterface).Tangle()
+	t.OpinionManager.Events().ApprovalWeightUpdated.Attach(events.NewClosure(func(opinion multiverse.Color, weight int64) {
+		go g.opinionManager.updateWhaleOpinion(opinion, weight)
+	}))
 }
 
 // RemoveAllGodPeeringConnections clears out all connections to and from God nodes.
@@ -310,26 +320,29 @@ func updateNeededEventCaller(handler interface{}, params ...interface{}) {
 
 type GodOpinionManager struct {
 	networkOpinions map[multiverse.Color]int64
+	whalesOpinions  []map[multiverse.Color]int64
 	godOpinion      multiverse.Color
 	godWeight       uint64
 	mu              sync.RWMutex
 
 	upperThreshold uint64
 	lowerThreshold uint64
+	whalesNum      int
 	Events         *OpinionManagerEvents
 	sync.Mutex
 }
 
-func NewGodOpinionManager(godMana uint64, totalMana uint64) *GodOpinionManager {
-	opinions := make(map[multiverse.Color]int64)
-	opinionDiff := make(map[multiverse.Color]int64)
-	for _, color := range multiverse.GetColorsArray() {
-		opinions[color] = 0
-		opinionDiff[color] = 0
-	}
+func NewGodOpinionManager(godMana, totalMana uint64, whalesNum int) *GodOpinionManager {
+	opinions := createEmptyColorMap()
+	whalesOpinions := make([]map[multiverse.Color]int64, whalesNum)
 
+	for i := range whalesOpinions {
+		whalesOpinions[i] = createEmptyColorMap()
+	}
 	return &GodOpinionManager{
 		networkOpinions: opinions,
+		whalesOpinions:  whalesOpinions,
+		whalesNum:       whalesNum,
 		godOpinion:      multiverse.UndefinedColor,
 		godWeight:       godMana,
 		upperThreshold:  (totalMana + godMana) / 2,
@@ -353,11 +366,7 @@ func (g *GodOpinionManager) UpdateNetworkOpinions(prevOpinion, newOpinion multiv
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	if prevOpinion != multiverse.UndefinedColor {
-		g.networkOpinions[prevOpinion] -= weight
-
-	}
-	g.networkOpinions[newOpinion] += weight
+	g.UpdateOpinionsMap(prevOpinion, newOpinion, weight, g.networkOpinions)
 
 	r := float64(g.networkOpinions[multiverse.Red]) / float64(config.NodesTotalWeight) * 100
 	b := float64(g.networkOpinions[multiverse.Blue]) / float64(config.NodesTotalWeight) * 100
@@ -368,10 +377,31 @@ func (g *GodOpinionManager) UpdateNetworkOpinions(prevOpinion, newOpinion multiv
 	if g.godOpinion == multiverse.Blue {
 		b += float64(g.godWeight) / float64(config.NodesTotalWeight) * 100
 	}
-	log.Debugf("--- Network opinions updated for peer %d, R: %.2f, B: %.2f", peerID, r, b)
+	log.Debugf("--- Network opinions with god for peer %d, R: %.2f, B: %.2f", peerID, r, b)
 	log.Debugf("GodColor: %s", g.godOpinion)
 
+	whaleIndex := int(peerID)
+	if g.isWhale(whaleIndex) {
+		g.UpdateOpinionsMap(prevOpinion, newOpinion, weight, g.whalesOpinions[whaleIndex])
+	}
+
 	g.checkOpinionsStatus()
+}
+
+// updateWhaleOpinion  tracks opinion changes in the network, triggered on opinion change of honest nodes only
+func (g *GodOpinionManager) updateWhaleOpinion(opinion multiverse.Color, weight int64) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	g.networkOpinions[opinion] += weight
+}
+
+//// updateNetworkOpinions tracks opinion changes in the network, triggered on opinion change of honest nodes only
+func (g *GodOpinionManager) getWhaleOpinion(color multiverse.Color, whaleIdx int) int64 {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	return g.whalesOpinions[whaleIdx][color]
 }
 
 func (g *GodOpinionManager) getMaxSecondOpinions() *maxSecondOpinion {
@@ -439,7 +469,7 @@ func (g *GodOpinionManager) isMaxOverThreshold(maxSec *maxSecondOpinion) bool {
 	// previous second opinion that have got god vote is now leading
 	if g.godOpinion == maxSec.maxOpinion {
 		// max and second below lowerThreshold
-		if maxSec.maxWeight < g.lowerThreshold {
+		if maxSec.maxWeight < g.upperThreshold {
 			// switch vote to the other opinion
 			return true
 		}
@@ -459,6 +489,18 @@ func (g *GodOpinionManager) updateGodSupport(opinion multiverse.Color) {
 	//g.networkOpinions[opinion] += int64(g.godWeight)
 }
 
+func (g *GodOpinionManager) isWhale(index int) bool {
+	return index < g.whalesNum
+}
+
+func (g *GodOpinionManager) UpdateOpinionsMap(prevOpinion, newOpinion multiverse.Color, weight int64, opinions map[multiverse.Color]int64) {
+	if prevOpinion != multiverse.UndefinedColor {
+		opinions[prevOpinion] -= weight
+
+	}
+	opinions[newOpinion] += weight
+}
+
 func GetMaxOpinion(aw map[multiverse.Color]int64) multiverse.Color {
 	maxApprovalWeight := int64(0)
 	maxOpinion := multiverse.UndefinedColor
@@ -469,6 +511,17 @@ func GetMaxOpinion(aw map[multiverse.Color]int64) multiverse.Color {
 		}
 	}
 	return maxOpinion
+}
+
+func createEmptyColorMap() map[multiverse.Color]int64 {
+	m := make(map[multiverse.Color]int64)
+	for _, color := range multiverse.GetColorsArray() {
+		if color == multiverse.UndefinedColor {
+			continue
+		}
+		m[color] = 0
+	}
+	return m
 }
 
 // endregion //////////////////////////////////////////////////////////////////////////////////////////////////////

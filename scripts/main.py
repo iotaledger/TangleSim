@@ -153,8 +153,12 @@ if __name__ == '__main__':
                 # Simulation var
                 vn = c.SIMULATION_VAR_DICT[var]
                 for i, v in enumerate(vv):
+                    if vn == 'zipfParameter':
+                        v = float(v)
+                    else:
+                        v = int(v)
                     os.system(
-                        f'{exec} --simulationTarget={target} --{vn}={float(v)} --decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --{vn}={v} --decelerationFactor={df[i]}')
             elif var == 'D':
                 for i, v in vv:
                     os.system(

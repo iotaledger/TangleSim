@@ -137,7 +137,7 @@ func (o *OpinionManager) Opinion() Color {
 
 func (o *OpinionManager) SetOpinion(opinion Color) {
 	if oldOpinion := o.ownOpinion; oldOpinion != opinion {
-		o.events.OpinionChanged.Trigger(oldOpinion, opinion, int64(o.Tangle().WeightDistribution.Weight(o.Tangle().Peer.ID)), o.tangle.Peer.ID)
+		o.events.OpinionChanged.Trigger(oldOpinion, opinion, int64(o.Tangle().WeightDistribution.Weight(o.Tangle().Peer.ID)))
 	}
 	o.ownOpinion = opinion
 }

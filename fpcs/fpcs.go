@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/types"
+	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
 )
 
@@ -41,7 +42,7 @@ type FPCS struct {
 
 func NewFPCS(epochPeriod int, lowerBound int, upperBound int) *FPCS {
 	fpcs := &FPCS{
-		FPCSTicker:   time.NewTicker(time.Duration(epochPeriod) * time.Second),
+		FPCSTicker:   time.NewTicker(time.Duration(float64(config.DecelerationFactor) * float64(time.Second) * float64(epochPeriod))),
 		randomNumber: 0,
 		lowerBound:   lowerBound,
 		upperBound:   upperBound,

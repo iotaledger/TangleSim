@@ -119,8 +119,8 @@ func (ac *AtomicUnboundedColorCounter) GetColorWithMaxCount(counterKey string) (
 }
 
 func (ac *AtomicUnboundedColorCounter) Add(counterKey string, color multiverse.Color, value int64) {
-	ac.countersMutex.RLock()
-	defer ac.countersMutex.RUnlock()
+	ac.countersMutex.Lock()
+	defer ac.countersMutex.Unlock()
 	counter, ok := ac.counters[counterKey]
 	if !ok {
 		panic(fmt.Sprintf("Trying add to not initiated counter, key: %s", counterKey))

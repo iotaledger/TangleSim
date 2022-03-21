@@ -175,7 +175,7 @@ func (o *OpinionManager) WeightsUpdated() {
 
 func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {
 	// The adversary will always make the color unconfirmed
-	if o.tangle.Peer.ID == 99 {
+	if int(o.tangle.Peer.ID) == config.NodesCount-1 {
 		return false
 	}
 	if config.WeightThresholdRandom && o.tangle.Fpcs.IsStart() {
@@ -188,6 +188,12 @@ func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {
 				o.tangle.Peer.ID, newOpinion.String(), float64(o.approvalWeights[newOpinion]), float64(config.NodesTotalWeight)*randomNumber)
 			return true
 		} else {
+			// If the node has already voted in this epoch period, skip the voting
+			if o.tangle.Fpcs.Voted(int(o.tangle.Peer.ID)) == true {
+				log.Debugf("Run FPCS, Peer %d already voted in this epoch period", o.tangle.Peer.ID)
+				return false
+			}
+
 			// Vote for the color with the minimum hash
 			var minHash big.Int
 			votedColor := UndefinedColor

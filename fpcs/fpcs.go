@@ -36,6 +36,8 @@ type FPCS struct {
 	lowerBound   int
 	upperBound   int
 	start        bool
+	votersMap    map[int]bool
+	votersMutex  sync.RWMutex
 	mutex        sync.RWMutex
 	shutdown     chan types.Empty
 }
@@ -48,8 +50,10 @@ func NewFPCS(epochPeriod int, lowerBound int, upperBound int) *FPCS {
 		upperBound:   upperBound,
 		shutdown:     make(chan types.Empty),
 		start:        false,
+		votersMap:    make(map[int]bool, config.NodesCount),
 	}
 	fpcs.updateRandomNumber()
+	fpcs.clearVotes()
 	return fpcs
 }
 
@@ -62,6 +66,14 @@ func (fpcs *FPCS) Run() {
 		case <-fpcs.FPCSTicker.C:
 			go fpcs.updateRandomNumber()
 		}
+	}
+}
+
+func (fpcs *FPCS) clearVotes() {
+	fpcs.votersMutex.Lock()
+	defer fpcs.votersMutex.Unlock()
+	for peerID := range fpcs.votersMap {
+		fpcs.votersMap[peerID] = false
 	}
 }
 
@@ -80,6 +92,20 @@ func (fpcs *FPCS) updateRandomNumber() {
 	defer fpcs.mutex.Unlock()
 	fpcs.randomNumber = generateNumber(fpcs.lowerBound, fpcs.upperBound)
 	log.Debugf("Generated random number: %d", fpcs.randomNumber)
+
+	fpcs.clearVotes()
+	log.Debugf("Clear the voted nodes in the begining of each epoch")
+}
+
+// Return false when the peer hasnot voted yet.
+func (fpcs *FPCS) Voted(peerID int) bool {
+	fpcs.votersMutex.Lock()
+	defer fpcs.votersMutex.Unlock()
+	voted := fpcs.votersMap[peerID]
+	if voted == false {
+		fpcs.votersMap[peerID] = true
+	}
+	return voted
 }
 
 func (fpcs *FPCS) IsStart() bool {

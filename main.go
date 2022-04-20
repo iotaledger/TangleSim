@@ -76,6 +76,7 @@ var (
 )
 
 func main() {
+	rand.Seed(10)
 	log.Info("Starting simulation ... [DONE]")
 	defer log.Info("Shutting down simulation ... [DONE]")
 	simulation.ParseFlags()

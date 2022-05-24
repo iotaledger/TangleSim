@@ -468,7 +468,7 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 		colorCounters.Get("opinions", multiverse.Green),
 	)
 	log.Infof("Network Status: %3d TPS :: Consensus[ %3d Undefined / %3d Blue / %3d Red / %3d Green ] :: %d  Honest Nodes :: %d Adversary Nodes :: %d Validators",
-		atomicCounters.Get("tps"),
+		atomicCounters.Get("tps")*1000/int64(config.ConsensusMonitorTick),
 		colorCounters.Get("confirmedNodes", multiverse.UndefinedColor),
 		colorCounters.Get("confirmedNodes", multiverse.Blue),
 		colorCounters.Get("confirmedNodes", multiverse.Red),

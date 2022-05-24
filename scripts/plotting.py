@@ -375,6 +375,62 @@ class FigurePlotter:
                     transparent=self.transparent)
         plt.close()
 
+    def throughput_all_plot(self, var, fs, ofn, fc):
+        """Generate the throughput figures of all nodes.
+        Args:
+            var: The variation.
+            fs: The path of files.
+            ofn: The output file name.
+            fc: The figure count.
+        """
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 8}
+        matplotlib.rc('font', **font)
+
+        variation_data = {}
+        for f in glob.glob(fs):
+            try:
+                v, tp = self.parser.parse_all_throughput_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
+            variation_data[v] = tp
+
+        rc, cc = get_row_col_counts(fc)
+        fig, axs = plt.subplots(rc, cc, figsize=(
+            12, 5), dpi=500, constrained_layout=True)
+
+        for i, (v, tp) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
+            (tips, x_axis) = tp
+            r_loc = i // cc
+            c_loc = i % cc
+
+            if fc == 1:
+                ax = axs
+            elif rc == 1:
+                ax = axs[c_loc]
+            else:
+                ax = axs[r_loc, c_loc]
+
+            max_node_to_plot = 5
+            for t in tips[:5]:
+                max_node_to_plot -= 1
+                if max_node_to_plot < 0:
+                    break
+                ax.plot(x_axis, tips[t], label=t, linewidth=1)
+
+            # Only put the legend on the first figures
+            if i == 0:
+                ax.legend()
+            ax.set(
+                xlabel='Time (s)', ylabel='Block Count', yscale='log', title=f'{self.var_dict[var]} = {v}')
+
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent)
+        plt.close()
+
     def confirmation_time_plot(self, var, fs, ofn, title, label):
         """Generate the confirmation time figures.
         Args:

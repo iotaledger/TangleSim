@@ -105,6 +105,42 @@ class FileParser:
                   float(c["DecelerationFactor"]))
         return v, (tip_pool_size, processed_messages, issued_messages, x_axis)
 
+    def parse_all_throughput_file(self, fn, var):
+        """Parse the all-tp files.
+        Args:
+            fn: The input file name.
+            var: The variated parameter.
+
+        Returns:
+            v: The variation value.
+            tip_pool_size: The pool size list.
+            x_axis: The scaled x axis.
+        """
+        logging.info(f'Parsing {fn}...')
+        # Get the configuration setup of this simulation
+        config_fn = re.sub('all-tp', 'aw', fn)
+        config_fn = config_fn.replace('.csv', '.config')
+
+        # Opening JSON file
+        with open(config_fn) as f:
+            c = json.load(f)
+
+        v = str(c[var])
+
+        data = pd.read_csv(fn)
+
+        # Chop data before the begining time
+        data = data[data['ns since start'] >=
+                    self.x_axis_begin * float(c["DecelerationFactor"])]
+
+        # Get the throughput details
+        tip_pool_sizes = data.loc[:, data.columns != 'ns since start']
+
+        # Return the scaled x axis
+        x_axis = (data['ns since start'] / float(self.one_second) /
+                  float(c["DecelerationFactor"]))
+        return v, (tip_pool_sizes, x_axis)
+
     def parse_confirmed_color_file(self, fn, var):
         """Parse the confirmed color files.
 

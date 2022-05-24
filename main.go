@@ -346,22 +346,22 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	// Dump the tip pool and processed message (throughput) results
 	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", simulationStartTimeStr), tpHeader, &resultsWriters)
 
-	tpAllHeader := make([]string, 0, len(tpHeader)*config.NodesCount)
+	tpAllHeader := make([]string, 0, config.NodesCount+1)
 
 	for i := 0; i < config.NodesCount; i++ {
-		header := []string{fmt.Sprintf("UndefinedColor (Tip Pool Size) %d", i),
-			fmt.Sprintf("Blue (Tip Pool Size) %d", i),
-			fmt.Sprintf("Red (Tip Pool Size) %d", i),
-			fmt.Sprintf("Green (Tip Pool Size) %d", i),
-			fmt.Sprintf("UndefinedColor (Processed) %d", i),
-			fmt.Sprintf("Blue (Processed) %d", i),
-			fmt.Sprintf("Red (Processed) %d", i),
-			fmt.Sprintf("Green (Processed) %d", i),
-			fmt.Sprintf("# of Issued Messages %d", i),
-			fmt.Sprintf("ns since start %d", i)}
-
+		header := []string{fmt.Sprintf("Node %d", i)}
+		// fmt.Sprintf("Blue (Tip Pool Size) %d", i),
+		// fmt.Sprintf("Red (Tip Pool Size) %d", i),
+		// fmt.Sprintf("Green (Tip Pool Size) %d", i),
+		// fmt.Sprintf("UndefinedColor (Processed) %d", i),
+		// fmt.Sprintf("Blue (Processed) %d", i),
+		// fmt.Sprintf("Red (Processed) %d", i),
+		// fmt.Sprintf("Green (Processed) %d", i),
+		// fmt.Sprintf("# of Issued Messages %d", i)}
 		tpAllHeader = append(tpAllHeader, header...)
 	}
+	header := []string{fmt.Sprintf("ns since start")}
+	tpAllHeader = append(tpAllHeader, header...)
 
 	// Dump the tip pool and processed message (throughput) results
 	tpAllResultsWriter := createWriter(fmt.Sprintf("all-tp-%s.csv", simulationStartTimeStr), tpAllHeader, &resultsWriters)
@@ -585,24 +585,25 @@ func dumpResultsTP(tpResultsWriter *csv.Writer) {
 }
 
 func dumpResultsTPAll(tpAllResultsWriter *csv.Writer) {
-	record := make([]string, len(tpHeader)*config.NodesCount)
+	record := make([]string, config.NodesCount+1)
 	i := 0
 	for peerID := 0; peerID < config.NodesCount; peerID++ {
 		tipCounterName := fmt.Sprint("tipPoolSizes-", peerID)
-		processedCounterName := fmt.Sprint("processedMessages-", peerID)
-		issuedCounterName := fmt.Sprint("issuedMessages-", peerID)
+		// processedCounterName := fmt.Sprint("processedMessages-", peerID)
+		// issuedCounterName := fmt.Sprint("issuedMessages-", peerID)
 		record[i+0] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.UndefinedColor), 10)
-		record[i+1] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Blue), 10)
-		record[i+2] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Red), 10)
-		record[i+3] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Green), 10)
-		record[i+4] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.UndefinedColor), 10)
-		record[i+5] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.Blue), 10)
-		record[i+6] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.Red), 10)
-		record[i+7] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.Green), 10)
-		record[i+8] = strconv.FormatInt(atomicCounters.Get(issuedCounterName), 10)
-		record[i+9] = strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10)
-		i = i + 10
+		// record[i+1] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Blue), 10)
+		// record[i+2] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Red), 10)
+		// record[i+3] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Green), 10)
+		// record[i+4] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.UndefinedColor), 10)
+		// record[i+5] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.Blue), 10)
+		// record[i+6] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.Red), 10)
+		// record[i+7] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.Green), 10)
+		// record[i+8] = strconv.FormatInt(atomicCounters.Get(issuedCounterName), 10)
+		// record[i+9] = strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10)
+		i = i + 1
 	}
+	record[i] = strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10)
 
 	writeLine(tpAllResultsWriter, record)
 

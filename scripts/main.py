@@ -241,3 +241,6 @@ if __name__ == '__main__':
 
             plotter.throughput_plot(n, folder + '/tp*csv',
                                     f'CT_{n}_tp{iter_suffix}.png', len(vv))
+
+            plotter.throughput_all_plot(n, folder + '/all-tp*csv',
+                                        f'CT_{n}_all_tp{iter_suffix}.png', len(vv))

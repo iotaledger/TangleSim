@@ -34,6 +34,7 @@ var (
 	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green", "ns since start", "ns since issuance"}
 	tpHeader = []string{"UndefinedColor (Tip Pool Size)", "Blue (Tip Pool Size)", "Red (Tip Pool Size)", "Green (Tip Pool Size)",
 		"UndefinedColor (Processed)", "Blue (Processed)", "Red (Processed)", "Green (Processed)", "# of Issued Messages", "ns since start"}
+
 	ccHeader = []string{"Blue (Confirmed)", "Red (Confirmed)", "Green (Confirmed)",
 		"Blue (Adversary Confirmed)", "Red (Adversary Confirmed)", "Green (Adversary Confirmed)",
 		"Blue (Confirmed Accumulated Weight)", "Red (Confirmed Accumulated Weight)", "Green (Confirmed Accumulated Weight)",
@@ -288,6 +289,13 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	colorCounters.CreateCounter("likeAccumulatedWeight", allColors, []int64{0, 0, 0, 0})
 	colorCounters.CreateCounter("processedMessages", allColors, []int64{0, 0, 0, 0})
 	colorCounters.CreateCounter("tipPoolSizes", allColors, []int64{0, 0, 0, 0})
+	for _, peer := range testNetwork.Peers {
+		peerID := peer.ID
+		tipCounterName := fmt.Sprint("tipPoolSizes-", peerID)
+		processedCounterName := fmt.Sprint("processedMessages-", peerID)
+		colorCounters.CreateCounter(tipCounterName, allColors, []int64{0, 0, 0, 0})
+		colorCounters.CreateCounter(processedCounterName, allColors, []int64{0, 0, 0, 0})
+	}
 	colorCounters.CreateCounter("colorUnconfirmed", allColors[1:], []int64{0, 0, 0})
 	colorCounters.CreateCounter("confirmedAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
 	colorCounters.CreateCounter("unconfirmedAccumulatedWeight", allColors[1:], []int64{0, 0, 0})
@@ -309,6 +317,11 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	atomicCounters.CreateAtomicCounter("tps", 0)
 	atomicCounters.CreateAtomicCounter("relevantValidators", 0)
 	atomicCounters.CreateAtomicCounter("issuedMessages", 0)
+	for _, peer := range testNetwork.Peers {
+		peerID := peer.ID
+		issuedCounterName := fmt.Sprint("issuedMessages-", peerID)
+		atomicCounters.CreateAtomicCounter(issuedCounterName, 0)
+	}
 
 	mostLikedColor = multiverse.UndefinedColor
 	honestOnlyMostLikedColor = multiverse.UndefinedColor
@@ -332,6 +345,26 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	// Dump the tip pool and processed message (throughput) results
 	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", simulationStartTimeStr), tpHeader, &resultsWriters)
+
+	tpAllHeader := make([]string, 0, len(tpHeader)*config.NodesCount)
+
+	for i := 0; i < config.NodesCount; i++ {
+		header := []string{fmt.Sprintf("UndefinedColor (Tip Pool Size) %d", i),
+			fmt.Sprintf("Blue (Tip Pool Size) %d", i),
+			fmt.Sprintf("Red (Tip Pool Size) %d", i),
+			fmt.Sprintf("Green (Tip Pool Size) %d", i),
+			fmt.Sprintf("UndefinedColor (Processed) %d", i),
+			fmt.Sprintf("Blue (Processed) %d", i),
+			fmt.Sprintf("Red (Processed) %d", i),
+			fmt.Sprintf("Green (Processed) %d", i),
+			fmt.Sprintf("# of Issued Messages %d", i),
+			fmt.Sprintf("ns since start %d", i)}
+
+		tpAllHeader = append(tpAllHeader, header...)
+	}
+
+	// Dump the tip pool and processed message (throughput) results
+	tpAllResultsWriter := createWriter(fmt.Sprintf("tp-all-%s.csv", simulationStartTimeStr), tpAllHeader, &resultsWriters)
 
 	// Dump the info about how many nodes have confirmed and liked a certain color
 	ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", simulationStartTimeStr), ccHeader, &resultsWriters)
@@ -448,16 +481,29 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			atomicCounters.Set("issuedMessages", issuedMessages)
 		}))
 
+	for _, peer := range testNetwork.Peers {
+		peerID := peer.ID
+		tipCounterName := fmt.Sprint("tipPoolSizes-", peerID)
+		processedCounterName := fmt.Sprint("processedMessages-", peerID)
+		issuedCounterName := fmt.Sprint("issuedMessages-", peerID)
+		peer.Node.(multiverse.NodeInterface).Tangle().TipManager.Events.MessageProcessed.Attach(events.NewClosure(
+			func(opinion multiverse.Color, tipPoolSize int, processedMessages uint64, issuedMessages int64) {
+				colorCounters.Set(tipCounterName, int64(tipPoolSize), opinion)
+				colorCounters.Set(processedCounterName, int64(processedMessages), opinion)
+				atomicCounters.Set(issuedCounterName, issuedMessages)
+			}))
+	}
+
 	go func() {
 		for range dumpingTicker.C {
-			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, honestNodesCount, adversaryNodesCount)
+			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, tpAllResultsWriter, honestNodesCount, adversaryNodesCount)
 		}
 	}()
 
 	return
 }
 
-func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer, adResultsWriter *csv.Writer, honestNodesCount int, adversaryNodesCount int) {
+func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer, adResultsWriter *csv.Writer, tpAllResultsWriter *csv.Writer, honestNodesCount int, adversaryNodesCount int) {
 	simulationWg.Add(1)
 	simulationWg.Done()
 
@@ -486,6 +532,7 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 
 	dumpResultDS(dsResultsWriter, sinceIssuance)
 	dumpResultsTP(tpResultsWriter)
+	dumpResultsTPAll(tpAllResultsWriter)
 	dumpResultsCC(ccResultsWriter, sinceIssuance)
 
 	// determines whether consensus has been reached and simulation is over
@@ -535,6 +582,32 @@ func dumpResultsTP(tpResultsWriter *csv.Writer) {
 
 	// Flush the writers, or the data will be truncated sometimes if the buffer is full
 	tpResultsWriter.Flush()
+}
+
+func dumpResultsTPAll(tpAllResultsWriter *csv.Writer) {
+	record := make([]string, len(tpHeader)*config.NodesCount)
+	i := 0
+	for peerID := 0; peerID < config.NodesCount; peerID++ {
+		tipCounterName := fmt.Sprint("tipPoolSizes-", peerID)
+		processedCounterName := fmt.Sprint("processedMessages-", peerID)
+		issuedCounterName := fmt.Sprint("issuedMessages-", peerID)
+		record[i+0] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.UndefinedColor), 10)
+		record[i+1] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Blue), 10)
+		record[i+2] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Red), 10)
+		record[i+3] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Green), 10)
+		record[i+4] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.UndefinedColor), 10)
+		record[i+5] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.Blue), 10)
+		record[i+6] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.Red), 10)
+		record[i+7] = strconv.FormatInt(colorCounters.Get(processedCounterName, multiverse.Green), 10)
+		record[i+8] = strconv.FormatInt(atomicCounters.Get(issuedCounterName), 10)
+		record[i+9] = strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10)
+		i = i + 10
+	}
+
+	writeLine(tpAllResultsWriter, record)
+
+	// Flush the writers, or the data will be truncated sometimes if the buffer is full
+	tpAllResultsWriter.Flush()
 }
 
 func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {

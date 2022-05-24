@@ -415,7 +415,7 @@ class FigurePlotter:
                 ax = axs[r_loc, c_loc]
 
             max_node_to_plot = 5
-            for t in tips[:5]:
+            for t in tips:
                 max_node_to_plot -= 1
                 if max_node_to_plot < 0:
                     break

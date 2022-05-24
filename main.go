@@ -364,7 +364,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	}
 
 	// Dump the tip pool and processed message (throughput) results
-	tpAllResultsWriter := createWriter(fmt.Sprintf("tp-all-%s.csv", simulationStartTimeStr), tpAllHeader, &resultsWriters)
+	tpAllResultsWriter := createWriter(fmt.Sprintf("all-tp-%s.csv", simulationStartTimeStr), tpAllHeader, &resultsWriters)
 
 	// Dump the info about how many nodes have confirmed and liked a certain color
 	ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", simulationStartTimeStr), ccHeader, &resultsWriters)

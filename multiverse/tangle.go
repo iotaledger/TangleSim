@@ -1,6 +1,7 @@
 package multiverse
 
 import (
+	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
@@ -9,9 +10,10 @@ type Tangle struct {
 	WeightDistribution *network.ConsensusWeightDistribution
 	Storage            *Storage
 	Solidifier         *Solidifier
+	ApprovalManager    *ApprovalManager
 	Requester          *Requester
 	Booker             *Booker
-	OpinionManager     *OpinionManager
+	OpinionManager     OpinionManagerInterface
 	TipManager         *TipManager
 	MessageFactory     *MessageFactory
 	Utils              *Utils
@@ -25,8 +27,9 @@ func NewTangle() (tangle *Tangle) {
 	tangle.Requester = NewRequester(tangle)
 	tangle.Booker = NewBooker(tangle)
 	tangle.OpinionManager = NewOpinionManager(tangle)
-	tangle.TipManager = NewTipManager(tangle)
-	tangle.MessageFactory = NewMessageFactory(tangle)
+	tangle.TipManager = NewTipManager(tangle, config.TSA)
+	tangle.MessageFactory = NewMessageFactory(tangle, uint64(config.NodesCount))
+	tangle.ApprovalManager = NewApprovalManager(tangle)
 	tangle.Utils = NewUtils(tangle)
 
 	return
@@ -41,6 +44,7 @@ func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.Consensus
 	t.Booker.Setup()
 	t.OpinionManager.Setup()
 	t.TipManager.Setup()
+	t.ApprovalManager.Setup()
 }
 
 func (t *Tangle) ProcessMessage(message *Message) {

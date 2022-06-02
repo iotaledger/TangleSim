@@ -15,3 +15,49 @@ There have been efforts by projects like Hashgraph to translate the concepts of 
 IOTA was one of the first projects that tried to translate the longest chain wins consensus of blockchains into the world of DAGs maintaining all of its benefits but trying to solve blockchains drawbacks (slow confirmations, hard to shard and relying on a 2-class society where users have to pay miners to get their transactions included in the ledger state). It failed to fulfill this promise due to a badly designed and broken first version. 
 
 This repository implements a simulator for a new consensus mechanism that gets rid of all the original drawbacks of IOTA and that similarly to blockchain does not rely on nodes querying each other for their opinion.
+
+
+## What is being simulated?
+ 
+A configurable network of *N* nodes connected to each other in a [Watts-Strogatz](https://en.wikipedia.org/wiki/Watts%E2%80%93Strogatz_model) graph, 
+where nodes are assigned weights according to a [Zipf distribution](https://en.wikipedia.org/wiki/Zipf%27s_law).
+Each peer in the network can send messages at a rate proportional to its weight. The messages attach to other messages in the tangle according to a configurable tip-selection algorithm.
+The simulation tracks the weight of each message, the color and color weight, and tip pool size.
+
+To see the full list of configurations one should run the simulation with `-h` flag.
+
+## Message Weight Mechanism
+
+When a new message is issued by node *A* it automatically receives the weight of *A*. It also propagates the weight down to its parents, 
+cumulating the weight to each message in the past cone until genesis is reached. 
+Each message keeps track of its weight source in an efficient bitmap to ensure the correctness of the weight propagation calculation.
+This mechanism doesn't take into account different perceptions of the tangle a node has.
+This calculation can be done by every node in the simulation. Once a message bypassed a threshold of the weight (above 50%) we can consider it as *confirmed* or *seen*,
+depending on whether we also simulate colored perceptions in our run.
+
+## Color Weight Mechanism
+
+In order to take into account different conflict perceptions we assign colors to subtangles. 
+This mechanism works by having a node that colors messages.
+Each message propagates its color to its descendants ad infinitum. If a message has parents with different colors the node deems it invalid and drops it.
+Due to this, it is worth to note, coloring the tangle will create distinct subtangles that can't be combined.
+This basically means that we are creating a simulation of the UTXO dag instead of the message dag.
+Each node in the simulation keeps track of the weight of the colors. Each time a message is colored, the weight of its issuer is added to the color weight.
+If the weight of the issuer was previously assigned to another color, it is subtracted from the color. 
+Each node in the simulation considers the color with the most weight to be the winner. 
+Each color is actually a number in the actual implementation. In case of a tie the color with the maximal number will be the winner. 
+
+## Tip selection
+
+Each message in the simulation can choose up to a configurable *k* other message to reference. 
+They will usually pick parents that weren't referenced before, known as tips. 
+Tip selection plays a great deal with the way weights are distributed, and in the simulation we will implement various 
+tip-selection strategies, honest and malicious. Currently, only 2 tip selection strategies are implemented. 
+URTS (Uniform Random Tip Selection) and RURTS (Restricted URTS). URTS, as the name implies, randomly selects any tip.
+RURTS won't select tips that have aged above a configurable delta. All other tips will be selected uniformly.
+
+
+## Running the simulation
+
+It is best run via a script that will plot the results per the instructions [here](https://github.com/iotaledger/multiverse-simulation/blob/aw/scripts/README.md).
+But one can naively run the simulation with a `go run .` command.

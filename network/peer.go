@@ -13,10 +13,11 @@ import (
 // region Peer /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Peer struct {
-	ID        PeerID
-	Neighbors map[PeerID]*Connection
-	Socket    chan interface{}
-	Node      Node
+	ID               PeerID
+	Neighbors        map[PeerID]*Connection
+	Socket           chan interface{}
+	Node             Node
+	AdversarySpeedup float64
 
 	startOnce      sync.Once
 	shutdownOnce   sync.Once
@@ -112,6 +113,14 @@ func NewConnection(socket chan<- interface{}, networkDelay time.Duration, packet
 	return
 }
 
+func (c *Connection) NetworkDelay() time.Duration {
+	return c.networkDelay
+}
+
+func (c *Connection) PacketLoss() float64 {
+	return c.packetLoss
+}
+
 func (c *Connection) Send(message interface{}) {
 	if crypto.Randomness.Float64() <= c.packetLoss {
 		return
@@ -120,6 +129,10 @@ func (c *Connection) Send(message interface{}) {
 	c.timedExecutor.ExecuteAfter(func() {
 		c.socket <- message
 	}, c.networkDelay)
+}
+
+func (c *Connection) SetDelay(delay time.Duration) {
+	c.networkDelay = delay
 }
 
 func (c *Connection) Shutdown() {

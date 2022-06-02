@@ -10,44 +10,59 @@ var log = logger.New("Multiverse")
 
 // region Node /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-type Node struct {
-	Peer   *network.Peer
-	Tangle *Tangle
+type NodeInterface interface {
+	Peer() *network.Peer
+	Tangle() *Tangle
+	IssuePayload(payload Color)
 }
 
-func NewNode() network.Node {
+type Node struct {
+	peer   *network.Peer
+	tangle *Tangle
+}
+
+func NewNode() interface{} {
 	return &Node{
-		Tangle: NewTangle(),
+		tangle: NewTangle(),
 	}
+}
+
+func (n *Node) Peer() *network.Peer {
+	return n.peer
+}
+
+func (n *Node) Tangle() *Tangle {
+	return n.tangle
 }
 
 func (n *Node) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution) {
 	defer log.Debugf("%s: Setting up Multiverse ... [DONE]", peer)
 
-	n.Peer = peer
-	n.Tangle.Setup(peer, weightDistribution)
-	n.Tangle.Requester.Events.Request.Attach(events.NewClosure(func(messageID MessageID) {
-		n.Peer.GossipNetworkMessage(&MessageRequest{MessageID: messageID, Issuer: n.Peer.ID})
+	n.peer = peer
+	n.tangle.Setup(peer, weightDistribution)
+	n.tangle.Requester.Events.Request.Attach(events.NewClosure(func(messageID MessageID) {
+		n.peer.GossipNetworkMessage(&MessageRequest{MessageID: messageID, Issuer: n.peer.ID})
 	}))
-	n.Tangle.Booker.Events.MessageBooked.Attach(events.NewClosure(func(messageID MessageID) {
-		n.Peer.GossipNetworkMessage(n.Tangle.Storage.Message(messageID))
+	n.tangle.Booker.Events.MessageBooked.Attach(events.NewClosure(func(messageID MessageID) {
+		n.peer.GossipNetworkMessage(n.tangle.Storage.Message(messageID))
 	}))
 }
 
+// IssuePayload sends the Color to the socket for creating a new Message
 func (n *Node) IssuePayload(payload Color) {
-	n.Peer.Socket <- payload
+	n.peer.Socket <- payload
 }
 
 func (n *Node) HandleNetworkMessage(networkMessage interface{}) {
 	switch receivedNetworkMessage := networkMessage.(type) {
 	case *MessageRequest:
-		if requestedMessage := n.Tangle.Storage.Message(receivedNetworkMessage.MessageID); requestedMessage != nil {
-			n.Peer.Neighbors[receivedNetworkMessage.Issuer].Send(requestedMessage)
+		if requestedMessage := n.tangle.Storage.Message(receivedNetworkMessage.MessageID); requestedMessage != nil {
+			n.peer.Neighbors[receivedNetworkMessage.Issuer].Send(requestedMessage)
 		}
 	case *Message:
-		n.Tangle.ProcessMessage(receivedNetworkMessage)
+		n.tangle.ProcessMessage(receivedNetworkMessage)
 	case Color:
-		n.Tangle.ProcessMessage(n.Tangle.MessageFactory.CreateMessage(receivedNetworkMessage))
+		n.tangle.ProcessMessage(n.tangle.MessageFactory.CreateMessage(receivedNetworkMessage))
 	}
 }
 

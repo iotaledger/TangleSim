@@ -65,6 +65,40 @@ class FileParser:
         data[self.target] = data[self.target] / float(c["DecelerationFactor"])
         return v, data[self.target], x_axis
 
+    def parse_ww_file(self, fn, variation):
+        """Parse the witness weight files.
+
+        Args:
+            fc: The figure count.
+
+        Returns:
+
+        Returns:
+            v: The variation value.
+            data: The target data to analyze.
+            x_axis: The scaled/adjusted x axis.
+        """
+        logging.info(f'Parsing {fn}...')
+        # Get the configuration setup of this simulation
+        # Note currently we only consider the first node
+        config_fn = re.sub('ww', 'aw', fn)
+        config_fn = config_fn.replace('.csv', '.config')
+
+        # Opening JSON file
+        with open(config_fn) as f:
+            c = json.load(f)
+
+        v = str(c[variation])
+
+        data = pd.read_csv(fn)
+        data['Witness Weight'] = (data['Witness Weight'] /
+                                  float(c["NodesTotalWeight"]))
+
+        # ns is the time scale of the aw outputs
+        x_axis = (data['Time (ns)'] /
+                  float(c["DecelerationFactor"]) / float(self.one_second))
+        return v, data['Witness Weight'], x_axis
+
     def parse_throughput_file(self, fn, var):
         """Parse the throughput files.
         Args:

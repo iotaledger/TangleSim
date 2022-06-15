@@ -31,6 +31,7 @@ var (
 	// csv
 	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages",
 		"# of Issued Messages", "ns since start"}
+	wwHeader = []string{"Witness Weight", "Time (ns)"}
 	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green", "ns since start", "ns since issuance"}
 	tpHeader = []string{"UndefinedColor (Tip Pool Size)", "Blue (Tip Pool Size)", "Red (Tip Pool Size)", "Green (Tip Pool Size)",
 		"UndefinedColor (Processed)", "Blue (Processed)", "Red (Processed)", "Green (Processed)", "# of Issued Messages", "ns since start"}
@@ -368,6 +369,33 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	// Dump the info about how many nodes have confirmed and liked a certain color
 	ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", simulationStartTimeStr), ccHeader, &resultsWriters)
+
+	// Define the file name of the ww results
+	wwResultsWriter := createWriter(fmt.Sprintf("ww-%s.csv", simulationStartTimeStr), wwHeader, &resultsWriters)
+
+	// Dump the Witness Weight
+	wwPeer := testNetwork.Peers[config.MonitoredWitnessWeightPeer]
+	previousWitnessWeight := uint64(config.NodesTotalWeight)
+	wwPeer.Node.(multiverse.NodeInterface).Tangle().ApprovalManager.Events.MessageWitnessWeightUpdated.Attach(
+		events.NewClosure(func(message *multiverse.Message, weight uint64) {
+			if uint64(previousWitnessWeight) == weight {
+				return
+			}
+			previousWitnessWeight = weight
+			record := []string{
+				strconv.FormatUint(weight, 10),
+				strconv.FormatInt(time.Since(message.IssuanceTime).Nanoseconds(), 10),
+			}
+			csvMutex.Lock()
+			if err := wwResultsWriter.Write(record); err != nil {
+				log.Fatal("error writing record to csv:", err)
+			}
+
+			if err := wwResultsWriter.Error(); err != nil {
+				log.Fatal(err)
+			}
+			csvMutex.Unlock()
+		}))
 
 	for _, id := range config.MonitoredAWPeers {
 		awPeer := testNetwork.Peers[id]

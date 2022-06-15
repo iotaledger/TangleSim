@@ -472,3 +472,42 @@ class FigurePlotter:
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent)
         plt.close()
+
+    def witness_weight_plot(self, var, fs, ofn, label):
+        """Generate the witness weight figures.
+        Args:
+            var: The variation.
+            fs: The path of files.
+            ofn: The output file name.
+            label: The curve label.
+        """
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 14}
+        matplotlib.rc('font', **font)
+
+        plt.figure(figsize=(12, 5), dpi=500, constrained_layout=True)
+        variation_data = {}
+        for f in glob.glob(fs):
+            try:
+                v, data, x_axis_adjust = self.parser.parse_ww_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
+            variation_data[v] = (data, x_axis_adjust)
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
+            (ww, x_axis) = d
+            clr = self.clr_list[i // 4]
+            sty = self.sty_list[i % 4]
+            plt.plot(x_axis, 100.0 * ww,
+                     label=f'{label} = {v}', color=clr, ls=sty)
+
+        plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
+        plt.xlabel('Time (s)')
+        plt.ylabel('Witness Weight (%)')
+        plt.legend()
+        plt.title('Witness Weight v.s. Time')
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent)
+        plt.close()

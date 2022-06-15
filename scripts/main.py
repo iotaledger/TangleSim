@@ -244,3 +244,6 @@ if __name__ == '__main__':
 
             plotter.throughput_all_plot(n, folder + '/all-tp*csv',
                                         f'CT_{n}_all_tp{iter_suffix}.png', len(vv))
+
+            plotter.witness_weight_plot(
+                n, folder + '/ww*csv', f'CT_{n}_ww{iter_suffix}.png', c.VAR_DICT[n])

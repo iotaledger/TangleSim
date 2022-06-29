@@ -5,7 +5,7 @@
 ONE_SEC = 1000_000_000
 
 # Define the list of styles
-CLR_LIST = ['k', 'b', 'g', 'r']  # list of basic colors
+CLR_LIST = ['k', 'b', 'g', 'r', 'y', 'purple', 'gray']  # list of basic colors
 STY_LIST = ['-', '--', '-.', ':']  # list of basic linestyles
 
 # Define the target to parse

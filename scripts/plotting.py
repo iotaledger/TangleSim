@@ -473,13 +473,14 @@ class FigurePlotter:
                     transparent=self.transparent)
         plt.close()
 
-    def witness_weight_plot(self, var, fs, ofn, label):
+    def witness_weight_plot(self, var, base_folder, ofn, label, repetition):
         """Generate the witness weight figures.
         Args:
             var: The variation.
-            fs: The path of files.
+            base_folder: The base folder.
             ofn: The output file name.
             label: The curve label.
+            repetition: The iteration count
         """
         # Init the matplotlib config
         font = {'family': 'Times New Roman',
@@ -487,24 +488,40 @@ class FigurePlotter:
                 'size': 14}
         matplotlib.rc('font', **font)
 
-        plt.figure(figsize=(12, 5), dpi=500, constrained_layout=True)
+        plt.figure(figsize=(6, 6), dpi=500, constrained_layout=True)
+
         variation_data = {}
+        if repetition != 1:
+            fs = base_folder + f'/iter_*/ww*csv'
+        else:
+            fs = base_folder + '/ww*csv'
+
         for f in glob.glob(fs):
             try:
                 v, data, x_axis_adjust = self.parser.parse_ww_file(f, var)
             except:
                 logging.error(f'{fs}: Incomplete Data!')
                 continue
-            variation_data[v] = (data, x_axis_adjust)
-        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
-            (ww, x_axis) = d
-            clr = self.clr_list[i // 4]
-            sty = self.sty_list[i % 4]
-            plt.plot(x_axis, 100.0 * ww,
-                     label=f'{label} = {v}', color=clr, ls=sty)
+            if v not in variation_data:
+                variation_data[v] = [(data, x_axis_adjust)]
+            else:
+                variation_data[v].append((data, x_axis_adjust))
+        colored_v = set()
+        for i, (v, d_list) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]), reverse=True)):
+            for l in d_list:
+                (ww, x_axis) = l
+                clr = self.clr_list[i % 7]
+                sty = self.sty_list[0]
+                if v in colored_v:
+                    plt.plot(x_axis, 100.0 * ww, color=clr, ls=sty)
+                else:
+                    plt.plot(x_axis, 100.0 * ww,
+                             label=f'{label} = {v}', color=clr, ls=sty)
+                    colored_v.add(v)
 
         plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
         plt.xlabel('Time (s)')
+        # plt.xlim(0, 5)
         plt.ylabel('Witness Weight (%)')
         plt.legend()
         plt.title('Witness Weight v.s. Time')

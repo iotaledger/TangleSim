@@ -20,7 +20,7 @@ var (
 	DoubleSpendDelay        = 20                           // Delay after which double spending transactions will be issued. In seconds.
 	DeltaURTS               = 5.0                          // in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199
 	SimulationStopThreshold = 1.0                          // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
-	SimulationTarget        = "DS"                         // The simulation target, CT: Confirmation Time, DS: Double Spending
+	SimulationTarget        = "CT"                         // The simulation target, CT: Confirmation Time, DS: Double Spending
 	ResultDir               = "results"                    // Path where all the result files will be saved
 	RandomnessWS            = 1.0                          // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
 	NeighbourCountWS        = 8                            // Number of neighbors node is connected to in WattsStrogatz network topology
@@ -36,6 +36,8 @@ var (
 )
 
 var (
-	MonitoredAWPeers = [...]int{0}
-	MonitoredTPPeer  = 0
+	MonitoredAWPeers                = [...]int{0}
+	MonitoredTPPeer                 = 0
+	MonitoredWitnessWeightMessageID = 100 // The message ID used to monitor the WitnessWeight (WW)
+	MonitoredWitnessWeightPeer      = 0   // The peer ID used to monitor the WitnessWeight (WW)
 )

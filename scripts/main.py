@@ -160,9 +160,9 @@ if __name__ == '__main__':
                     os.system(
                         f'{exec} --simulationTarget={target} --{vn}={v} --decelerationFactor={df[i]}')
             elif var == 'D':
-                for i, v in vv:
+                for i, v in enumerate(vv):
                     os.system(
-                        f'{exec} --simulationTarget={target} --MinDelay={float(v)} --maxDelay={float(v)} -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --minDelay={int(v)} --maxDelay={int(v)} -decelerationFactor={df[i]}')
             elif var == 'AW':
                 for i, v in enumerate([(0.66, True), (0.75, True), (0.5, False), (0.5, True)]):
                     os.system(
@@ -246,4 +246,4 @@ if __name__ == '__main__':
                                         f'CT_{n}_all_tp{iter_suffix}.png', len(vv))
 
             plotter.witness_weight_plot(
-                n, folder + '/ww*csv', f'CT_{n}_ww{iter_suffix}.png', c.VAR_DICT[n])
+                n, folder, f'CT_{n}_ww{iter_suffix}.png', c.VAR_DICT[n], repetition)

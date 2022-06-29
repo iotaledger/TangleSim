@@ -456,11 +456,8 @@ class FigurePlotter:
         variations = []
         for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
             z = (d[0]*1e-9).tolist()
-            for temp in z:
-                if temp > 2:
-                    print(eval(v)[0], temp)
             data.append((d[0]*1e-9).tolist())
-            variations.append(eval(v)[0])
+            variations.append(v)
 
         plt.violinplot(data)
         plt.xlabel(label)
@@ -468,8 +465,8 @@ class FigurePlotter:
         plt.xticks(ticks=list(range(1, 1 + len(variations))),
                    labels=variations)
 
-        axes = plt.axes()
-        axes.set_ylim([0, 11])
+        # axes = plt.axes()
+        # axes.set_ylim([0, 11])
         plt.ylabel('Confirmation Time (s)')
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent, dpi=300)

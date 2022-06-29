@@ -239,8 +239,8 @@ if __name__ == '__main__':
             plotter.confirmation_time_plot(
                 n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.png', t_confirmation, c.VAR_DICT[n])
 
-            plotter.confirmation_time_violinplot(
-                n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, c.VAR_DICT[n])
+            # plotter.confirmation_time_violinplot(
+            #     n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, n)
 
             plotter.throughput_plot(n, folder + '/tp*csv',
                                     f'CT_{n}_tp{iter_suffix}.png', len(vv))

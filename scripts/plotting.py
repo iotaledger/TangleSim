@@ -11,6 +11,8 @@ import constant as c
 from parsing import FileParser
 from utils import *
 
+plt.style.use('plot_style.txt')
+
 
 class FigurePlotter:
     """
@@ -429,6 +431,48 @@ class FigurePlotter:
 
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent)
+        plt.close()
+
+    def confirmation_time_violinplot(self, var, fs, ofn, title, label):
+
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 14}
+        matplotlib.rc('font', **font)
+
+        plt.close('all')
+        plt.figure()
+        variation_data = {}
+        for f in glob.glob(fs):
+            try:
+                v, data, x_axis_adjust = self.parser.parse_aw_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
+            variation_data[v] = (data, x_axis_adjust)
+
+        data = []
+        variations = []
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
+            z = (d[0]*1e-9).tolist()
+            for temp in z:
+                if temp > 2:
+                    print(eval(v)[0], temp)
+            data.append((d[0]*1e-9).tolist())
+            variations.append(eval(v)[0])
+
+        plt.violinplot(data)
+        plt.xlabel(label)
+        # plt.xlabel('Zipf Parameter')
+        plt.xticks(ticks=list(range(1, 1 + len(variations))),
+                   labels=variations)
+
+        axes = plt.axes()
+        axes.set_ylim([0, 11])
+        plt.ylabel('Confirmation Time (s)')
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent, dpi=300)
         plt.close()
 
     def confirmation_time_plot(self, var, fs, ofn, title, label):

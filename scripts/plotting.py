@@ -400,9 +400,8 @@ class FigurePlotter:
                 continue
             variation_data[v] = tp
 
-        rc, cc = get_row_col_counts(fc)
-        fig, axs = plt.subplots(rc, cc, figsize=(
-            12, 5), dpi=500, constrained_layout=True)
+        cc, rc = get_row_col_counts(fc)
+        fig, axs = plt.subplots(rc, cc, constrained_layout=False)
 
         for i, (v, tp) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
             (tips, x_axis) = tp
@@ -411,24 +410,25 @@ class FigurePlotter:
 
             if fc == 1:
                 ax = axs
-            elif rc == 1:
-                ax = axs[c_loc]
+            elif cc == 1:
+                ax = axs[r_loc]
             else:
                 ax = axs[r_loc, c_loc]
 
             max_node_to_plot = 5
-            for t in tips:
-                max_node_to_plot -= 1
-                if max_node_to_plot < 0:
-                    break
-                ax.plot(x_axis, tips[t], label=t, linewidth=1)
+            for n in ['Node 0', 'Node 1', 'Node 98', 'Node 99']:
+                ax.plot(x_axis, tips[n], label=n, linewidth=1)
 
             # Only put the legend on the first figures
             if i == 0:
-                ax.legend()
+                ax.legend(ncol=4)
             ax.set(
-                xlabel='Time (s)', ylabel='Block Count', yscale='log', title=f'{self.var_dict[var]} = {v}')
-
+                xlabel='Time (s)', ylabel='Block Count')
+            # ax.set(xlabel='Time (s)')
+            ax.set_title(
+                f'Uniform Random Delay = {int(v)}–{int(v)+100} (ms)', fontsize=12)
+            ax.set_ylim((0, 80))
+            ax.set_xlim((20, 60))
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent)
         plt.close()
@@ -457,10 +457,11 @@ class FigurePlotter:
         for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
             z = (d[0]*1e-9).tolist()
             data.append((d[0]*1e-9).tolist())
-            variations.append(v)
+            variations.append(f'[{int(v)}, {int(v)+100}]')
 
         plt.violinplot(data)
-        plt.xlabel(label)
+        plt.xlabel('Uniform Random Network Delay (ms)')
+        plt.ylim(0, 6)
         # plt.xlabel('Zipf Parameter')
         plt.xticks(ticks=list(range(1, 1 + len(variations))),
                    labels=variations)
@@ -529,7 +530,8 @@ class FigurePlotter:
                 'size': 14}
         matplotlib.rc('font', **font)
 
-        plt.figure(figsize=(6, 6), dpi=500, constrained_layout=True)
+        plt.close('all')
+        plt.figure()
 
         variation_data = {}
         if repetition != 1:
@@ -547,25 +549,21 @@ class FigurePlotter:
                 variation_data[v] = [(data, x_axis_adjust)]
             else:
                 variation_data[v].append((data, x_axis_adjust))
-        colored_v = set()
+
         for i, (v, d_list) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]), reverse=True)):
             for l in d_list:
                 (ww, x_axis) = l
-                clr = self.clr_list[i % 7]
-                sty = self.sty_list[0]
-                if v in colored_v:
-                    plt.plot(x_axis, 100.0 * ww, color=clr, ls=sty)
-                else:
-                    plt.plot(x_axis, 100.0 * ww,
-                             label=f'{label} = {v}', color=clr, ls=sty)
-                    colored_v.add(v)
+                plt.plot(x_axis, 100.0 * ww,
+                         label=f'Delay = {int(v)}–{int(v)+100} (ms)')
 
         plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
         plt.xlabel('Time (s)')
-        # plt.xlim(0, 5)
+        plt.xticks(range(0, 21, 5))
+        plt.xlim(0, 20)
+        plt.ylim(0, 100)
         plt.ylabel('Witness Weight (%)')
         plt.legend()
-        plt.title('Witness Weight v.s. Time')
+        # plt.title('Witness Weight v.s. Time')
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent)
         plt.close()

@@ -131,7 +131,7 @@ func (c *Configuration) ConnectPeers(network *Network) {
 
 	c.peeringStrategy(network, c)
 	if c.adversaryPeeringAll {
-		network.AdversaryGroups.ApplyNeighborsAdversaryNodes(network)
+		network.AdversaryGroups.ApplyNeighborsAdversaryNodes(network, c)
 	}
 	network.AdversaryGroups.ApplyNetworkDelayForAdversaryNodes(network)
 
@@ -256,12 +256,14 @@ func WattsStrogatz(meanDegree int, randomness float64) PeeringStrategy {
 					network.Peers[targetNodeID].Socket,
 					randomNetworkDelay,
 					randomPacketLoss,
+					configuration,
 				)
 
 				network.Peers[targetNodeID].Neighbors[PeerID(sourceNodeID)] = NewConnection(
 					network.Peers[sourceNodeID].Socket,
 					randomNetworkDelay,
 					randomPacketLoss,
+					configuration,
 				)
 
 				log.Debugf("Connecting %s <-> %s [network delay (%s), packet loss (%0.4f%%)] ... [DONE]", network.Peers[sourceNodeID], network.Peers[targetNodeID], randomNetworkDelay, randomPacketLoss*100)

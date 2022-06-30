@@ -161,8 +161,10 @@ if __name__ == '__main__':
                         f'{exec} --simulationTarget={target} --{vn}={v} --decelerationFactor={df[i]}')
             elif var == 'D':
                 for i, v in enumerate(vv):
+                    # os.system(
+                    #     f'{exec} --simulationTarget={target} --minDelay={int(v)} --maxDelay={int(v)} -decelerationFactor={df[i]}')
                     os.system(
-                        f'{exec} --simulationTarget={target} --minDelay={int(v)} --maxDelay={int(v)} -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --minDelay={int(v)-50} --maxDelay={int(v)+50} -decelerationFactor={df[i]}')
             elif var == 'AW':
                 for i, v in enumerate([(0.66, True), (0.75, True), (0.5, False), (0.5, True)]):
                     os.system(
@@ -218,35 +220,35 @@ if __name__ == '__main__':
                 folder = base_folder + f'/iter_{iter}'
                 iter_suffix = f'_iter_{iter}'
 
-            if target == 'DS':
-                if repetition != 1 and iter == 0:
-                    # The distribution plots of multiple iterations are ran only one time.
-                    plotter.convergence_time_distribution_plot(
-                        n, base_folder, f'DS_{n}_cv.png', len(vv), repetition, title=t_convergence)
+            # if target == 'DS':
+            #     if repetition != 1 and iter == 0:
+            #         # The distribution plots of multiple iterations are ran only one time.
+            #         plotter.convergence_time_distribution_plot(
+            #             n, base_folder, f'DS_{n}_cv.png', len(vv), repetition, title=t_convergence)
 
-                    plotter.flips_distribution_plot(
-                        n, base_folder, f'DS_{n}_fl.png', len(vv), repetition, title=t_flips)
+            #         plotter.flips_distribution_plot(
+            #             n, base_folder, f'DS_{n}_fl.png', len(vv), repetition, title=t_flips)
 
-                    plotter.unconfirmed_count_distribution_plot(
-                        n, base_folder, f'DS_{n}_uc.png', len(vv), repetition, title=t_unconfirming)
+            #         plotter.unconfirmed_count_distribution_plot(
+            #             n, base_folder, f'DS_{n}_uc.png', len(vv), repetition, title=t_unconfirming)
 
-                    plotter.confirmation_depth_distribution_plot(
-                        n, base_folder, f'DP_{n}_cd.png', len(vv), repetition, title=t_depth)
+            #         plotter.confirmation_depth_distribution_plot(
+            #             n, base_folder, f'DP_{n}_cd.png', len(vv), repetition, title=t_depth)
 
-                plotter.confirmed_like_color_plot(
-                    n, folder + '/cc*csv', f'DS_{n}_cc{iter_suffix}.png', len(vv))
+            #     plotter.confirmed_like_color_plot(
+            #         n, folder + '/cc*csv', f'DS_{n}_cc{iter_suffix}.png', len(vv))
 
-            plotter.confirmation_time_plot(
-                n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.png', t_confirmation, c.VAR_DICT[n])
+            # plotter.confirmation_time_plot(
+            #     n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.png', t_confirmation, c.VAR_DICT[n])
 
             # plotter.confirmation_time_violinplot(
             #     n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, n)
 
-            plotter.throughput_plot(n, folder + '/tp*csv',
-                                    f'CT_{n}_tp{iter_suffix}.png', len(vv))
+            # plotter.throughput_plot(n, folder + '/tp*csv',
+            #                         f'CT_{n}_tp{iter_suffix}.png', len(vv))
 
             plotter.throughput_all_plot(n, folder + '/all-tp*csv',
-                                        f'CT_{n}_all_tp{iter_suffix}.png', len(vv))
+                                        f'CT_{n}_all_tp{iter_suffix}.pdf', len(vv))
 
-            plotter.witness_weight_plot(
-                n, folder, f'CT_{n}_ww{iter_suffix}.png', c.VAR_DICT[n], repetition)
+            # plotter.witness_weight_plot(
+            #     n, folder, f'CT_{n}_ww{iter_suffix}.pdf', c.VAR_DICT[n], repetition)

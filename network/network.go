@@ -93,7 +93,7 @@ func (c *Configuration) RandomNetworkDelay() time.Duration {
 }
 
 func (c *Configuration) ExpRandomNetworkDelay() time.Duration {
-	return c.minDelay + time.Duration(rand.ExpFloat64()*float64(c.maxDelay-c.minDelay))
+	return time.Duration(rand.ExpFloat64() * (float64(c.maxDelay+c.minDelay) / 2))
 }
 
 func (c *Configuration) RandomPacketLoss() float64 {

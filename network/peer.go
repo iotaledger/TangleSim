@@ -129,7 +129,7 @@ func (c *Connection) Send(message interface{}) {
 	}
 	c.timedExecutor.ExecuteAfter(func() {
 		c.socket <- message
-	}, c.configuration.RandomNetworkDelay())
+	}, c.configuration.ExpRandomNetworkDelay())
 }
 
 func (c *Connection) SetDelay(delay time.Duration) {

@@ -163,9 +163,9 @@ class FileParser:
 
         data = pd.read_csv(fn)
 
-        # Chop data before the begining time
-        data = data[data['ns since start'] >=
-                    self.x_axis_begin * float(c["DecelerationFactor"])]
+        # # Chop data before the begining time
+        # data = data[data['ns since start'] >=
+        #             self.x_axis_begin * float(c["DecelerationFactor"])]
 
         # Get the throughput details
         tip_pool_sizes = data.loc[:, data.columns != 'ns since start']

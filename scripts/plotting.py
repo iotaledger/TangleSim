@@ -5,6 +5,7 @@ import glob
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
+import scipy.stats as st
 import logging
 
 import constant as c
@@ -391,6 +392,26 @@ class FigurePlotter:
                 'size': 8}
         matplotlib.rc('font', **font)
 
+        # Colors
+        BG_WHITE = "#fbf9f4"
+        GREY_LIGHT = "#b4aea9"
+        GREY50 = "#7F7F7F"
+        BLUE_DARK = "#1B2838"
+        BLUE = "#2a475e"
+        BLACK = "#282724"
+        GREY_DARK = "#747473"
+        RED_DARK = "#850e00"
+
+        # Colors taken from Dark2 palette in RColorBrewer R library
+        COLOR_SCALE = ["#1B9E77", "#D95F02", "#7570B3", '#2a475e']
+
+        # Horizontal positions for the violins.
+        # They are arbitrary numbers. They could have been [-1, 0, 1] for example.
+        POSITIONS = [0, 1, 2, 3]
+
+        # Horizontal lines
+        HLINES = [40, 50, 60]
+
         variation_data = {}
         for f in glob.glob(fs):
             try:
@@ -415,20 +436,114 @@ class FigurePlotter:
             else:
                 ax = axs[r_loc, c_loc]
 
-            max_node_to_plot = 5
-            for n in ['Node 0', 'Node 1', 'Node 98', 'Node 99']:
-                ax.plot(x_axis, tips[n], label=n, linewidth=1)
+            nodes = ['Node 0', 'Node 1', 'Node 98', 'Node 99']
 
             # Only put the legend on the first figures
             if i == 0:
                 ax.legend(ncol=4)
             ax.set(
-                xlabel='Time (s)', ylabel='Block Count')
-            # ax.set(xlabel='Time (s)')
+                xlabel='Node ID', ylabel='Tip Pool Size')
+            ax.set_xticklabels(nodes)
             ax.set_title(
                 f'Uniform Random Delay = {int(v)}–{int(v)+100} (ms)', fontsize=12)
             ax.set_ylim((0, 80))
-            ax.set_xlim((20, 60))
+            ax.set_yticks(range(0, 81, 40))
+            # ax.set_xlim((20, 60))
+
+            y_data = (tips[nodes[0]].values,
+                      tips[nodes[1]].values,
+                      tips[nodes[2]].values,
+                      tips[nodes[3]].values)
+            # Some layout stuff ----------------------------------------------
+            # Background color
+            # fig.patch.set_facecolor(BG_WHITE)
+            # ax.set_facecolor(BG_WHITE)
+
+            # Horizontal lines that are used as scale reference
+            # for h in HLINES:
+            #     ax.axhline(h, color=GREY50, ls=(0, (5, 5)), alpha=0.8, zorder=0)
+
+            # Add violins ----------------------------------------------------
+            # bw_method="silverman" means the bandwidth of the kernel density
+            # estimator is computed via Silverman's rule of thumb.
+            # More on this in the bonus track ;)
+
+            # The output is stored in 'violins', used to customize their appearence
+            violins = ax.violinplot(
+                y_data,
+                positions=POSITIONS,
+                widths=0.45,
+                bw_method="silverman",
+                showmeans=False,
+                showmedians=False,
+                showextrema=False
+            )
+
+            # Customize violins (remove fill, customize line, etc.)
+            for pc in violins["bodies"]:
+                pc.set_facecolor("none")
+                pc.set_edgecolor(BLACK)
+                pc.set_linewidth(0.4)
+                pc.set_alpha(1)
+
+            # Add boxplots ---------------------------------------------------
+            # Note that properties about the median and the box are passed
+            # as dictionaries.
+
+            medianprops = dict(
+                linewidth=2,
+                color=GREY_DARK,
+                solid_capstyle="butt"
+            )
+            boxprops = dict(
+                linewidth=0.4,
+                color=GREY_DARK
+            )
+
+            ax.boxplot(
+                y_data,
+                positions=POSITIONS,
+                showfliers=False,  # Do not show the outliers beyond the caps.
+                showcaps=False,   # Do not show the caps
+                medianprops=medianprops,
+                whiskerprops=boxprops,
+                boxprops=boxprops
+            )
+
+            jitter = 0.04
+            x_data = [np.array([i] * len(d)) for i, d in enumerate(y_data)]
+            x_jittered = [x + st.t(df=6, scale=jitter).rvs(len(x))
+                          for x in x_data]
+            # Add jittered dots ----------------------------------------------
+            for x, y, color in zip(x_jittered, y_data, COLOR_SCALE):
+                ax.scatter(x, y, s=8, color=color, alpha=0.4)
+
+            # Add mean value labels ------------------------------------------
+            means = [y.mean() for y in y_data]
+            for i, mean in enumerate(means):
+                # Add dot representing the mean
+                ax.scatter(i, mean, s=50, color=RED_DARK, zorder=3)
+
+                # Add line conecting mean value and its label
+                ax.plot([i, i + 0.25], [mean, mean],
+                        ls="dashdot", color="black", zorder=3)
+
+                # Add mean value label.
+                ax.text(
+                    i + 0.25,
+                    mean,
+                    r"$\hat{\mu}_{\rm{mean}} = $" + str(round(mean, 2)),
+                    fontsize=10,
+                    va="center",
+                    bbox=dict(
+                        facecolor="white",
+                        edgecolor="black",
+                        boxstyle="round",
+                        pad=0.15
+                    ),
+                    zorder=10  # to make sure the line is on top
+                )
+
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent)
         plt.close()

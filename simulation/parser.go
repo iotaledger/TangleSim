@@ -26,7 +26,7 @@ func ParseFlags() {
 	weightThresholdAbsolutePtr :=
 		flag.Bool("weightThresholdAbsolute", config.WeightThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
 	tipsCountPtr :=
-		flag.Int("tipsCount", config.TipsCount, "The tips count for a message")
+		flag.Int("tipsCount", config.NumberOfParents, "The tips count for a message")
 	weakTipsRatioPtr :=
 		flag.Float64("weakTipsRatio", config.WeakTipsRatio, "The ratio of weak tips")
 	tsaPtr :=
@@ -89,7 +89,7 @@ func ParseFlags() {
 	config.ZipfParameter = *zipfParameterPtr
 	config.WeightThreshold = *weightThresholdPtr
 	config.WeightThresholdAbsolute = *weightThresholdAbsolutePtr
-	config.TipsCount = *tipsCountPtr
+	config.NumberOfParents = *tipsCountPtr
 	config.WeakTipsRatio = *weakTipsRatioPtr
 	config.TSA = *tsaPtr
 	config.TPS = *tpsPtr
@@ -116,7 +116,7 @@ func ParseFlags() {
 	log.Info("ZipfParameter: ", config.ZipfParameter)
 	log.Info("WeightThreshold: ", config.WeightThreshold)
 	log.Info("WeightThresholdAbsolute: ", config.WeightThresholdAbsolute)
-	log.Info("TipsCount: ", config.TipsCount)
+	log.Info("NumberOfParents: ", config.NumberOfParents)
 	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
 	log.Info("TSA: ", config.TSA)
 	log.Info("TPS: ", config.TPS)

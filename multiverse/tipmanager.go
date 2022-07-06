@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	OptimalStrongTipsCount = int(float64(config.TipsCount) * (1 - config.WeakTipsRatio))
-	OptimalWeakTipsCount   = int(float64(config.TipsCount) * config.WeakTipsRatio)
+	OptimalStrongTipsCount = int(float64(config.NumberOfParents) * (1 - config.WeakTipsRatio))
+	OptimalWeakTipsCount   = int(float64(config.NumberOfParents) * config.WeakTipsRatio)
 )
 
 // region TipManager ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,9 +114,9 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
-	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa)
+	strongTips = tipSet.StrongTips(config.NumberOfParents, t.tsa)
 	// In the paper we consider all strong tips
-	// weakTips = tipSet.WeakTips(config.TipsCount-1, t.tsa)
+	// weakTips = tipSet.WeakTips(config.NumberOfParents-1, t.tsa)
 
 	// Remove the weakTips-related codes
 	// if len(weakTips) == 0 {
@@ -124,7 +124,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// }
 
 	// if strongTipsCount := len(strongTips); strongTipsCount < OptimalStrongTipsCount {
-	// 	fillUpCount := config.TipsCount - strongTipsCount
+	// 	fillUpCount := config.NumberOfParents - strongTipsCount
 
 	// 	if fillUpCount >= len(weakTips) {
 	// 		return
@@ -135,7 +135,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// }
 
 	// if weakTipsCount := len(weakTips); weakTipsCount < OptimalWeakTipsCount {
-	// 	fillUpCount := config.TipsCount - weakTipsCount
+	// 	fillUpCount := config.NumberOfParents - weakTipsCount
 
 	// 	if fillUpCount >= len(strongTips) {
 	// 		return

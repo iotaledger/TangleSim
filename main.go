@@ -206,7 +206,7 @@ func dumpConfig(fileName string) {
 		NodesTotalWeight:        config.NodesTotalWeight,
 		ZipfParameter:           config.ZipfParameter,
 		WeightThreshold:         fmt.Sprintf("%.2f-%v", config.WeightThreshold, config.WeightThresholdAbsolute),
-		TipsCount:               config.TipsCount,
+		TipsCount:               config.NumberOfParents,
 		WeakTipsRatio:           config.WeakTipsRatio,
 		TSA:                     config.TSA,
 		TPS:                     config.TPS,

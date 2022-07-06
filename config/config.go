@@ -3,15 +3,15 @@ package config
 // simulator settings
 
 var (
-	ResultDir                  = "results"   // Path where all the result files will be saved
-	SimulationTarget           = "CT"        // The simulation target, CT: Confirmation Time, DS: Double Spending
-	SimulationStopThreshold    = 1.0         // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
-	ConsensusMonitorTick       = 100         // Tick to monitor the consensus, in milliseconds.
-	MonitoringNodeEnabled      = true        // Set to true if metric node enabled: measuring confluence time
-	ConfluenceMonitorTick      = 100         // Indicates every x message we monitor for a single node
-	MonitoringPeers            = []int{0}    // Nodes for which we monitor the confluence time
-	MonitoredAWPeers           = [...]int{0} // Nodes for which we monitor the AW growth
-	MonitoredWitnessWeightPeer = 0           // Peer for which we monitor Witness Weight
+	ResultDir                  = "results"             // Path where all the result files will be saved
+	SimulationTarget           = "CT"                  // The simulation target, CT: Confirmation Time, DS: Double Spending
+	SimulationStopThreshold    = 1.0                   // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
+	ConsensusMonitorTick       = 100                   // Tick to monitor the consensus, in milliseconds.
+	MonitoringNodeEnabled      = true                  // Set to true if metric node enabled: measuring confluence time
+	ConfluenceMonitorTick      = 100                   // Indicates every x message we monitor for a single node
+	MonitoringPeers            = makeRange(NodesCount) // Nodes for which we monitor the confluence time
+	MonitoredAWPeers           = [...]int{0}           // Nodes for which we monitor the AW growth
+	MonitoredWitnessWeightPeer = 0                     // Peer for which we monitor Witness Weight
 )
 
 // Network setup
@@ -66,3 +66,10 @@ var (
 	AdversaryPeeringAll = false               // Defines a flag indicating whether adversarial nodes should be able to send messages to all nodes in the network, instead of following regular peering algorithm.
 	AdversarySpeedup    = []float64{1.0, 1.0} // Defines how many more messages should adversary nodes issue.
 )
+
+func makeRange(num int) (list []int) {
+	for i := 0; i < num; i++ {
+		list = append(list, i)
+	}
+	return
+}

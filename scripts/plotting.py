@@ -1,14 +1,9 @@
 """The plotting module to plot the figures.
 """
 import glob
-
-import matplotlib
-import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
-import logging
-
 import constant as c
-from parsing import FileParser
+from parsing import FileParser, parse_cf_file
 from utils import *
 
 
@@ -511,3 +506,49 @@ class FigurePlotter:
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent)
         plt.close()
+
+    def confluence_time_plot(self, var, fs, ofn):
+        """Generate the confluence time figures.
+            Args:
+                var: The variation.
+                fs: The path of files.
+                ofn: The output file name.
+            """
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 14}
+        matplotlib.rc('font', **font)
+
+        plt.figure(figsize=(12, 5), dpi=500, constrained_layout=True)
+
+        variation_data = {}
+        for f in glob.glob(fs):
+            v, N, data = parse_cf_file(f, var)
+            try:
+                logging.info("parsing file %s" % f)
+                logging.info("parsing variation %s" % v)
+                group_by_msg, grouped_by_node = self.parser.group_cf_df(data)
+                variation_data[v] = (N, group_by_msg, grouped_by_node)
+            except:
+                logging.error(f'{fs}: Incomplete Data!   confluence_time_plot')
+
+        data = []
+        variations = []
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
+            (N, group_by_msg, grouped_by_node) = d
+            data.append((group_by_msg["Avg Confluence Time"].tolist()))
+            variations.append(f'{int(N)}, {v}')
+
+        plt.violinplot(data)
+        plt.xticks(ticks=list(range(1, 1 + len(variations))),
+                   labels=variations)
+        if var == 'TipsCount':
+            var = 'k'
+        plt.xlabel(f'Node count, {var}')
+        plt.ylabel('Confluence Time (s)')
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent, dpi=300)
+        plt.close()
+
+

@@ -194,6 +194,10 @@ if __name__ == '__main__':
                 for i, v in enumerate(vv):
                     os.system(
                         f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -decelerationFactor={df[i]}')
+            elif var == 'CF':
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target} --tps="{v}" -monitoringNodeEnabled=true -decelerationFactor={df[i]}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)
@@ -247,3 +251,11 @@ if __name__ == '__main__':
 
             plotter.witness_weight_plot(
                 n, folder + '/ww*csv', f'CT_{n}_ww{iter_suffix}.png', c.VAR_DICT[n])
+
+            plotter.confluence_time_plot(
+                n, folder + '/cf*csv', f'CF_{n}_cf{iter_suffix}.png')
+
+            if var == 'CF':
+                plotter.confluence_time_plot_nodes(
+                    n, folder + '/cf*csv', f'CF_{n}_cf-nodes{iter_suffix}.png')
+

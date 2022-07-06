@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	OptimalStrongTipsCount = int(float64(config.TipsCount) * (1 - config.WeakTipsRatio))
-	OptimalWeakTipsCount   = int(float64(config.TipsCount) * config.WeakTipsRatio)
+	OptimalStrongTipsCount = int(float64(config.NumberOfParents) * (1 - config.WeakTipsRatio))
+	OptimalWeakTipsCount   = int(float64(config.NumberOfParents) * config.WeakTipsRatio)
 )
 
 // region TipManager ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -178,7 +178,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 		}
 	}
 
-	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa)
+	strongTips = tipSet.StrongTips(config.NumberOfParents, t.tsa)
 	// In the paper we consider all strong tips
 	// weakTips = tipSet.WeakTips(config.TipsCount-1, t.tsa)
 

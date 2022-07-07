@@ -22,11 +22,11 @@ var (
 func TestTipManager(t *testing.T) {
 	log.Info("Starting TipManager Test ... [DONE]")
 	defer log.Info("Shutting down TipManager Test ... [DONE]")
-	nodeFactories := map[network.AdversaryType]network.NodeFactory{
+	nodeFactories := map[network.SpecialNodeType]network.NodeFactory{
 		network.HonestNode: network.NodeClosure(multiverse.NewNode),
 	}
 	testNetwork := network.New(
-		network.Nodes(nodeCount, nodeFactories, network.ZIPFDistribution(config.ZipfParameter, float64(config.NodesTotalWeight))),
+		network.Nodes(nodeCount, nodeFactories, network.ZIPFDistribution(config.ZipfParameter)),
 		network.Delay(30*time.Millisecond, 250*time.Millisecond),
 		network.PacketLoss(0, 0.05),
 		network.Topology(network.WattsStrogatz(4, 1)),

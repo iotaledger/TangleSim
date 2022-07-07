@@ -9,18 +9,19 @@ import (
 	"github.com/iotaledger/multivers-simulation/config"
 )
 
-// region AdversaryType ////////////////////////////////////////////////////////////////////////////////////////////////
+// region SpecialNodeType ////////////////////////////////////////////////////////////////////////////////////////////////
 
-type AdversaryType int
+type SpecialNodeType int
 
 const (
-	HonestNode AdversaryType = iota
+	HonestNode SpecialNodeType = iota
 	ShiftOpinion
 	TheSameOpinion
 	NoGossip
+	Monitoring
 )
 
-func ToAdversaryType(adv int) AdversaryType {
+func ToSpecialNodeType(adv int) SpecialNodeType {
 	switch adv {
 	case int(ShiftOpinion):
 		return ShiftOpinion
@@ -28,12 +29,14 @@ func ToAdversaryType(adv int) AdversaryType {
 		return TheSameOpinion
 	case int(NoGossip):
 		return NoGossip
+	case int(Monitoring):
+		return Monitoring
 	default:
 		return HonestNode
 	}
 }
 
-func AdversaryTypeToString(adv AdversaryType) string {
+func SpecialNodeTypeToString(adv SpecialNodeType) string {
 	switch adv {
 	case HonestNode:
 		return "Honest"
@@ -43,6 +46,8 @@ func AdversaryTypeToString(adv AdversaryType) string {
 		return "TheSameOpinion"
 	case NoGossip:
 		return "NoGossip"
+	case Monitoring:
+		return "Monitoring"
 	}
 	return ""
 }
@@ -63,7 +68,7 @@ type AdversaryGroup struct {
 	GroupMana            float64
 	TargetManaPercentage float64
 	Delay                time.Duration
-	AdversaryType        AdversaryType
+	AdversaryType        SpecialNodeType
 	InitColor            string
 	NodeCount            int
 }
@@ -100,7 +105,7 @@ func NewAdversaryGroups() (groups AdversaryGroups) {
 			NodeIDs:              make([]int, 0, nCount),
 			TargetManaPercentage: targetMana,
 			Delay:                time.Millisecond * time.Duration(delay),
-			AdversaryType:        ToAdversaryType(configAdvType),
+			AdversaryType:        ToSpecialNodeType(configAdvType),
 			InitColor:            color,
 			NodeCount:            nCount,
 		}

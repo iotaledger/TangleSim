@@ -81,11 +81,12 @@ func main() {
 	defer log.Info("Shutting down simulation ... [DONE]")
 	simulation.ParseFlags()
 
-	nodeFactories := map[network.AdversaryType]network.NodeFactory{
+	nodeFactories := map[network.SpecialNodeType]network.NodeFactory{
 		network.HonestNode:     network.NodeClosure(multiverse.NewNode),
 		network.ShiftOpinion:   network.NodeClosure(adversary.NewShiftingOpinionNode),
 		network.TheSameOpinion: network.NodeClosure(adversary.NewSameOpinionNode),
 		network.NoGossip:       network.NodeClosure(adversary.NewNoGossipNode),
+		network.Monitoring:     network.NodeClosure(simulation.NewMonitoringNode),
 	}
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
@@ -96,6 +97,7 @@ func main() {
 		network.Topology(network.WattsStrogatz(config.NeighbourCountWS, config.RandomnessWS)),
 		network.AdversaryPeeringAll(config.AdversaryPeeringAll),
 		network.AdversarySpeedup(config.AdversarySpeedup),
+		network.MonitoringNodeEnabled(config.MonitoringNodeEnabled, config.MonitoringPeers),
 	)
 	testNetwork.Start()
 	defer testNetwork.Shutdown()
@@ -193,13 +195,13 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
-		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                 string
-		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                    []int
-		AdversarySpeedup, AdversaryMana                                                                                                                                         []float64
-		AdversaryInitColor, AccidentalMana                                                                                                                                      []string
-		AdversaryPeeringAll                                                                                                                                                     bool
+		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, ConfluenceMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
+		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                    float64
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                                        string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                           []int
+		AdversarySpeedup, AdversaryMana                                                                                                                                                                []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                                             []string
+		AdversaryPeeringAll, MonitoringNodeEnabled                                                                                                                                                     bool
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -212,6 +214,7 @@ func dumpConfig(fileName string) {
 		TPS:                     config.TPS,
 		DecelerationFactor:      config.DecelerationFactor,
 		ConsensusMonitorTick:    config.ConsensusMonitorTick,
+		ConfluenceMonitorTick:   config.ConfluenceMonitorTick,
 		RelevantValidatorWeight: config.RelevantValidatorWeight,
 		DoubleSpendDelay:        config.DoubleSpendDelay,
 		PayloadLoss:             config.PayloadLoss,
@@ -233,6 +236,7 @@ func dumpConfig(fileName string) {
 		AccidentalMana:          config.AccidentalMana,
 		AdversaryPeeringAll:     config.AdversaryPeeringAll,
 		AdversarySpeedup:        config.AdversarySpeedup,
+		MonitoringNodeEnabled:   config.MonitoringNodeEnabled,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")
@@ -686,7 +690,7 @@ func dumpResultsAD(adResultsWriter *csv.Writer, net *network.Network) {
 	for groupID, group := range net.AdversaryGroups {
 		record := []string{
 			strconv.FormatInt(int64(groupID), 10),
-			network.AdversaryTypeToString(group.AdversaryType),
+			network.SpecialNodeTypeToString(group.AdversaryType),
 			strconv.FormatInt(int64(len(group.NodeIDs)), 10),
 			strconv.FormatFloat(float64(group.GroupMana)/float64(config.NodesTotalWeight), 'f', 6, 64),
 			strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),

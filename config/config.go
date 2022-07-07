@@ -7,6 +7,9 @@ var (
 	SimulationTarget           = "DS"        // The simulation target, CT: Confirmation Time, DS: Double Spending
 	SimulationStopThreshold    = 1.0         // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
 	ConsensusMonitorTick       = 100         // Tick to monitor the consensus, in milliseconds.
+	MonitoringNodeEnabled      = false       // Set to true if metric node enabled: measuring confluence time
+	ConfluenceMonitorTick      = 100         // Indicates every x message we monitor for a single node
+	MonitoringPeers            = []int{0}    // Nodes for which we monitor the confluence time
 	MonitoredAWPeers           = [...]int{0} // Nodes for which we monitor the AW growth
 	MonitoredWitnessWeightPeer = 0           // Peer for which we monitor Witness Weight
 )

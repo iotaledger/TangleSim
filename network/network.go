@@ -1,6 +1,7 @@
 package network
 
 import (
+	"github.com/iotaledger/hive.go/types"
 	"time"
 
 	"github.com/iotaledger/multivers-simulation/config"
@@ -68,14 +69,16 @@ func (n *Network) Peer(index int) *Peer {
 // region Configuration ////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Configuration struct {
-	nodes               []*NodesSpecification
-	minDelay            time.Duration
-	maxDelay            time.Duration
-	minPacketLoss       float64
-	maxPacketLoss       float64
-	peeringStrategy     PeeringStrategy
-	adversaryPeeringAll bool
-	adversarySpeedup    []float64
+	nodes                 []*NodesSpecification
+	minDelay              time.Duration
+	maxDelay              time.Duration
+	minPacketLoss         float64
+	maxPacketLoss         float64
+	peeringStrategy       PeeringStrategy
+	adversaryPeeringAll   bool
+	adversarySpeedup      []float64
+	monitoringNodeEnabled bool
+	monitoringPeers       map[int]types.Empty
 }
 
 func NewConfiguration(options ...Option) (configuration *Configuration) {
@@ -112,6 +115,12 @@ func (c *Configuration) CreatePeers(network *Network) {
 				nodeType = network.AdversaryGroups[groupIndex].AdversaryType
 				speedupFactor = c.adversarySpeedup[groupIndex]
 			}
+			if c.monitoringNodeEnabled {
+				// enable metrics collection for an honest node i
+				if _, ok := c.monitoringPeers[i]; ok {
+					nodeType = Monitoring
+				}
+			}
 			nodeFactory := nodesSpecification.nodeFactories[nodeType]
 
 			peer := NewPeer(nodeFactory())
@@ -143,7 +152,7 @@ func (c *Configuration) ConnectPeers(network *Network) {
 
 type Option func(*Configuration)
 
-func Nodes(nodeCount int, nodeFactories map[AdversaryType]NodeFactory, weightGenerator WeightGenerator) Option {
+func Nodes(nodeCount int, nodeFactories map[SpecialNodeType]NodeFactory, weightGenerator WeightGenerator) Option {
 	nodeSpecs := &NodesSpecification{
 		nodeCount:       nodeCount,
 		nodeFactories:   nodeFactories,
@@ -157,7 +166,7 @@ func Nodes(nodeCount int, nodeFactories map[AdversaryType]NodeFactory, weightGen
 
 type NodesSpecification struct {
 	nodeCount       int
-	nodeFactories   map[AdversaryType]NodeFactory
+	nodeFactories   map[SpecialNodeType]NodeFactory
 	weightGenerator WeightGenerator
 }
 
@@ -212,6 +221,15 @@ func AdversaryPeeringAll(adversaryPeeringAll bool) Option {
 func AdversarySpeedup(adversarySpeedupFactors []float64) Option {
 	return func(config *Configuration) {
 		config.adversarySpeedup = adversarySpeedupFactors
+	}
+}
+
+func MonitoringNodeEnabled(flag bool, monitoredPeers []int) Option {
+	return func(config *Configuration) {
+		config.monitoringNodeEnabled = flag
+		for _, monitoredPeer := range monitoredPeers {
+			config.monitoringPeers[monitoredPeer] = types.Void
+		}
 	}
 }
 

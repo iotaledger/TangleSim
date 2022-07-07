@@ -11,7 +11,7 @@ import (
 
 var log = logger.New("Simulation")
 
-// Parse the flags and update the configuration
+// ParseFlags parses flags and update the configuration
 func ParseFlags() {
 
 	// Define the configuration flags
@@ -37,6 +37,8 @@ func ParseFlags() {
 		flag.Int("decelerationFactor", config.DecelerationFactor, "The factor to control the speed in the simulation")
 	consensusMonitorTickPtr :=
 		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
+	confluenceMonitorTickPtr :=
+		flag.Int("confluenceMonitorTick", config.ConfluenceMonitorTick, "The tick to monitor the consensus, in milliseconds.")
 	doubleSpendDelayPtr :=
 		flag.Int("doubleSpendDelay", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
 	relevantValidatorWeightPtr :=
@@ -79,6 +81,8 @@ func ParseFlags() {
 		flag.String("adversarySpeedup", "", "Adversary issuing speed relative to their mana, e.g. '10 10' means that nodes in each group will issue 10 times messages than would be allowed by their mana. SimulationTarget must be 'DS'")
 	adversaryPeeringAll :=
 		flag.Bool("adversaryPeeringAll", config.AdversaryPeeringAll, "Flag indicating whether adversary nodes should be able to gossip messages to all nodes in the network directly, or should follow the peering algorithm.")
+	monitoringNodeEnabled :=
+		flag.Bool("monitoringNodeEnabled", config.MonitoringNodeEnabled, "Flag indicating whether adversary nodes should be able to gossip messages to all nodes in the network directly, or should follow the peering algorithm.")
 
 	// Parse the flags
 	flag.Parse()
@@ -95,6 +99,7 @@ func ParseFlags() {
 	config.TPS = *tpsPtr
 	config.DecelerationFactor = *decelerationFactorPtr
 	config.ConsensusMonitorTick = *consensusMonitorTickPtr
+	config.ConfluenceMonitorTick = *confluenceMonitorTickPtr
 	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
 	config.DoubleSpendDelay = *doubleSpendDelayPtr
 	config.PayloadLoss = *payloadLoss
@@ -108,6 +113,7 @@ func ParseFlags() {
 	config.RandomnessWS = *randomnessWS
 	config.NeighbourCountWS = *neighbourCountWS
 	config.SimulationMode = *simulationMode
+	config.MonitoringNodeEnabled = *monitoringNodeEnabled
 	parseAccidentalConfig(accidentalMana)
 	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll, adversarySpeedup)
 	log.Info("Current configuration:")
@@ -122,6 +128,7 @@ func ParseFlags() {
 	log.Info("TPS: ", config.TPS)
 	log.Info("DecelerationFactor: ", config.DecelerationFactor)
 	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
+	log.Info("ConfluenceMonitorTick: ", config.ConfluenceMonitorTick)
 	log.Info("RelevantValidatorWeight: ", config.RelevantValidatorWeight)
 	log.Info("DoubleSpendDelay: ", config.DoubleSpendDelay)
 	log.Info("PayloadLoss: ", config.PayloadLoss)
@@ -143,6 +150,7 @@ func ParseFlags() {
 	log.Info("AccidentalMana: ", config.AccidentalMana)
 	log.Info("AdversaryPeeringAll: ", config.AdversaryPeeringAll)
 	log.Info("AdversarySpeedup: ", config.AdversarySpeedup)
+	log.Info("MonitoringNodeEnabled: ", config.MonitoringNodeEnabled)
 
 }
 

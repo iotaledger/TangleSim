@@ -16,8 +16,18 @@ var (
 
 // region TipManager ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+type TipManagerInterface interface {
+	Setup()
+	Events() *TipManagerEvents
+	AnalyzeMessage(messageID MessageID)
+	TipSets(color Color) map[Color]*TipSet
+	TipSet(color Color) (tipSet *TipSet)
+	Tips() (strongTips MessageIDs, weakTips MessageIDs)
+	Tangle() *Tangle
+}
+
 type TipManager struct {
-	Events *TipManagerEvents
+	events *TipManagerEvents
 
 	tangle              *Tangle
 	tsa                 TipSelector
@@ -44,7 +54,7 @@ func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
 	msgProcessedCounter[Green] = 0
 
 	return &TipManager{
-		Events: &TipManagerEvents{
+		events: &TipManagerEvents{
 			MessageProcessed: events.NewEvent(messageProcessedHandler),
 		},
 
@@ -57,6 +67,14 @@ func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
 
 func (t *TipManager) Setup() {
 	t.tangle.OpinionManager.Events().OpinionFormed.Attach(events.NewClosure(t.AnalyzeMessage))
+}
+
+func (t *TipManager) Tangle() *Tangle {
+	return t.tangle
+}
+
+func (t *TipManager) Events() *TipManagerEvents {
+	return t.events
 }
 
 func (t *TipManager) AnalyzeMessage(messageID MessageID) {
@@ -75,7 +93,7 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	}
 
 	// Color, tips pool count, processed messages issued messages
-	t.Events.MessageProcessed.Trigger(inheritedColor, currentTipPoolSize,
+	t.events.MessageProcessed.Trigger(inheritedColor, currentTipPoolSize,
 		t.msgProcessedCounter[inheritedColor], messageIDCounter)
 
 	// Remove the weak tip codes

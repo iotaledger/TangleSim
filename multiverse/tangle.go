@@ -14,7 +14,7 @@ type Tangle struct {
 	Requester          *Requester
 	Booker             *Booker
 	OpinionManager     OpinionManagerInterface
-	TipManager         *TipManager
+	TipManager         TipManagerInterface
 	MessageFactory     *MessageFactory
 	Utils              *Utils
 }

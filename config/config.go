@@ -4,10 +4,10 @@ package config
 
 var (
 	ResultDir                  = "results"   // Path where all the result files will be saved
-	SimulationTarget           = "DS"        // The simulation target, CT: Confirmation Time, DS: Double Spending
+	SimulationTarget           = "CT"        // The simulation target, CT: Confirmation Time, DS: Double Spending
 	SimulationStopThreshold    = 1.0         // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
 	ConsensusMonitorTick       = 100         // Tick to monitor the consensus, in milliseconds.
-	MonitoringNodeEnabled      = false       // Set to true if metric node enabled: measuring confluence time
+	MonitoringNodeEnabled      = true        // Set to true if metric node enabled: measuring confluence time
 	ConfluenceMonitorTick      = 100         // Indicates every x message we monitor for a single node
 	MonitoringPeers            = []int{0}    // Nodes for which we monitor the confluence time
 	MonitoredAWPeers           = [...]int{0} // Nodes for which we monitor the AW growth
@@ -17,7 +17,7 @@ var (
 // Network setup
 
 var (
-	NodesCount       = 100       // NodesCount is the total number of nodes simulated in the network.
+	NodesCount       = 40        // NodesCount is the total number of nodes simulated in the network.
 	TPS              = 100       // TPS defines the total network throughput.
 	NumberOfParents  = 8         // NumberOfParents that a new message is selecting from the tip pool.
 	NeighbourCountWS = 8         // Number of neighbors node is connected to in WattsStrogatz network topology.

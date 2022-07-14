@@ -45,7 +45,8 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 	mod := issuingMessage.Issuer % 8
 	weight := a.tangle.WeightDistribution.Weight(issuingMessage.Issuer)
 	a.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
-		if int(a.tangle.Peer.ID) == config.MonitoredWitnessWeightPeer && messageMetadata.id == MessageID(config.MonitoredWitnessWeightMessageID) {
+		// todo what is this for: && messageMetadata.id == MessageID(config.MonitoredWitnessWeightMessageID)
+		if int(a.tangle.Peer.ID) == config.MonitoredWitnessWeightPeer {
 			// log.Infof("Peer %d Message %d Witness Weight %d", a.tangle.Peer.ID, messageMetadata.id, messageMetadata.weight)
 			a.Events.MessageWitnessWeightUpdated.Trigger(message, messageMetadata.weight)
 		}

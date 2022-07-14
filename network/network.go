@@ -83,6 +83,7 @@ type Configuration struct {
 
 func NewConfiguration(options ...Option) (configuration *Configuration) {
 	configuration = &Configuration{}
+	configuration.monitoringPeers = make(map[int]types.Empty)
 	for _, currentOption := range options {
 		currentOption(configuration)
 	}
@@ -109,17 +110,18 @@ func (c *Configuration) CreatePeers(network *Network) {
 
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
-			speedupFactor := 1.0
 			// this is adversary node
+			if c.monitoringNodeEnabled {
+				nodeType = Monitoring
+				// enable metrics collection for an honest node i
+				//if _, ok := c.monitoringPeers[i]; ok {
+				//	nodeType = Monitoring
+				//}
+			}
+			speedupFactor := 1.0
 			if groupIndex, ok := AdversaryNodeIDToGroupIDMap[i]; ok {
 				nodeType = network.AdversaryGroups[groupIndex].AdversaryType
 				speedupFactor = c.adversarySpeedup[groupIndex]
-			}
-			if c.monitoringNodeEnabled {
-				// enable metrics collection for an honest node i
-				if _, ok := c.monitoringPeers[i]; ok {
-					nodeType = Monitoring
-				}
 			}
 			nodeFactory := nodesSpecification.nodeFactories[nodeType]
 

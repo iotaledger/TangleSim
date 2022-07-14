@@ -505,7 +505,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	// Here we only monitor the tip pool size of node w/ the highest weight
 	peer := testNetwork.Peers[0]
-	peer.Node.(multiverse.NodeInterface).Tangle().TipManager.Events.MessageProcessed.Attach(events.NewClosure(
+	peer.Node.(multiverse.NodeInterface).Tangle().TipManager.Events().MessageProcessed.Attach(events.NewClosure(
 		func(opinion multiverse.Color, tipPoolSize int, processedMessages uint64, issuedMessages int64) {
 			colorCounters.Set("tipPoolSizes", int64(tipPoolSize), opinion)
 			colorCounters.Set("processedMessages", int64(processedMessages), opinion)
@@ -518,7 +518,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 		tipCounterName := fmt.Sprint("tipPoolSizes-", peerID)
 		processedCounterName := fmt.Sprint("processedMessages-", peerID)
 		issuedCounterName := fmt.Sprint("issuedMessages-", peerID)
-		peer.Node.(multiverse.NodeInterface).Tangle().TipManager.Events.MessageProcessed.Attach(events.NewClosure(
+		peer.Node.(multiverse.NodeInterface).Tangle().TipManager.Events().MessageProcessed.Attach(events.NewClosure(
 			func(opinion multiverse.Color, tipPoolSize int, processedMessages uint64, issuedMessages int64) {
 				colorCounters.Set(tipCounterName, int64(tipPoolSize), opinion)
 				colorCounters.Set(processedCounterName, int64(processedMessages), opinion)

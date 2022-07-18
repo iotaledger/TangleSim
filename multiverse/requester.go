@@ -41,6 +41,8 @@ func (r *Requester) Setup() {
 }
 
 func (r *Requester) StartRequest(messageID MessageID) {
+	// Comment out this funcion to turn off solidifier
+
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 

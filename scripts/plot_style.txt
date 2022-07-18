@@ -39,4 +39,4 @@ axes.spines.top : False
 axes.grid: False
 figure.titlesize: 23
 figure.dpi: 300
-figure.figsize: 6.4,9.6
+figure.figsize: 6.4,4.8

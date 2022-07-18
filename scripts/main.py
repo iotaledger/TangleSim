@@ -152,19 +152,24 @@ if __name__ == '__main__':
             if var in c.SIMULATION_VAR_DICT:
                 # Simulation var
                 vn = c.SIMULATION_VAR_DICT[var]
+                # TPS = [100, 4000]
                 for i, v in enumerate(vv):
-                    if vn == 'zipfParameter':
+                    if vn == 'zipfParameter' or vn == 'payloadLoss':
                         v = float(v)
                     else:
                         v = int(v)
                     os.system(
                         f'{exec} --simulationTarget={target} --{vn}={v} --decelerationFactor={df[i]}')
+                    # os.system(
+                    #     f'{exec} --simulationTarget={target} --tps={TPS[i]} --{vn}={v} --decelerationFactor={df[i]}')
             elif var == 'D':
                 for i, v in enumerate(vv):
-                    # os.system(
-                    #     f'{exec} --simulationTarget={target} --minDelay={int(v)} --maxDelay={int(v)} -decelerationFactor={df[i]}')
                     os.system(
-                        f'{exec} --simulationTarget={target} --minDelay={int(v)-50} --maxDelay={int(v)+50} -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --minDelay={int(v)} --maxDelay={int(v)} -decelerationFactor={df[i]}')
+                    # os.system(
+                    #     f'{exec} --simulationTarget={target} --minDelay={int(v)-50} --maxDelay={int(v)+50} -decelerationFactor={df[i]}')
+                    # os.system(
+                    #     f'{exec} --simulationTarget={target} --minDelay={500-int(v)} --maxDelay={500+int(v)} -decelerationFactor={df[i]}')
             elif var == 'AW':
                 for i, v in enumerate([(0.66, True), (0.75, True), (0.5, False), (0.5, True)]):
                     os.system(
@@ -241,14 +246,14 @@ if __name__ == '__main__':
             # plotter.confirmation_time_plot(
             #     n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.png', t_confirmation, c.VAR_DICT[n])
 
-            # plotter.confirmation_time_violinplot(
-            #     n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, n)
+            plotter.confirmation_time_violinplot(
+                n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, n)
 
             # plotter.throughput_plot(n, folder + '/tp*csv',
             #                         f'CT_{n}_tp{iter_suffix}.png', len(vv))
 
-            plotter.throughput_all_plot(n, folder + '/all-tp*csv',
-                                        f'CT_{n}_all_tp{iter_suffix}.pdf', len(vv))
+            # plotter.throughput_all_plot(n, folder + '/all-tp*csv',
+            #                             f'CT_{n}_all_tp{iter_suffix}.pdf', len(vv))
 
             # plotter.witness_weight_plot(
             #     n, folder, f'CT_{n}_ww{iter_suffix}.pdf', c.VAR_DICT[n], repetition)

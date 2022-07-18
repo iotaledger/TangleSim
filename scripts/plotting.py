@@ -444,10 +444,29 @@ class FigurePlotter:
             ax.set(
                 xlabel='Node ID', ylabel='Tip Pool Size')
             ax.set_xticklabels(nodes)
+            # ax.set_title(
+            #     f'Uniform Random Delay = {int(v)}–{int(v)+100} (ms)', fontsize=12)
+            # if int(v) == 450:
+            #     ax.set_title(
+            #         f'Uniform Random Delay = 450–550 (ms)', fontsize=12)
+            # else:
+            #     ax.set_title(
+            #         f'Uniform Random Delay = 50–950 (ms)', fontsize=12)
+            # ax.set_title(
+            #     f'Exponential Delay Distribution with Mean = {int(v)} (ms)', fontsize=12)
+            # if int(v) == 100:
+            #     ax.set_title(
+            #         f'Node Count = 100, TPS = 100', fontsize=12)
+            # else:
+            #     ax.set_title(
+            #         f'Node Count = 500, TPS = 4000', fontsize=12)
+            #     ax.set_ylim((0, 3000))
+            # ax.set_title(
+            #     f'Constant Network Delay = {int(v)} (ms)', fontsize=12)
             ax.set_title(
-                f'Uniform Random Delay = {int(v)}–{int(v)+100} (ms)', fontsize=12)
-            ax.set_ylim((0, 80))
-            ax.set_yticks(range(0, 81, 40))
+                f'Node Count = {int(v)}', fontsize=12)
+            ax.set_ylim((0, 60))
+            ax.set_yticks(range(0, 61, 30))
             # ax.set_xlim((20, 60))
 
             y_data = (tips[nodes[0]].values,
@@ -569,20 +588,40 @@ class FigurePlotter:
 
         data = []
         variations = []
+
+        # thorughput = [100, 4000]
         for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
             z = (d[0]*1e-9).tolist()
-            data.append((d[0]*1e-9).tolist())
-            variations.append(f'[{int(v)}, {int(v)+100}]')
+            if len(z) == 0:
+                continue
+            # data.append((d[0]*1e-9).tolist())
 
+            data.append(z)
+            # print(z)
+            # variations.append(f'[{int(v)}, {int(v)+100}]')
+
+            # delay = '50–950'
+            # if int(v) == 450:
+            #     delay = '450–550'
+            # ax.set_title(
+            #         f'Uniform Random Delay = 450–550 (ms)', fontsize=12)
+            # else:
+            #     ax.set_title(
+            #         f'Uniform Random Delay = 50–950 (ms)', fontsize=12)
+            # variations.append(f'{v}, {thorughput[i]}')
+            variations.append(float(v)*100)
+            print(z, v)
+        # print(data)
         plt.violinplot(data)
-        plt.xlabel('Uniform Random Network Delay (ms)')
-        plt.ylim(0, 6)
+        plt.xlabel('Payload Loss (%)')
+        # plt.xlabel('Node Count, TPS')
+        # plt.ylim(0, 6)
         # plt.xlabel('Zipf Parameter')
         plt.xticks(ticks=list(range(1, 1 + len(variations))),
                    labels=variations)
 
-        # axes = plt.axes()
-        # axes.set_ylim([0, 11])
+        axes = plt.axes()
+        axes.set_ylim([0, 60])
         plt.ylabel('Confirmation Time (s)')
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent, dpi=300)
@@ -668,8 +707,14 @@ class FigurePlotter:
         for i, (v, d_list) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]), reverse=True)):
             for l in d_list:
                 (ww, x_axis) = l
-                plt.plot(x_axis, 100.0 * ww,
-                         label=f'Delay = {int(v)}–{int(v)+100} (ms)')
+                # plt.plot(x_axis, 100.0 * ww,
+                #          label=f'Delay = {int(v)}–{int(v)+100} (ms)')
+                if int(v) == 100:
+                    plt.plot(x_axis, 100.0 * ww,
+                             label=f'Node Count = 100, TPS = 100')
+                else:
+                    plt.plot(x_axis, 100.0 * ww,
+                             label=f'Node Count = 500, TPS = 4000')
 
         plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
         plt.xlabel('Time (s)')

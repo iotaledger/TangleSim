@@ -53,9 +53,9 @@ class FileParser:
 
         data = pd.read_csv(fn)
 
-        # Chop data before the begining time
-        data = data[data['ns since start'] >=
-                    self.x_axis_begin * float(c["DecelerationFactor"])]
+        # # Chop data before the begining time
+        # data = data[data['ns since start'] >=
+        #             self.x_axis_begin * float(c["DecelerationFactor"])]
 
         # Reset the index to only consider the confirmed msgs from X_AXIS_BEGIN
         data = data.reset_index()

@@ -1,15 +1,17 @@
 package config
 
 var (
-	NodesCount              = 100
+	NodesCount              = 100 // The node count of aMana and cMana nodes (access and consensus nodes)
 	NodesTotalWeight        = 100_000_000
-	ZipfParameter           = 0.9
+	ZipfParameter           = 0.9 // The cMana Weight distribution
+	ZipfParameterAMana      = 0.9 // The aMana TPS distribution
+	NodesCountAMana         = 80  // The aMana nodes count
 	WeightThreshold         = 0.66
 	WeightThresholdAbsolute = true
 	TipsCount               = 8   // The TipsCount for a message
 	WeakTipsRatio           = 0.0 // The ratio of weak tips
 	TSA                     = "URTS"
-	TPS                     = 100
+	TPS                     = 1620
 	DecelerationFactor      = 1                            // The factor to control the speed in the simulation.
 	ConsensusMonitorTick    = 100                          // Tick to monitor the consensus, in milliseconds.
 	RelevantValidatorWeight = 0                            // The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages (disabled now)

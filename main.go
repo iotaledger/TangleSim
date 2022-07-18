@@ -88,8 +88,8 @@ func main() {
 		network.NoGossip:       network.NodeClosure(adversary.NewNoGossipNode),
 	}
 	testNetwork := network.New(
-		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
-			config.ZipfParameter)),
+		network.Nodes(config.NodesCount, config.NodesCountAMana, nodeFactories, network.ZIPFDistribution(
+			config.ZipfParameter), network.ZIPFDistribution(config.ZipfParameterAMana)),
 		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
 			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
 		network.PacketLoss(0, config.PayloadLoss),
@@ -732,11 +732,11 @@ func secureNetwork(testNetwork *network.Network) {
 	// The total throughput remains the same.
 	nodeTotalWeightedWeight := 0.0
 	for _, peer := range testNetwork.Peers {
-		nodeTotalWeightedWeight += float64(testNetwork.WeightDistribution.Weight(peer.ID)) * peer.AdversarySpeedup
+		nodeTotalWeightedWeight += float64(testNetwork.ThroughputDistribution.Weight(peer.ID)) * peer.AdversarySpeedup
 	}
 
 	for _, peer := range testNetwork.Peers {
-		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
+		weightOfPeer := float64(testNetwork.ThroughputDistribution.Weight(peer.ID))
 		// if float64(config.RelevantValidatorWeight)*weightOfPeer <= largestWeight {
 		// 	continue
 		// }
@@ -752,7 +752,7 @@ func secureNetwork(testNetwork *network.Network) {
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
 		band := peer.AdversarySpeedup * weightOfPeer * float64(config.TPS) / nodeTotalWeightedWeight
-		fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
+		fmt.Printf("Peer %d, cMana %f, TPS %f\n", peer.ID, float64(testNetwork.WeightDistribution.Weight(peer.ID)), band)
 
 		go startSecurityWorker(peer, band)
 	}

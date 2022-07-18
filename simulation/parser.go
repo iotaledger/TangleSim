@@ -20,7 +20,9 @@ func ParseFlags() {
 	nodesTotalWeightPtr :=
 		flag.Int("nodesTotalWeight", config.NodesTotalWeight, "The total weight of nodes")
 	zipfParameterPtr :=
-		flag.Float64("zipfParameter", config.ZipfParameter, "The zipf's parameter")
+		flag.Float64("zipfParameter", config.ZipfParameter, "The zipf's parameter for cMana distribution")
+	zipfParameterAManaPtr :=
+		flag.Float64("zipfParameterAMana", config.ZipfParameterAMana, "The zipf's parameter for aMana distribution")
 	weightThresholdPtr :=
 		flag.Float64("weightThreshold", config.WeightThreshold, "The weightThreshold of confirmed messages/color")
 	weightThresholdAbsolutePtr :=
@@ -87,6 +89,7 @@ func ParseFlags() {
 	config.NodesCount = *nodesCountPtr
 	config.NodesTotalWeight = *nodesTotalWeightPtr
 	config.ZipfParameter = *zipfParameterPtr
+	config.ZipfParameterAMana = *zipfParameterAManaPtr
 	config.WeightThreshold = *weightThresholdPtr
 	config.WeightThresholdAbsolute = *weightThresholdAbsolutePtr
 	config.TipsCount = *tipsCountPtr
@@ -114,6 +117,7 @@ func ParseFlags() {
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
 	log.Info("ZipfParameter: ", config.ZipfParameter)
+	log.Info("ZipfParameterAmana: ", config.ZipfParameterAMana)
 	log.Info("WeightThreshold: ", config.WeightThreshold)
 	log.Info("WeightThresholdAbsolute: ", config.WeightThresholdAbsolute)
 	log.Info("TipsCount: ", config.TipsCount)

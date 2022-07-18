@@ -16,9 +16,10 @@ var log = logger.New("Network")
 // region Network //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Network struct {
-	Peers              []*Peer
-	WeightDistribution *ConsensusWeightDistribution
-	AdversaryGroups    AdversaryGroups
+	Peers                  []*Peer
+	WeightDistribution     *ConsensusWeightDistribution
+	ThroughputDistribution *AccessWeightDistribution
+	AdversaryGroups        AdversaryGroups
 }
 
 func New(option ...Option) (network *Network) {
@@ -105,11 +106,12 @@ func (c *Configuration) CreatePeers(network *Network) {
 	defer log.Info("Creating peers ... [DONE]")
 
 	network.WeightDistribution = NewConsensusWeightDistribution()
+	network.ThroughputDistribution = NewAccessWeightDistribution()
 
 	for _, nodesSpecification := range c.nodes {
-		nodeWeights := nodesSpecification.ConfigureWeights(network)
+		nodeWeightsCMana, nodeThroughputsAmana := nodesSpecification.ConfigureWeights(network)
 
-		for i := 0; i < nodesSpecification.nodeCount; i++ {
+		for i := 0; i < nodesSpecification.nodeCountCMana; i++ {
 			nodeType := HonestNode
 			speedupFactor := 1.0
 			// this is adversary node
@@ -124,7 +126,27 @@ func (c *Configuration) CreatePeers(network *Network) {
 			network.Peers = append(network.Peers, peer)
 			log.Debugf("Created %s ... [DONE]", peer)
 
-			network.WeightDistribution.SetWeight(peer.ID, nodeWeights[i])
+			network.WeightDistribution.SetWeight(peer.ID, nodeWeightsCMana[i])
+			network.ThroughputDistribution.SetWeight(peer.ID, 1)
+			peer.SetupNode(network.WeightDistribution)
+		}
+		for i := 0; i < nodesSpecification.nodeCountAMana; i++ {
+			nodeType := HonestNode
+			speedupFactor := 1.0
+			// this is adversary node
+			if groupIndex, ok := AdversaryNodeIDToGroupIDMap[i]; ok {
+				nodeType = network.AdversaryGroups[groupIndex].AdversaryType
+				speedupFactor = c.adversarySpeedup[groupIndex]
+			}
+			nodeFactory := nodesSpecification.nodeFactories[nodeType]
+
+			peer := NewPeer(nodeFactory())
+			peer.AdversarySpeedup = speedupFactor
+			network.Peers = append(network.Peers, peer)
+			log.Debugf("Created %s ... [DONE]", peer)
+
+			network.WeightDistribution.SetWeight(peer.ID, 0)
+			network.ThroughputDistribution.SetWeight(peer.ID, nodeThroughputsAmana[i])
 			peer.SetupNode(network.WeightDistribution)
 		}
 	}
@@ -148,11 +170,13 @@ func (c *Configuration) ConnectPeers(network *Network) {
 
 type Option func(*Configuration)
 
-func Nodes(nodeCount int, nodeFactories map[AdversaryType]NodeFactory, weightGenerator WeightGenerator) Option {
+func Nodes(nodeCount int, nodeCountAmana int, nodeFactories map[AdversaryType]NodeFactory, weightGenerator WeightGenerator, throughputGenerator WeightGenerator) Option {
 	nodeSpecs := &NodesSpecification{
-		nodeCount:       nodeCount,
-		nodeFactories:   nodeFactories,
-		weightGenerator: weightGenerator,
+		nodeCountCMana:      nodeCount - nodeCountAmana,
+		nodeCountAMana:      nodeCountAmana,
+		nodeFactories:       nodeFactories,
+		weightGenerator:     weightGenerator,
+		throughputGenerator: throughputGenerator,
 	}
 
 	return func(config *Configuration) {
@@ -161,15 +185,18 @@ func Nodes(nodeCount int, nodeFactories map[AdversaryType]NodeFactory, weightGen
 }
 
 type NodesSpecification struct {
-	nodeCount       int
-	nodeFactories   map[AdversaryType]NodeFactory
-	weightGenerator WeightGenerator
+	nodeCountCMana      int
+	nodeCountAMana      int
+	nodeFactories       map[AdversaryType]NodeFactory
+	weightGenerator     WeightGenerator
+	throughputGenerator WeightGenerator
 }
 
-func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
+func (n *NodesSpecification) ConfigureWeights(network *Network) ([]uint64, []uint64) {
 	var nodesCount int
 	var totalWeight float64
 	var nodeWeights []uint64
+	var nodeThroughputs []uint64
 
 	if len(config.AdversaryTypes) > 0 || config.SimulationTarget == "DS" {
 		switch config.SimulationMode {
@@ -182,10 +209,15 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 			nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
 		}
 	} else {
-		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+		// cMana nodes
+		cManaNodeCount := config.NodesCount - config.NodesCountAMana
+		nodeWeights = n.weightGenerator(cManaNodeCount, float64(config.NodesTotalWeight))
+
+		// The throughput of each cMana node equals 1
+		nodeThroughputs = n.throughputGenerator(config.NodesCountAMana, float64(config.TPS)-float64(cManaNodeCount))
 	}
 
-	return nodeWeights
+	return nodeWeights, nodeThroughputs
 }
 
 func Delay(minDelay time.Duration, maxDelay time.Duration) Option {

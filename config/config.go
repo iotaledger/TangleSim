@@ -2,10 +2,10 @@ package config
 
 var (
 	NodesCount              = 100 // The node count of aMana and cMana nodes (access and consensus nodes)
+	NodesCountAMana         = 80  // The aMana nodes count
 	NodesTotalWeight        = 100_000_000
 	ZipfParameter           = 0.9 // The cMana Weight distribution
 	ZipfParameterAMana      = 0.9 // The aMana TPS distribution
-	NodesCountAMana         = 80  // The aMana nodes count
 	WeightThreshold         = 0.66
 	WeightThresholdAbsolute = true
 	TipsCount               = 8   // The TipsCount for a message

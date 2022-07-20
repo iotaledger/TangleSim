@@ -193,18 +193,20 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
-		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                 string
-		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                    []int
-		AdversarySpeedup, AdversaryMana                                                                                                                                         []float64
-		AdversaryInitColor, AccidentalMana                                                                                                                                      []string
-		AdversaryPeeringAll                                                                                                                                                     bool
+		NodesCount, NodesCountAMana, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
+		ZipfParameter, ZipfParameterAmana, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                          float64
+		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                                  string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                     []int
+		AdversarySpeedup, AdversaryMana                                                                                                                                                          []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                                       []string
+		AdversaryPeeringAll                                                                                                                                                                      bool
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
+		NodesCountAMana:         config.NodesCountAMana,
 		NodesTotalWeight:        config.NodesTotalWeight,
 		ZipfParameter:           config.ZipfParameter,
+		ZipfParameterAmana:      config.ZipfParameterAMana,
 		WeightThreshold:         fmt.Sprintf("%.2f-%v", config.WeightThreshold, config.WeightThresholdAbsolute),
 		TipsCount:               config.TipsCount,
 		WeakTipsRatio:           config.WeakTipsRatio,

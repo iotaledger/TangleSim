@@ -17,6 +17,8 @@ func ParseFlags() {
 	// Define the configuration flags
 	nodesCountPtr :=
 		flag.Int("nodesCount", config.NodesCount, "The number of nodes")
+	nodesCountAmanaPtr :=
+		flag.Int("nodesCountAmana", config.NodesCountAMana, "The number of access nodes")
 	nodesTotalWeightPtr :=
 		flag.Int("nodesTotalWeight", config.NodesTotalWeight, "The total weight of nodes")
 	zipfParameterPtr :=
@@ -87,6 +89,7 @@ func ParseFlags() {
 
 	// Update the configuration parameters
 	config.NodesCount = *nodesCountPtr
+	config.NodesCountAMana = *nodesCountAmanaPtr
 	config.NodesTotalWeight = *nodesTotalWeightPtr
 	config.ZipfParameter = *zipfParameterPtr
 	config.ZipfParameterAMana = *zipfParameterAManaPtr
@@ -115,6 +118,7 @@ func ParseFlags() {
 	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll, adversarySpeedup)
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
+	log.Info("NodesCountAmana: ", config.NodesCountAMana)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
 	log.Info("ZipfParameter: ", config.ZipfParameter)
 	log.Info("ZipfParameterAmana: ", config.ZipfParameterAMana)

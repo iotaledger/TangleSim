@@ -114,9 +114,9 @@ func (c *Configuration) CreatePeers(network *Network) {
 			if c.monitoringNodeEnabled {
 				nodeType = Monitoring
 				// enable metrics collection for an honest node i
-				//if _, ok := c.monitoringPeers[i]; ok {
-				//	nodeType = Monitoring
-				//}
+				if _, ok := c.monitoringPeers[i]; ok {
+					nodeType = Monitoring
+				}
 			}
 			speedupFactor := 1.0
 			if groupIndex, ok := AdversaryNodeIDToGroupIDMap[i]; ok {

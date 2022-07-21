@@ -1,7 +1,6 @@
 package simulation
 
 import (
-	"fmt"
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/types"
 	"github.com/iotaledger/multivers-simulation/config"
@@ -32,14 +31,12 @@ func NewMonitoringNode() interface{} {
 		Node: node,
 	}
 	metricNode.setupTipManager()
-	fmt.Println(" NewMonitoringNode ")
 	return metricNode
 }
 
 func (n *MonitoringNode) setupTipManager() {
 	tm := n.Tangle().TipManager
 	n.Tangle().TipManager = NewMonitoringTipManager(tm)
-	n.Tangle().TipManager.Setup()
 }
 
 type MonitoringTipManager struct {
@@ -80,14 +77,12 @@ func (t *MonitoringTipManager) selectMessageToMonitor(msgID multiverse.MessageID
 	if t.tipSelectedAgo == t.monitorTick {
 		t.tipSelectedAgo = 0
 		t.trackedMessageIDs[msgID] = types.Void
+
 	} else {
 		t.tipSelectedAgo++
 	}
 	msg := t.Tangle().Storage.Message(msgID)
-	parents := make([]multiverse.MessageID, 0)
-	for parent := range msg.StrongParents {
-		parents = append(parents, parent)
-	}
+	parents := parentListFromMap(msg)
 	t.inheritTipPastCone(msgID, parents)
 }
 
@@ -112,16 +107,23 @@ func (t *MonitoringTipManager) removeFromTipsPastCone(msgID, trackedMessageID mu
 	}
 }
 
+// inheritTipPastCone each tip inherits all tracked messages from their parents.
+// If the parent is tracked it is also included to the tracked past cone.
 func (t *MonitoringTipManager) inheritTipPastCone(newTip multiverse.MessageID, parents []multiverse.MessageID) {
+	// Create metadata for each tip
 	t.tipsMetadata[newTip] = NewTipMetadata(newTip)
 	// delete(t.tipsMetadata, parents[0])
 	for _, parent := range parents {
+		if t.isMessageTracked(parent) {
+			t.tipsMetadata[newTip].trackedInPastCone[parent] = types.Void
+		}
+		// for genesis
 		if _, ok := t.tipsMetadata[parent]; !ok {
-			t.tipsMetadata[parent] = NewTipMetadata(parent)
-
+			t.tipsMetadata[parent] = NewTipMetadata(newTip)
 		}
 		for trackedMsgID := range t.tipsMetadata[parent].trackedInPastCone {
 			if t.isMessageTracked(trackedMsgID) {
+
 				t.tipsMetadata[newTip].trackedInPastCone[trackedMsgID] = types.Void
 			}
 		}
@@ -145,9 +147,17 @@ func (t *MonitoringTipManager) checkTracked() {
 
 			confluenceTime := time.Now().Sub(t.TipManager.Tangle().Storage.Message(tracked).IssuanceTime)
 			// delete from metadata
-			t.events.SeenByAllTips.Trigger(confluenceTime, t.Tangle().Peer.ID)
+			t.events.SeenByAllTips.Trigger(confluenceTime, tracked, t.Tangle().Peer.ID)
 		}
 	}
+}
+
+func parentListFromMap(msg *multiverse.Message) []multiverse.MessageID {
+	parents := make([]multiverse.MessageID, 0)
+	for parent := range msg.StrongParents {
+		parents = append(parents, parent)
+	}
+	return parents
 }
 
 type MonitoringTipManagerEvents struct {
@@ -156,7 +166,7 @@ type MonitoringTipManagerEvents struct {
 }
 
 func seenByAllTipsHandler(handler interface{}, params ...interface{}) {
-	handler.(func(duration time.Duration, nodeID network.PeerID))(params[0].(time.Duration), params[1].(network.PeerID))
+	handler.(func(confluenceTime time.Duration, messageID multiverse.MessageID, nodeID network.PeerID))(params[0].(time.Duration), params[1].(multiverse.MessageID), params[2].(network.PeerID))
 }
 
 func (t *MonitoringTipManager) Setup() {

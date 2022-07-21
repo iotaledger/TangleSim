@@ -48,6 +48,7 @@ var (
 		"Flips (Winning color changed)", "Honest nodes Flips", "ns since start", "ns since issuance"}
 	adHeader = []string{"AdversaryGroupID", "Strategy", "AdversaryCount", "q", "ns since issuance"}
 	ndHeader = []string{"Node ID", "Adversary", "Min Confirmed Accumulated Weight", "Unconfirmation Count"}
+	cfHeader = []string{"Node ID", "Message ID", "Confluence Time"}
 
 	csvMutex sync.Mutex
 
@@ -377,6 +378,9 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	// Define the file name of the ww results
 	wwResultsWriter := createWriter(fmt.Sprintf("ww-%s.csv", simulationStartTimeStr), wwHeader, &resultsWriters)
 
+	// Save confluence time monitoring results
+	cfResultsWriter := createWriter(fmt.Sprintf("cf-%s.csv", simulationStartTimeStr), cfHeader, &resultsWriters)
+
 	// Dump the Witness Weight
 	wwPeer := testNetwork.Peers[config.MonitoredWitnessWeightPeer]
 	previousWitnessWeight := uint64(config.NodesTotalWeight)
@@ -390,15 +394,8 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				strconv.FormatUint(weight, 10),
 				strconv.FormatInt(time.Since(message.IssuanceTime).Nanoseconds(), 10),
 			}
-			csvMutex.Lock()
-			if err := wwResultsWriter.Write(record); err != nil {
-				log.Fatal("error writing record to csv:", err)
-			}
 
-			if err := wwResultsWriter.Error(); err != nil {
-				log.Fatal(err)
-			}
-			csvMutex.Unlock()
+			writeLine(wwResultsWriter, record)
 		}))
 
 	for _, id := range config.MonitoredAWPeers {
@@ -426,17 +423,21 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 					strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 				}
 				confirmedMessageMutex.RUnlock()
-
-				csvMutex.Lock()
-				if err := awResultsWriter.Write(record); err != nil {
-					log.Fatal("error writing record to csv:", err)
-				}
-
-				if err := awResultsWriter.Error(); err != nil {
-					log.Fatal(err)
-				}
-				csvMutex.Unlock()
+				writeLine(awResultsWriter, record)
 			}))
+	}
+
+	// confluence time monitoring
+	for _, id := range config.MonitoringPeers {
+		peer := testNetwork.Peer(id)
+		peer.Node.(*simulation.MonitoringNode).Tangle().TipManager.(*simulation.MonitoringTipManager).MonitoringEvents().SeenByAllTips.Attach(events.NewClosure(func(confluenceTime time.Duration, messageID multiverse.MessageID, nodeID network.PeerID) {
+			record := []string{
+				strconv.FormatInt(int64(nodeID), 10),
+				strconv.FormatInt(int64(messageID), 10),
+				strconv.FormatInt(confluenceTime.Nanoseconds(), 10),
+			}
+			writeLine(cfResultsWriter, record)
+		}))
 	}
 
 	for _, peer := range testNetwork.Peers {
@@ -702,6 +703,8 @@ func dumpResultsAD(adResultsWriter *csv.Writer, net *network.Network) {
 }
 
 func writeLine(writer *csv.Writer, record []string) {
+	csvMutex.Lock()
+	defer csvMutex.Unlock()
 	if err := writer.Write(record); err != nil {
 		log.Fatal("error writing record to csv:", err)
 	}
@@ -756,7 +759,6 @@ func secureNetwork(testNetwork *network.Network) {
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
 		band := peer.AdversarySpeedup * weightOfPeer * float64(config.TPS) / nodeTotalWeightedWeight
-		fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
 
 		go startSecurityWorker(peer, band)
 	}

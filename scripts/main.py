@@ -224,7 +224,10 @@ if __name__ == '__main__':
             if repetition != 1:
                 folder = base_folder + f'/iter_{iter}'
                 iter_suffix = f'_iter_{iter}'
-
+            if target == 'CT':
+                if repetition != 1 and iter == 0:
+                    plotter.number_of_requested_missing_messages_batch(
+                        n, base_folder + '/*/mm*csv', f'CT_{n}_mm.pdf', t_confirmation, n)
             # if target == 'DS':
             #     if repetition != 1 and iter == 0:
             #         # The distribution plots of multiple iterations are ran only one time.
@@ -248,6 +251,9 @@ if __name__ == '__main__':
 
             plotter.confirmation_time_violinplot(
                 n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, n)
+
+            # plotter.number_of_requested_missing_messages(
+            #     n, folder + '/mm*csv', f'CT_{n}_mm{iter_suffix}.pdf', t_confirmation, n)
 
             # plotter.throughput_plot(n, folder + '/tp*csv',
             #                         f'CT_{n}_tp{iter_suffix}.png', len(vv))

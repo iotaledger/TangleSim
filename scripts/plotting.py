@@ -11,6 +11,7 @@ import logging
 import constant as c
 from parsing import FileParser
 from utils import *
+from collections import defaultdict
 
 plt.style.use('plot_style.txt')
 
@@ -599,6 +600,7 @@ class FigurePlotter:
             data.append(z)
             # print(z)
             # variations.append(f'[{int(v)}, {int(v)+100}]')
+            # variations.append(f'{int(v)}–{int(v)+100}')
 
             # delay = '50–950'
             # if int(v) == 450:
@@ -609,11 +611,14 @@ class FigurePlotter:
             #     ax.set_title(
             #         f'Uniform Random Delay = 50–950 (ms)', fontsize=12)
             # variations.append(f'{v}, {thorughput[i]}')
-            variations.append(float(v)*100)
+            # variations.append(float(v)*100)
             print(z, v)
+            variations.append(int(eval(v)[0]))
+
         # print(data)
         plt.violinplot(data)
-        plt.xlabel('Payload Loss (%)')
+        plt.xlabel('Adversary Weight (%)')
+        # plt.xlabel('Uniform Random Network Delay (ms)')
         # plt.xlabel('Node Count, TPS')
         # plt.ylim(0, 6)
         # plt.xlabel('Zipf Parameter')
@@ -621,8 +626,87 @@ class FigurePlotter:
                    labels=variations)
 
         axes = plt.axes()
-        axes.set_ylim([0, 60])
+        axes.set_ylim([0, 6])
         plt.ylabel('Confirmation Time (s)')
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent, dpi=300)
+        plt.close()
+
+    def number_of_requested_missing_messages_batch(self, var, fs, ofn, title, label):
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 14}
+        matplotlib.rc('font', **font)
+
+        plt.close('all')
+        plt.figure()
+        variation_data = defaultdict(list)
+        for k, v in variation_data.items():
+            print(k, v)
+        for f in glob.glob(fs):
+            try:
+                v, data = self.parser.parse_mm_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
+            variation_data[float(v)*100].append(data)
+
+        variations = []
+        data = []
+
+        for i, (v, d) in enumerate(sorted(variation_data.items())):
+            variations.append(v)
+            data.append(d)
+        plt.violinplot(data)
+
+        plt.xlabel('Payload Loss (%)')
+        plt.ylim(0, 3000)
+        plt.xticks(ticks=list(range(1, 1 + len(variations))),
+                   labels=variations)
+
+        plt.ylabel('Number of Requested Messages')
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent, dpi=300)
+        plt.close()
+
+    def number_of_requested_missing_messages(self, var, fs, ofn, title, label):
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 14}
+        matplotlib.rc('font', **font)
+
+        plt.close('all')
+        plt.figure()
+        variation_data = {}
+        for f in glob.glob(fs):
+            try:
+                v, data = self.parser.parse_mm_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
+            variation_data[v] = data
+
+        data = []
+        variations = []
+
+        # thorughput = [100, 4000]
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
+            if float(v)*100 <= 80:
+                data.append(d)
+                variations.append(float(v)*100)
+
+        print(data, variations)
+        plt.bar(range(1, len(variations)+1), data)
+        plt.xlabel('Payload Loss (%)')
+        # plt.xlabel('Node Count, TPS')
+        plt.ylim(0, 2000)
+        # plt.xlabel('Zipf Parameter')
+        plt.xticks(ticks=list(range(1, 1 + len(variations))),
+                   labels=variations)
+
+        plt.ylabel('Number of Requested Messages')
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent, dpi=300)
         plt.close()

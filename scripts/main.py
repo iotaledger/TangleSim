@@ -33,17 +33,17 @@ def parse_arg():
           put in the same folder, and the output figures will be overwritten.
         - Usage example of generating different Ss (0~2.2) and different Ks (2, 4, 8, 16, 32, 64)
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULT_PATH_1' -fop 'YOUR_FIGURE_OUTPUT_PATH_1' -exec 'go run . --tipsCount=2' -rt 100 -st DS
+              -rp 'YOUR_RESULT_PATH_1' -fop 'YOUR_FIGURE_OUTPUT_PATH_1' -exec 'go run . --parentsCount=2' -rt 100 -st DS
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULTS_PATH_2' -fop 'YOUR_FIGURE_OUTPUT_PATH_2' -exec 'go run . --tipsCount=4; -rt 100 -st DS
+              -rp 'YOUR_RESULTS_PATH_2' -fop 'YOUR_FIGURE_OUTPUT_PATH_2' -exec 'go run . --parentsCount=4; -rt 100 -st DS
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULTS_PATH_3' -fop 'YOUR_FIGURE_OUTPUT_PATH_3' -exec 'go run . --tipsCount=8' -rt 100 -st DS
+              -rp 'YOUR_RESULTS_PATH_3' -fop 'YOUR_FIGURE_OUTPUT_PATH_3' -exec 'go run . --parentsCount=8' -rt 100 -st DS
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULTS_PATH_4' -fop 'YOUR_FIGURE_OUTPUT_PATH_4' -exec 'go run . --tipsCount=16' -rt 100 -st DS
+              -rp 'YOUR_RESULTS_PATH_4' -fop 'YOUR_FIGURE_OUTPUT_PATH_4' -exec 'go run . --parentsCount=16' -rt 100 -st DS
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULTS_PATH_5' -fop 'YOUR_FIGURE_OUTPUT_PATH_5' -exec 'go run . --tipsCount=32' -rt 100 -st DS
+              -rp 'YOUR_RESULTS_PATH_5' -fop 'YOUR_FIGURE_OUTPUT_PATH_5' -exec 'go run . --parentsCount=32' -rt 100 -st DS
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULTS_PATH_6' -fop 'YOUR_FIGURE_OUTPUT_PATH_6' -exec 'go run . --tipsCount=64' -rt 100 -st DS
+              -rp 'YOUR_RESULTS_PATH_6' -fop 'YOUR_FIGURE_OUTPUT_PATH_6' -exec 'go run . --parentsCount=64' -rt 100 -st DS
     """), formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument("-msp", "--MULTIVERSE_PATH", type=str,

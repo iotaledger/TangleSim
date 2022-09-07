@@ -16,7 +16,7 @@ var (
 var (
 	NodesCount       = 100       // NodesCount is the total number of nodes simulated in the network.
 	TPS              = 100       // TPS defines the total network throughput.
-	NumberOfParents  = 8         // NumberOfParents that a new message is selecting from the tip pool.
+	ParentsCount     = 8         // ParentsCount that a new message is selecting from the tip pool.
 	NeighbourCountWS = 8         // Number of neighbors node is connected to in WattsStrogatz network topology.
 	RandomnessWS     = 1.0       // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
 	IMIF             = "poisson" // IMIF Inter Message Issuing Function for time delay between activity messages: poisson or uniform.

@@ -82,15 +82,15 @@ python3 main.py -rs -pf -v K -vv 2 4 8 16 32 64 -df 1 -rt 100 -st DS
       put in the same folder, and the output figures will be overwritten.
     - Usage example of generating different Ss (0~2.2) and different Ks (2, 4, 8, 16, 32, 64)
 ```s
-python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_2' -fop 'k_2/figures' -exec 'go run . --tipsCount=2' -rt 100 -st DS
+python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_2' -fop 'k_2/figures' -exec 'go run . --parentsCount=2' -rt 100 -st DS
 
-python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_4' -fop 'k_4/figures' -exec 'go run . --tipsCount=4' -rt 100 -st DS
+python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_4' -fop 'k_4/figures' -exec 'go run . --parentsCount=4' -rt 100 -st DS
 
-python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_8' -fop 'k_8/figures' -exec 'go run . --tipsCount=8' -rt 100 -st DS
+python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_8' -fop 'k_8/figures' -exec 'go run . --parentsCount=8' -rt 100 -st DS
 
-python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_16' -fop 'k_16/figures' -exec 'go run . --tipsCount=16' -rt 100 -st DS
+python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_16' -fop 'k_16/figures' -exec 'go run . --parentsCount=16' -rt 100 -st DS
 
-python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_32' -fop 'k_32/figures' -exec 'go run . --tipsCount=32' -rt 100 -st DS
+python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_32' -fop 'k_32/figures' -exec 'go run . --parentsCount=32' -rt 100 -st DS
 
-python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_64' -fop 'k_64/figures' -exec 'go run . --tipsCount=64' -rt 100 -st DS
+python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1 -rp 'k_64' -fop 'k_64/figures' -exec 'go run . --parentsCount=64' -rt 100 -st DS
 ```

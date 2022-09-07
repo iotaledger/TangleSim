@@ -30,11 +30,11 @@ var (
 // Weight setup
 
 var (
-	NodesTotalWeight        = 100_000_000 // Total number of weight for the whole network.
-	ZipfParameter           = 0.9         // the 's' parameter for the Zipf distribution used to model weight distribution. s=0 all nodes are equal, s=2 network centralized.
-	WeightThreshold         = 0.66        // Threshold for AW collection above which messages are considered confirmed.
-	WeightThresholdAbsolute = true        // If true the threshold is alway counted from zero if false the weight collected is counted from the next peer weight.
-	RelevantValidatorWeight = 0           // The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages (disabled now)
+	NodesTotalWeight              = 100_000_000 // Total number of weight for the whole network.
+	ZipfParameter                 = 0.9         // the 's' parameter for the Zipf distribution used to model weight distribution. s=0 all nodes are equal, s=2 network centralized.
+	ConfirmationThreshold         = 0.66        // Threshold for AW collection above which messages are considered confirmed.
+	ConfirmationThresholdAbsolute = true        // If true the threshold is alway counted from zero if false the weight collected is counted from the next peer weight.
+	RelevantValidatorWeight       = 0           // The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages (disabled now)
 )
 
 // Tip Selection Algorithm setup

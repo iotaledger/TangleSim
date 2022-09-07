@@ -21,10 +21,10 @@ func ParseFlags() {
 		flag.Int("nodesTotalWeight", config.NodesTotalWeight, "The total weight of nodes")
 	zipfParameterPtr :=
 		flag.Float64("zipfParameter", config.ZipfParameter, "The zipf's parameter")
-	weightThresholdPtr :=
-		flag.Float64("weightThreshold", config.WeightThreshold, "The weightThreshold of confirmed messages/color")
-	weightThresholdAbsolutePtr :=
-		flag.Bool("weightThresholdAbsolute", config.WeightThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
+	confirmationThresholdPtr :=
+		flag.Float64("confirmationThreshold", config.ConfirmationThreshold, "The confirmationThreshold of confirmed messages/color")
+	confirmationThresholdAbsolutePtr :=
+		flag.Bool("confirmationThresholdAbsolute", config.ConfirmationThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
 	parentsCountPtr :=
 		flag.Int("parentsCount", config.ParentsCount, "The tips count for a message")
 	weakTipsRatioPtr :=
@@ -87,8 +87,8 @@ func ParseFlags() {
 	config.NodesCount = *nodesCountPtr
 	config.NodesTotalWeight = *nodesTotalWeightPtr
 	config.ZipfParameter = *zipfParameterPtr
-	config.WeightThreshold = *weightThresholdPtr
-	config.WeightThresholdAbsolute = *weightThresholdAbsolutePtr
+	config.ConfirmationThreshold = *confirmationThresholdPtr
+	config.ConfirmationThresholdAbsolute = *confirmationThresholdAbsolutePtr
 	config.ParentsCount = *parentsCountPtr
 	config.WeakTipsRatio = *weakTipsRatioPtr
 	config.TSA = *tsaPtr
@@ -114,8 +114,8 @@ func ParseFlags() {
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
 	log.Info("ZipfParameter: ", config.ZipfParameter)
-	log.Info("WeightThreshold: ", config.WeightThreshold)
-	log.Info("WeightThresholdAbsolute: ", config.WeightThresholdAbsolute)
+	log.Info("ConfirmationThreshold: ", config.ConfirmationThreshold)
+	log.Info("ConfirmationThresholdAbsolute: ", config.ConfirmationThresholdAbsolute)
 	log.Info("ParentsCount: ", config.ParentsCount)
 	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
 	log.Info("TSA: ", config.TSA)

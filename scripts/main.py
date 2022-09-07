@@ -166,7 +166,7 @@ if __name__ == '__main__':
             elif var == 'AW':
                 for i, v in enumerate([(0.66, True), (0.75, True), (0.5, False), (0.5, True)]):
                     os.system(
-                        f'{exec} --simulationTarget={target} --weightThreshold={v[0]} --weightThresholdAbsolute={v[1]} -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --confirmationThreshold={v[0]} --confirmationThresholdAbsolute={v[1]} -decelerationFactor={df[i]}')
             elif var == 'IM':
                 for i, v in enumerate(vv):
                     os.system(

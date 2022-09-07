@@ -33,8 +33,8 @@ func ParseFlags() {
 		flag.String("tsa", config.TSA, "The tip selection algorithm")
 	tpsPtr :=
 		flag.Int("tps", config.TPS, "the tips per seconds")
-	decelerationFactorPtr :=
-		flag.Int("decelerationFactor", config.DecelerationFactor, "The factor to control the speed in the simulation")
+	slowdownFactorPtr :=
+		flag.Int("slowdownFactor", config.SlowdownFactor, "The factor to control the speed in the simulation")
 	consensusMonitorTickPtr :=
 		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
 	doubleSpendDelayPtr :=
@@ -93,7 +93,7 @@ func ParseFlags() {
 	config.WeakTipsRatio = *weakTipsRatioPtr
 	config.TSA = *tsaPtr
 	config.TPS = *tpsPtr
-	config.DecelerationFactor = *decelerationFactorPtr
+	config.SlowdownFactor = *slowdownFactorPtr
 	config.ConsensusMonitorTick = *consensusMonitorTickPtr
 	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
 	config.DoubleSpendDelay = *doubleSpendDelayPtr
@@ -120,7 +120,7 @@ func ParseFlags() {
 	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
 	log.Info("TSA: ", config.TSA)
 	log.Info("TPS: ", config.TPS)
-	log.Info("DecelerationFactor: ", config.DecelerationFactor)
+	log.Info("SlowdownFactor: ", config.SlowdownFactor)
 	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
 	log.Info("RelevantValidatorWeight: ", config.RelevantValidatorWeight)
 	log.Info("DoubleSpendDelay: ", config.DoubleSpendDelay)

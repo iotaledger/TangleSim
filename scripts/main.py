@@ -68,7 +68,7 @@ def parse_arg():
                         help="The variation values, e.g., '100 200 300' for different N",
                         default=config.cd['VARIATION_VALUES'])
     parser.add_argument("-df", "--DECELERATION_FACTORS", nargs="+", type=int,
-                        help="The deceleration factors for each variation. If only one element, then it will be used for all runs",
+                        help="The slowdown factors for each variation. If only one element, then it will be used for all runs",
                         default=config.cd['DECELERATION_FACTORS'])
     parser.add_argument("-exec", "--EXECUTE", type=str,
                         help="Execution way, e.g., 'go run .' or './multiverse_sim'",
@@ -113,7 +113,7 @@ if __name__ == '__main__':
     # Update the che configuration dictionary
     config = parse_arg()
 
-    # Check the deceleration factors settings
+    # Check the slowdown factors settings
     df = config.cd['DECELERATION_FACTORS']
     vv = config.cd['VARIATION_VALUES']
     if len(df) != 1 and (len(df) != len(vv)):
@@ -158,24 +158,24 @@ if __name__ == '__main__':
                     else:
                         v = int(v)
                     os.system(
-                        f'{exec} --simulationTarget={target} --{vn}={v} --decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --{vn}={v} --slowdownFactor={df[i]}')
             elif var == 'D':
                 for i, v in vv:
                     os.system(
-                        f'{exec} --simulationTarget={target} --MinDelay={float(v)} --maxDelay={float(v)} -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --MinDelay={float(v)} --maxDelay={float(v)} -slowdownFactor={df[i]}')
             elif var == 'AW':
                 for i, v in enumerate([(0.66, True), (0.75, True), (0.5, False), (0.5, True)]):
                     os.system(
-                        f'{exec} --simulationTarget={target} --confirmationThreshold={v[0]} --confirmationThresholdAbsolute={v[1]} -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --confirmationThreshold={v[0]} --confirmationThresholdAbsolute={v[1]} -slowdownFactor={df[i]}')
             elif var == 'IM':
                 for i, v in enumerate(vv):
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Accidental -accidentalMana="{v}" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Accidental -accidentalMana="{v}" -slowdownFactor={df[i]}')
             elif var == 'AD':
                 for i, v in enumerate(vv):
                     v = str(float(v)/2)
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v} {v}" -adversaryType="{adv_strategy}" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v} {v}" -adversaryType="{adv_strategy}" -adversaryInitColors="R B" -slowdownFactor={df[i]}')
             elif var == 'AC':
                 for i, v in enumerate(vv):
                     if "adversaryMana" not in exec:
@@ -185,15 +185,15 @@ if __name__ == '__main__':
 
                     v = str(int(float(v)/2))
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -slowdownFactor={df[i]}')
             elif var == 'BS':
                 for i, v in enumerate(vv):
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -slowdownFactor={df[i]}')
             elif var == 'SU':
                 for i, v in enumerate(vv):
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -slowdownFactor={df[i]}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)

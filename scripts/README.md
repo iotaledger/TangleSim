@@ -40,7 +40,7 @@ optional arguments:
                         The variation values, e.g., '100 200 300' for different N
                         Default: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
   -df DECELERATION_FACTORS [DECELERATION_FACTORS ...], --DECELERATION_FACTORS DECELERATION_FACTORS [DECELERATION_FACTORS ...]
-                        The deceleration factors for each variation. If only one element, then it will be used for all runs
+                        The slowdown factors for each variation. If only one element, then it will be used for all runs
                         Default: [1, 2, 2, 3, 5, 10, 15, 20, 25, 30]
   -exec EXECUTE, --EXECUTE EXECUTE
                         Execution way, e.g., 'go run .' or './multiverse_sim'

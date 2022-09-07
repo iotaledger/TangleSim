@@ -52,7 +52,7 @@ var (
 	csvMutex sync.Mutex
 
 	// simulation variables
-	dumpingTicker         = time.NewTicker(time.Duration(config.DecelerationFactor*config.ConsensusMonitorTick) * time.Millisecond)
+	dumpingTicker         = time.NewTicker(time.Duration(config.SlowdownFactor*config.ConsensusMonitorTick) * time.Millisecond)
 	simulationWg          = sync.WaitGroup{}
 	maxSimulationDuration = time.Minute
 	shutdownSignal        = make(chan types.Empty)
@@ -90,8 +90,8 @@ func main() {
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
 			config.ZipfParameter)),
-		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
-			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
+		network.Delay(time.Duration(config.SlowdownFactor)*time.Duration(config.MinDelay)*time.Millisecond,
+			time.Duration(config.SlowdownFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
 		network.PacketLoss(0, config.PacketLoss),
 		network.Topology(network.WattsStrogatz(config.NeighbourCountWS, config.RandomnessWS)),
 		network.AdversaryPeeringAll(config.AdversaryPeeringAll),
@@ -113,14 +113,14 @@ func main() {
 	case <-shutdownSignal:
 		shutdownSimulation()
 		log.Info("Shutting down simulation (consensus reached) ... [DONE]")
-	case <-time.After(time.Duration(config.DecelerationFactor) * maxSimulationDuration):
+	case <-time.After(time.Duration(config.SlowdownFactor) * maxSimulationDuration):
 		shutdownSimulation()
 		log.Info("Shutting down simulation (simulation timed out) ... [DONE]")
 	}
 }
 
 func SimulateDoubleSpent(testNetwork *network.Network) {
-	time.Sleep(time.Duration(config.DoubleSpendDelay*config.DecelerationFactor) * time.Second)
+	time.Sleep(time.Duration(config.DoubleSpendDelay*config.SlowdownFactor) * time.Second)
 	// Here we simulate the double spending
 	dsIssuanceTime = time.Now()
 
@@ -193,13 +193,13 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, ParentsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                 float64
-		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                              string
-		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                       []int
-		AdversarySpeedup, AdversaryMana                                                                                                                                            []float64
-		AdversaryInitColor, AccidentalMana                                                                                                                                         []string
-		AdversaryPeeringAll                                                                                                                                                        bool
+		NodesCount, NodesTotalWeight, ParentsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS int
+		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
+		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                          string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                   []int
+		AdversarySpeedup, AdversaryMana                                                                                                                                        []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                     []string
+		AdversaryPeeringAll                                                                                                                                                    bool
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -210,7 +210,7 @@ func dumpConfig(fileName string) {
 		WeakTipsRatio:           config.WeakTipsRatio,
 		TSA:                     config.TSA,
 		TPS:                     config.TPS,
-		DecelerationFactor:      config.DecelerationFactor,
+		SlowdownFactor:          config.SlowdownFactor,
 		ConsensusMonitorTick:    config.ConsensusMonitorTick,
 		RelevantValidatorWeight: config.RelevantValidatorWeight,
 		DoubleSpendDelay:        config.DoubleSpendDelay,
@@ -759,7 +759,7 @@ func secureNetwork(testNetwork *network.Network) {
 }
 
 func startSecurityWorker(peer *network.Peer, band float64) {
-	pace := time.Duration(float64(time.Second) * float64(config.DecelerationFactor) / band)
+	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor) / band)
 
 	log.Debug("Peer ID: ", peer.ID, " Pace: ", pace)
 	if pace == time.Duration(0) {
@@ -772,7 +772,7 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 		select {
 		case <-ticker.C:
 			if config.IMIF == "poisson" {
-				pace = time.Duration(float64(time.Second) * float64(config.DecelerationFactor) * rand.ExpFloat64() / band)
+				pace = time.Duration(float64(time.Second) * float64(config.SlowdownFactor) * rand.ExpFloat64() / band)
 				if pace > 0 {
 					ticker.Reset(pace)
 				}

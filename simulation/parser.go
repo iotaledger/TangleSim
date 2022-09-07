@@ -41,8 +41,8 @@ func ParseFlags() {
 		flag.Int("doubleSpendDelay", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
 	relevantValidatorWeightPtr :=
 		flag.Int("releventValidatorWeight", config.RelevantValidatorWeight, "The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages")
-	payloadLoss :=
-		flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
+	packetLoss :=
+		flag.Float64("packetLoss", config.PacketLoss, "The packet loss percentage")
 	minDelay :=
 		flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
 	maxDelay :=
@@ -97,7 +97,7 @@ func ParseFlags() {
 	config.ConsensusMonitorTick = *consensusMonitorTickPtr
 	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
 	config.DoubleSpendDelay = *doubleSpendDelayPtr
-	config.PayloadLoss = *payloadLoss
+	config.PacketLoss = *packetLoss
 	config.MinDelay = *minDelay
 	config.MaxDelay = *maxDelay
 	config.DeltaURTS = *deltaURTS
@@ -124,7 +124,7 @@ func ParseFlags() {
 	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
 	log.Info("RelevantValidatorWeight: ", config.RelevantValidatorWeight)
 	log.Info("DoubleSpendDelay: ", config.DoubleSpendDelay)
-	log.Info("PayloadLoss: ", config.PayloadLoss)
+	log.Info("PacketLoss: ", config.PacketLoss)
 	log.Info("MinDelay: ", config.MinDelay)
 	log.Info("MaxDelay: ", config.MaxDelay)
 	log.Info("DeltaURTS:", config.DeltaURTS)

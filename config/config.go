@@ -20,7 +20,7 @@ var (
 	NeighbourCountWS = 8         // Number of neighbors node is connected to in WattsStrogatz network topology.
 	RandomnessWS     = 1.0       // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
 	IMIF             = "poisson" // IMIF Inter Message Issuing Function for time delay between activity messages: poisson or uniform.
-	PayloadLoss      = 0.0       // The payload loss in the network.
+	PacketLoss       = 0.0       // The packet loss in the network.
 	MinDelay         = 100       // The minimum network delay in ms.
 	MaxDelay         = 100       // The maximum network delay in ms.
 

@@ -26,7 +26,7 @@ func ParseFlags() {
 	confirmationThresholdAbsolutePtr :=
 		flag.Bool("confirmationThresholdAbsolute", config.ConfirmationThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
 	parentsCountPtr :=
-		flag.Int("parentsCount", config.ParentsCount, "The tips count for a message")
+		flag.Int("parentsCount", config.ParentsCount, "The parents count for a message")
 	weakTipsRatioPtr :=
 		flag.Float64("weakTipsRatio", config.WeakTipsRatio, "The ratio of weak tips")
 	tsaPtr :=

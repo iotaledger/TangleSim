@@ -262,7 +262,7 @@ class FileParser:
 
         v = str(c[var])
 
-        # Get the weight threshold
+        # Get the confirmation threshold
         weight_threshold = float(c['ConfirmationThreshold'].split('-')[0])
 
         data = pd.read_csv(fn)

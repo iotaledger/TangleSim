@@ -53,9 +53,9 @@ class FileParser:
 
         data = pd.read_csv(fn)
 
-        # Chop data before the begining time
-        data = data[data['ns since start'] >=
-                    self.x_axis_begin * float(c["SlowdownFactor"])]
+        # # Chop data before the begining time
+        # data = data[data['ns since start'] >=
+        #             self.x_axis_begin * float(c["DecelerationFactor"])]
 
         # Reset the index to only consider the confirmed msgs from X_AXIS_BEGIN
         data = data.reset_index()
@@ -64,6 +64,35 @@ class FileParser:
         x_axis = float(self.one_second)
         data[self.target] = data[self.target] / float(c["SlowdownFactor"])
         return v, data[self.target], x_axis
+
+    def parse_mm_file(self, fn, variation):
+        """Parse the witness weight files.
+
+        Args:
+            fc: The figure count.
+
+        Returns:
+
+        Returns:
+            v: The variation value.
+            data: The target data to analyze.
+            x_axis: The scaled/adjusted x axis.
+        """
+        logging.info(f'Parsing {fn}...')
+        # Get the configuration setup of this simulation
+        # Note currently we only consider the first node
+        config_fn = re.sub('mm', 'aw', fn)
+        config_fn = config_fn.replace('.csv', '.config')
+
+        # Opening JSON file
+        with open(config_fn) as f:
+            c = json.load(f)
+
+        v = str(c[variation])
+
+        data = pd.read_csv(fn)
+        requested_messages = data['Number of Requested Messages'].tolist()[-1]
+        return v, requested_messages
 
     def parse_ww_file(self, fn, variation):
         """Parse the witness weight files.
@@ -163,9 +192,9 @@ class FileParser:
 
         data = pd.read_csv(fn)
 
-        # Chop data before the begining time
-        data = data[data['ns since start'] >=
-                    self.x_axis_begin * float(c["SlowdownFactor"])]
+        # # Chop data before the begining time
+        # data = data[data['ns since start'] >=
+        #             self.x_axis_begin * float(c["DecelerationFactor"])]
 
         # Get the throughput details
         tip_pool_sizes = data.loc[:, data.columns != 'ns since start']

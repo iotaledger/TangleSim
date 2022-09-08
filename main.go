@@ -33,6 +33,7 @@ var (
 		"# of Issued Messages", "ns since start"}
 	wwHeader = []string{"Witness Weight", "Time (ns)"}
 	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green", "ns since start", "ns since issuance"}
+	mmHeader = []string{"Number of Requested Messages", "ns since start"}
 	tpHeader = []string{"UndefinedColor (Tip Pool Size)", "Blue (Tip Pool Size)", "Red (Tip Pool Size)", "Green (Tip Pool Size)",
 		"UndefinedColor (Processed)", "Blue (Processed)", "Red (Processed)", "Green (Processed)", "# of Issued Messages", "ns since start"}
 
@@ -92,7 +93,7 @@ func main() {
 			config.ZipfParameter)),
 		network.Delay(time.Duration(config.SlowdownFactor)*time.Duration(config.MinDelay)*time.Millisecond,
 			time.Duration(config.SlowdownFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
-		network.PacketLoss(0, config.PacketLoss),
+		network.PacketLoss(config.PacketLoss, config.PacketLoss),
 		network.Topology(network.WattsStrogatz(config.NeighbourCountWS, config.RandomnessWS)),
 		network.AdversaryPeeringAll(config.AdversaryPeeringAll),
 		network.AdversarySpeedup(config.AdversarySpeedup),
@@ -289,6 +290,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	colorCounters.CreateCounter("opinionsWeights", allColors, []int64{0, 0, 0, 0})
 	colorCounters.CreateCounter("likeAccumulatedWeight", allColors, []int64{0, 0, 0, 0})
 	colorCounters.CreateCounter("processedMessages", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("requestedMissingMessages", allColors, []int64{0, 0, 0, 0})
 	colorCounters.CreateCounter("tipPoolSizes", allColors, []int64{0, 0, 0, 0})
 	for _, peer := range testNetwork.Peers {
 		peerID := peer.ID
@@ -346,6 +348,9 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	// Dump the tip pool and processed message (throughput) results
 	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", simulationStartTimeStr), tpHeader, &resultsWriters)
+
+	// Dump the requested missing message result
+	mmResultsWriter := createWriter(fmt.Sprintf("mm-%s.csv", simulationStartTimeStr), mmHeader, &resultsWriters)
 
 	tpAllHeader := make([]string, 0, config.NodesCount+1)
 
@@ -508,6 +513,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 			atomicCounters.Set("issuedMessages", issuedMessages)
 		}))
+	peer.Node.(multiverse.NodeInterface).Tangle().Requester.Events.Request.Attach(events.NewClosure(
+		func(messageID multiverse.MessageID) {
+			colorCounters.Add("requestedMissingMessages", int64(1), multiverse.UndefinedColor)
+		}))
 
 	for _, peer := range testNetwork.Peers {
 		peerID := peer.ID
@@ -524,14 +533,14 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	go func() {
 		for range dumpingTicker.C {
-			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, tpAllResultsWriter, honestNodesCount, adversaryNodesCount)
+			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, tpAllResultsWriter, mmResultsWriter, honestNodesCount, adversaryNodesCount)
 		}
 	}()
 
 	return
 }
 
-func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer, adResultsWriter *csv.Writer, tpAllResultsWriter *csv.Writer, honestNodesCount int, adversaryNodesCount int) {
+func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer, adResultsWriter *csv.Writer, tpAllResultsWriter *csv.Writer, mmResultsWriter *csv.Writer, honestNodesCount int, adversaryNodesCount int) {
 	simulationWg.Add(1)
 	simulationWg.Done()
 
@@ -562,6 +571,7 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 	dumpResultsTP(tpResultsWriter)
 	dumpResultsTPAll(tpAllResultsWriter)
 	dumpResultsCC(ccResultsWriter, sinceIssuance)
+	dumpResultsMM(mmResultsWriter)
 
 	// determines whether consensus has been reached and simulation is over
 
@@ -637,6 +647,19 @@ func dumpResultsTPAll(tpAllResultsWriter *csv.Writer) {
 
 	// Flush the writers, or the data will be truncated sometimes if the buffer is full
 	tpAllResultsWriter.Flush()
+}
+
+func dumpResultsMM(mmResultsWriter *csv.Writer) {
+	// Dump the opinion and confirmation counters
+	record := []string{
+		strconv.FormatInt(colorCounters.Get("requestedMissingMessages", multiverse.UndefinedColor), 10),
+		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+	}
+
+	writeLine(mmResultsWriter, record)
+
+	// Flush the mm writer, or the data will be truncated sometimes if the buffer is full
+	mmResultsWriter.Flush()
 }
 
 func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {

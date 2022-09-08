@@ -55,7 +55,7 @@ class FileParser:
 
         # # Chop data before the begining time
         # data = data[data['ns since start'] >=
-        #             self.x_axis_begin * float(c["DecelerationFactor"])]
+        #             self.x_axis_begin * float(c["SlowdownFactor"])]
 
         # Reset the index to only consider the confirmed msgs from X_AXIS_BEGIN
         data = data.reset_index()
@@ -194,7 +194,7 @@ class FileParser:
 
         # # Chop data before the begining time
         # data = data[data['ns since start'] >=
-        #             self.x_axis_begin * float(c["DecelerationFactor"])]
+        #             self.x_axis_begin * float(c["SlowdownFactor"])]
 
         # Get the throughput details
         tip_pool_sizes = data.loc[:, data.columns != 'ns since start']

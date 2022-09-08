@@ -53,17 +53,46 @@ class FileParser:
 
         data = pd.read_csv(fn)
 
-        # Chop data before the begining time
-        data = data[data['ns since start'] >=
-                    self.x_axis_begin * float(c["DecelerationFactor"])]
+        # # Chop data before the begining time
+        # data = data[data['ns since start'] >=
+        #             self.x_axis_begin * float(c["SlowdownFactor"])]
 
         # Reset the index to only consider the confirmed msgs from X_AXIS_BEGIN
         data = data.reset_index()
 
         # ns is the time scale of the aw outputs
         x_axis = float(self.one_second)
-        data[self.target] = data[self.target] / float(c["DecelerationFactor"])
+        data[self.target] = data[self.target] / float(c["SlowdownFactor"])
         return v, data[self.target], x_axis
+
+    def parse_mm_file(self, fn, variation):
+        """Parse the witness weight files.
+
+        Args:
+            fc: The figure count.
+
+        Returns:
+
+        Returns:
+            v: The variation value.
+            data: The target data to analyze.
+            x_axis: The scaled/adjusted x axis.
+        """
+        logging.info(f'Parsing {fn}...')
+        # Get the configuration setup of this simulation
+        # Note currently we only consider the first node
+        config_fn = re.sub('mm', 'aw', fn)
+        config_fn = config_fn.replace('.csv', '.config')
+
+        # Opening JSON file
+        with open(config_fn) as f:
+            c = json.load(f)
+
+        v = str(c[variation])
+
+        data = pd.read_csv(fn)
+        requested_messages = data['Number of Requested Messages'].tolist()[-1]
+        return v, requested_messages
 
     def parse_ww_file(self, fn, variation):
         """Parse the witness weight files.
@@ -96,7 +125,7 @@ class FileParser:
 
         # ns is the time scale of the aw outputs
         x_axis = (data['Time (ns)'] /
-                  float(c["DecelerationFactor"]) / float(self.one_second))
+                  float(c["SlowdownFactor"]) / float(self.one_second))
         return v, data['Witness Weight'], x_axis
 
     def parse_throughput_file(self, fn, var):
@@ -127,7 +156,7 @@ class FileParser:
 
         # Chop data before the begining time
         data = data[data['ns since start'] >=
-                    self.x_axis_begin * float(c["DecelerationFactor"])]
+                    self.x_axis_begin * float(c["SlowdownFactor"])]
 
         # Get the throughput details
         tip_pool_size = data['UndefinedColor (Tip Pool Size)']
@@ -136,7 +165,7 @@ class FileParser:
 
         # Return the scaled x axis
         x_axis = (data['ns since start'] / float(self.one_second) /
-                  float(c["DecelerationFactor"]))
+                  float(c["SlowdownFactor"]))
         return v, (tip_pool_size, processed_messages, issued_messages, x_axis)
 
     def parse_all_throughput_file(self, fn, var):
@@ -163,16 +192,16 @@ class FileParser:
 
         data = pd.read_csv(fn)
 
-        # Chop data before the begining time
-        data = data[data['ns since start'] >=
-                    self.x_axis_begin * float(c["DecelerationFactor"])]
+        # # Chop data before the begining time
+        # data = data[data['ns since start'] >=
+        #             self.x_axis_begin * float(c["SlowdownFactor"])]
 
         # Get the throughput details
         tip_pool_sizes = data.loc[:, data.columns != 'ns since start']
 
         # Return the scaled x axis
         x_axis = (data['ns since start'] / float(self.one_second) /
-                  float(c["DecelerationFactor"]))
+                  float(c["SlowdownFactor"]))
         return v, (tip_pool_sizes, x_axis)
 
     def parse_confirmed_color_file(self, fn, var):
@@ -205,7 +234,7 @@ class FileParser:
 
         # Chop data before the begining time
         data = data[data['ns since start'] >=
-                    self.x_axis_begin * float(c["DecelerationFactor"])]
+                    self.x_axis_begin * float(c["SlowdownFactor"])]
 
         # Get the throughput details
         colored_node_aw = data[self.colored_confirmed_like_items]
@@ -222,7 +251,7 @@ class FileParser:
 
         convergence_time = data['ns since issuance'].iloc[-1]
         convergence_time /= self.one_second
-        convergence_time /= float(c["DecelerationFactor"])
+        convergence_time /= float(c["SlowdownFactor"])
 
         colored_node_aw["Blue (Like Accumulated Weight)"] -= adversary_liked_aw_blue
         colored_node_aw["Red (Like Accumulated Weight)"] -= adversary_liked_aw_red
@@ -236,7 +265,7 @@ class FileParser:
 
         # Return the scaled x axis
         x_axis = ((data['ns since start']) /
-                  float(self.one_second * float(c["DecelerationFactor"])))
+                  float(self.one_second * float(c["SlowdownFactor"])))
 
         return v, (colored_node_aw, convergence_time, flips, unconfirming_blue, unconfirming_red,
                    honest_total_weight, x_axis)
@@ -262,8 +291,8 @@ class FileParser:
 
         v = str(c[var])
 
-        # Get the weight threshold
-        weight_threshold = float(c['WeightThreshold'].split('-')[0])
+        # Get the confirmation threshold
+        weight_threshold = float(c['ConfirmationThreshold'].split('-')[0])
 
         data = pd.read_csv(fn)
 

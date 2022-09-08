@@ -100,14 +100,16 @@ type Connection struct {
 	packetLoss    float64
 	timedExecutor *timedexecutor.TimedExecutor
 	shutdownOnce  sync.Once
+	configuration *Configuration
 }
 
-func NewConnection(socket chan<- interface{}, networkDelay time.Duration, packetLoss float64) (connection *Connection) {
+func NewConnection(socket chan<- interface{}, networkDelay time.Duration, packetLoss float64, configuration *Configuration) (connection *Connection) {
 	connection = &Connection{
 		socket:        socket,
 		networkDelay:  networkDelay,
 		packetLoss:    packetLoss,
 		timedExecutor: timedexecutor.New(1),
+		configuration: configuration,
 	}
 
 	return
@@ -125,10 +127,9 @@ func (c *Connection) Send(message interface{}) {
 	if crypto.Randomness.Float64() <= c.packetLoss {
 		return
 	}
-
 	c.timedExecutor.ExecuteAfter(func() {
 		c.socket <- message
-	}, c.networkDelay)
+	}, c.configuration.RandomNetworkDelay())
 }
 
 func (c *Connection) SetDelay(delay time.Duration) {

@@ -21,28 +21,28 @@ func ParseFlags() {
 		flag.Int("nodesTotalWeight", config.NodesTotalWeight, "The total weight of nodes")
 	zipfParameterPtr :=
 		flag.Float64("zipfParameter", config.ZipfParameter, "The zipf's parameter")
-	weightThresholdPtr :=
-		flag.Float64("weightThreshold", config.WeightThreshold, "The weightThreshold of confirmed messages/color")
-	weightThresholdAbsolutePtr :=
-		flag.Bool("weightThresholdAbsolute", config.WeightThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
-	tipsCountPtr :=
-		flag.Int("tipsCount", config.NumberOfParents, "The tips count for a message")
+	confirmationThresholdPtr :=
+		flag.Float64("confirmationThreshold", config.ConfirmationThreshold, "The confirmationThreshold of confirmed messages/color")
+	confirmationThresholdAbsolutePtr :=
+		flag.Bool("confirmationThresholdAbsolute", config.ConfirmationThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
+	parentsCountPtr :=
+		flag.Int("parentsCount", config.ParentsCount, "The parents count for a message")
 	weakTipsRatioPtr :=
 		flag.Float64("weakTipsRatio", config.WeakTipsRatio, "The ratio of weak tips")
 	tsaPtr :=
 		flag.String("tsa", config.TSA, "The tip selection algorithm")
 	tpsPtr :=
 		flag.Int("tps", config.TPS, "the tips per seconds")
-	decelerationFactorPtr :=
-		flag.Int("decelerationFactor", config.DecelerationFactor, "The factor to control the speed in the simulation")
+	slowdownFactorPtr :=
+		flag.Int("slowdownFactor", config.SlowdownFactor, "The factor to control the speed in the simulation")
 	consensusMonitorTickPtr :=
 		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
 	doubleSpendDelayPtr :=
 		flag.Int("doubleSpendDelay", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
 	relevantValidatorWeightPtr :=
 		flag.Int("releventValidatorWeight", config.RelevantValidatorWeight, "The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages")
-	payloadLoss :=
-		flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
+	packetLoss :=
+		flag.Float64("packetLoss", config.PacketLoss, "The packet loss percentage")
 	minDelay :=
 		flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
 	maxDelay :=
@@ -87,17 +87,17 @@ func ParseFlags() {
 	config.NodesCount = *nodesCountPtr
 	config.NodesTotalWeight = *nodesTotalWeightPtr
 	config.ZipfParameter = *zipfParameterPtr
-	config.WeightThreshold = *weightThresholdPtr
-	config.WeightThresholdAbsolute = *weightThresholdAbsolutePtr
-	config.NumberOfParents = *tipsCountPtr
+	config.ConfirmationThreshold = *confirmationThresholdPtr
+	config.ConfirmationThresholdAbsolute = *confirmationThresholdAbsolutePtr
+	config.ParentsCount = *parentsCountPtr
 	config.WeakTipsRatio = *weakTipsRatioPtr
 	config.TSA = *tsaPtr
 	config.TPS = *tpsPtr
-	config.DecelerationFactor = *decelerationFactorPtr
+	config.SlowdownFactor = *slowdownFactorPtr
 	config.ConsensusMonitorTick = *consensusMonitorTickPtr
 	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
 	config.DoubleSpendDelay = *doubleSpendDelayPtr
-	config.PayloadLoss = *payloadLoss
+	config.PacketLoss = *packetLoss
 	config.MinDelay = *minDelay
 	config.MaxDelay = *maxDelay
 	config.DeltaURTS = *deltaURTS
@@ -114,17 +114,17 @@ func ParseFlags() {
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
 	log.Info("ZipfParameter: ", config.ZipfParameter)
-	log.Info("WeightThreshold: ", config.WeightThreshold)
-	log.Info("WeightThresholdAbsolute: ", config.WeightThresholdAbsolute)
-	log.Info("NumberOfParents: ", config.NumberOfParents)
+	log.Info("ConfirmationThreshold: ", config.ConfirmationThreshold)
+	log.Info("ConfirmationThresholdAbsolute: ", config.ConfirmationThresholdAbsolute)
+	log.Info("ParentsCount: ", config.ParentsCount)
 	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
 	log.Info("TSA: ", config.TSA)
 	log.Info("TPS: ", config.TPS)
-	log.Info("DecelerationFactor: ", config.DecelerationFactor)
+	log.Info("SlowdownFactor: ", config.SlowdownFactor)
 	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
 	log.Info("RelevantValidatorWeight: ", config.RelevantValidatorWeight)
 	log.Info("DoubleSpendDelay: ", config.DoubleSpendDelay)
-	log.Info("PayloadLoss: ", config.PayloadLoss)
+	log.Info("PacketLoss: ", config.PacketLoss)
 	log.Info("MinDelay: ", config.MinDelay)
 	log.Info("MaxDelay: ", config.MaxDelay)
 	log.Info("DeltaURTS:", config.DeltaURTS)

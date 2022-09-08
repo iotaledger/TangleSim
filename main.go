@@ -33,6 +33,7 @@ var (
 		"# of Issued Messages", "ns since start"}
 	wwHeader = []string{"Witness Weight", "Time (ns)"}
 	dsHeader = []string{"UndefinedColor", "Blue", "Red", "Green", "ns since start", "ns since issuance"}
+	mmHeader = []string{"Number of Requested Messages", "ns since start"}
 	tpHeader = []string{"UndefinedColor (Tip Pool Size)", "Blue (Tip Pool Size)", "Red (Tip Pool Size)", "Green (Tip Pool Size)",
 		"UndefinedColor (Processed)", "Blue (Processed)", "Red (Processed)", "Green (Processed)", "# of Issued Messages", "ns since start"}
 
@@ -52,7 +53,7 @@ var (
 	csvMutex sync.Mutex
 
 	// simulation variables
-	dumpingTicker         = time.NewTicker(time.Duration(config.DecelerationFactor*config.ConsensusMonitorTick) * time.Millisecond)
+	dumpingTicker         = time.NewTicker(time.Duration(config.SlowdownFactor*config.ConsensusMonitorTick) * time.Millisecond)
 	simulationWg          = sync.WaitGroup{}
 	maxSimulationDuration = time.Minute
 	shutdownSignal        = make(chan types.Empty)
@@ -90,9 +91,9 @@ func main() {
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
 			config.ZipfParameter)),
-		network.Delay(time.Duration(config.DecelerationFactor)*time.Duration(config.MinDelay)*time.Millisecond,
-			time.Duration(config.DecelerationFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
-		network.PacketLoss(0, config.PayloadLoss),
+		network.Delay(time.Duration(config.SlowdownFactor)*time.Duration(config.MinDelay)*time.Millisecond,
+			time.Duration(config.SlowdownFactor)*time.Duration(config.MaxDelay)*time.Millisecond),
+		network.PacketLoss(config.PacketLoss, config.PacketLoss),
 		network.Topology(network.WattsStrogatz(config.NeighbourCountWS, config.RandomnessWS)),
 		network.AdversaryPeeringAll(config.AdversaryPeeringAll),
 		network.AdversarySpeedup(config.AdversarySpeedup),
@@ -113,14 +114,14 @@ func main() {
 	case <-shutdownSignal:
 		shutdownSimulation()
 		log.Info("Shutting down simulation (consensus reached) ... [DONE]")
-	case <-time.After(time.Duration(config.DecelerationFactor) * maxSimulationDuration):
+	case <-time.After(time.Duration(config.SlowdownFactor) * maxSimulationDuration):
 		shutdownSimulation()
 		log.Info("Shutting down simulation (simulation timed out) ... [DONE]")
 	}
 }
 
 func SimulateDoubleSpent(testNetwork *network.Network) {
-	time.Sleep(time.Duration(config.DoubleSpendDelay*config.DecelerationFactor) * time.Second)
+	time.Sleep(time.Duration(config.DoubleSpendDelay*config.SlowdownFactor) * time.Second)
 	// Here we simulate the double spending
 	dsIssuanceTime = time.Now()
 
@@ -193,28 +194,28 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, TipsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, DecelerationFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, WeakTipsRatio, PayloadLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
-		WeightThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                 string
-		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                    []int
-		AdversarySpeedup, AdversaryMana                                                                                                                                         []float64
-		AdversaryInitColor, AccidentalMana                                                                                                                                      []string
-		AdversaryPeeringAll                                                                                                                                                     bool
+		NodesCount, NodesTotalWeight, ParentsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS int
+		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
+		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                          string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                   []int
+		AdversarySpeedup, AdversaryMana                                                                                                                                        []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                     []string
+		AdversaryPeeringAll                                                                                                                                                    bool
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
 		NodesTotalWeight:        config.NodesTotalWeight,
 		ZipfParameter:           config.ZipfParameter,
-		WeightThreshold:         fmt.Sprintf("%.2f-%v", config.WeightThreshold, config.WeightThresholdAbsolute),
-		TipsCount:               config.NumberOfParents,
+		ConfirmationThreshold:   fmt.Sprintf("%.2f-%v", config.ConfirmationThreshold, config.ConfirmationThresholdAbsolute),
+		ParentsCount:            config.ParentsCount,
 		WeakTipsRatio:           config.WeakTipsRatio,
 		TSA:                     config.TSA,
 		TPS:                     config.TPS,
-		DecelerationFactor:      config.DecelerationFactor,
+		SlowdownFactor:          config.SlowdownFactor,
 		ConsensusMonitorTick:    config.ConsensusMonitorTick,
 		RelevantValidatorWeight: config.RelevantValidatorWeight,
 		DoubleSpendDelay:        config.DoubleSpendDelay,
-		PayloadLoss:             config.PayloadLoss,
+		PacketLoss:              config.PacketLoss,
 		MinDelay:                config.MinDelay,
 		MaxDelay:                config.MaxDelay,
 		DeltaURTS:               config.DeltaURTS,
@@ -289,6 +290,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	colorCounters.CreateCounter("opinionsWeights", allColors, []int64{0, 0, 0, 0})
 	colorCounters.CreateCounter("likeAccumulatedWeight", allColors, []int64{0, 0, 0, 0})
 	colorCounters.CreateCounter("processedMessages", allColors, []int64{0, 0, 0, 0})
+	colorCounters.CreateCounter("requestedMissingMessages", allColors, []int64{0, 0, 0, 0})
 	colorCounters.CreateCounter("tipPoolSizes", allColors, []int64{0, 0, 0, 0})
 	for _, peer := range testNetwork.Peers {
 		peerID := peer.ID
@@ -346,6 +348,9 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	// Dump the tip pool and processed message (throughput) results
 	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", simulationStartTimeStr), tpHeader, &resultsWriters)
+
+	// Dump the requested missing message result
+	mmResultsWriter := createWriter(fmt.Sprintf("mm-%s.csv", simulationStartTimeStr), mmHeader, &resultsWriters)
 
 	tpAllHeader := make([]string, 0, config.NodesCount+1)
 
@@ -508,6 +513,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 			atomicCounters.Set("issuedMessages", issuedMessages)
 		}))
+	peer.Node.(multiverse.NodeInterface).Tangle().Requester.Events.Request.Attach(events.NewClosure(
+		func(messageID multiverse.MessageID) {
+			colorCounters.Add("requestedMissingMessages", int64(1), multiverse.UndefinedColor)
+		}))
 
 	for _, peer := range testNetwork.Peers {
 		peerID := peer.ID
@@ -524,14 +533,14 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 	go func() {
 		for range dumpingTicker.C {
-			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, tpAllResultsWriter, honestNodesCount, adversaryNodesCount)
+			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, tpAllResultsWriter, mmResultsWriter, honestNodesCount, adversaryNodesCount)
 		}
 	}()
 
 	return
 }
 
-func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer, adResultsWriter *csv.Writer, tpAllResultsWriter *csv.Writer, honestNodesCount int, adversaryNodesCount int) {
+func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer, adResultsWriter *csv.Writer, tpAllResultsWriter *csv.Writer, mmResultsWriter *csv.Writer, honestNodesCount int, adversaryNodesCount int) {
 	simulationWg.Add(1)
 	simulationWg.Done()
 
@@ -562,6 +571,7 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 	dumpResultsTP(tpResultsWriter)
 	dumpResultsTPAll(tpAllResultsWriter)
 	dumpResultsCC(ccResultsWriter, sinceIssuance)
+	dumpResultsMM(mmResultsWriter)
 
 	// determines whether consensus has been reached and simulation is over
 
@@ -637,6 +647,19 @@ func dumpResultsTPAll(tpAllResultsWriter *csv.Writer) {
 
 	// Flush the writers, or the data will be truncated sometimes if the buffer is full
 	tpAllResultsWriter.Flush()
+}
+
+func dumpResultsMM(mmResultsWriter *csv.Writer) {
+	// Dump the opinion and confirmation counters
+	record := []string{
+		strconv.FormatInt(colorCounters.Get("requestedMissingMessages", multiverse.UndefinedColor), 10),
+		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+	}
+
+	writeLine(mmResultsWriter, record)
+
+	// Flush the mm writer, or the data will be truncated sometimes if the buffer is full
+	mmResultsWriter.Flush()
 }
 
 func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {
@@ -759,7 +782,7 @@ func secureNetwork(testNetwork *network.Network) {
 }
 
 func startSecurityWorker(peer *network.Peer, band float64) {
-	pace := time.Duration(float64(time.Second) * float64(config.DecelerationFactor) / band)
+	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor) / band)
 
 	log.Debug("Peer ID: ", peer.ID, " Pace: ", pace)
 	if pace == time.Duration(0) {
@@ -772,7 +795,7 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 		select {
 		case <-ticker.C:
 			if config.IMIF == "poisson" {
-				pace = time.Duration(float64(time.Second) * float64(config.DecelerationFactor) * rand.ExpFloat64() / band)
+				pace = time.Duration(float64(time.Second) * float64(config.SlowdownFactor) * rand.ExpFloat64() / band)
 				if pace > 0 {
 					ticker.Reset(pace)
 				}

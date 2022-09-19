@@ -455,13 +455,22 @@ class FigurePlotter:
         data = []
         variations = []
         for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
+            # for v in ['100', '80', '60', '40', '20', '0']:
+            #     d = variation_data[v]
             z = (d[0]*1e-9).tolist()
             data.append((d[0]*1e-9).tolist())
-            variations.append(f'[{int(v)}, {int(v)+100}]')
+            # variations.append(f'{int(v)}–\n{int(v)+100}')
+            # delay_diff = 100-int(v)
+            # if delay_diff == 0:
+            #     variations.append(f'100')
+            # else:
+            #     variations.append(f'{100-delay_diff}–{100+delay_diff}')
+            variations.append(int(v))
 
         plt.violinplot(data)
-        plt.xlabel('Uniform Random Network Delay (ms)')
-        plt.ylim(0, 6)
+        # plt.xlabel('Uniform Random Network Delay (ms)')
+        plt.xlabel('Node Count')
+        plt.ylim(0, 2.5)
         # plt.xlabel('Zipf Parameter')
         plt.xticks(ticks=list(range(1, 1 + len(variations))),
                    labels=variations)

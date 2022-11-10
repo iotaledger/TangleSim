@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	OptimalStrongTipsCount = int(float64(config.NumberOfParents) * (1 - config.WeakTipsRatio))
-	OptimalWeakTipsCount   = int(float64(config.NumberOfParents) * config.WeakTipsRatio)
+	OptimalStrongParentsCount = int(float64(config.ParentsCount) * (1 - config.WeakTipsRatio))
+	OptimalWeakParentsCount   = int(float64(config.ParentsCount) * config.WeakTipsRatio)
 )
 
 // region TipManager ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -132,17 +132,17 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
-	strongTips = tipSet.StrongTips(config.NumberOfParents, t.tsa)
+	strongTips = tipSet.StrongTips(config.ParentsCount, t.tsa)
 	// In the paper we consider all strong tips
-	// weakTips = tipSet.WeakTips(config.NumberOfParents-1, t.tsa)
+	// weakTips = tipSet.WeakTips(config.ParentsCount-1, t.tsa)
 
 	// Remove the weakTips-related codes
 	// if len(weakTips) == 0 {
 	// 	return
 	// }
 
-	// if strongTipsCount := len(strongTips); strongTipsCount < OptimalStrongTipsCount {
-	// 	fillUpCount := config.NumberOfParents - strongTipsCount
+	// if strongParentsCount := len(strongTips); strongParentsCount < OptimalStrongParentsCount {
+	// 	fillUpCount := config.ParentsCount - strongParentsCount
 
 	// 	if fillUpCount >= len(weakTips) {
 	// 		return
@@ -152,8 +152,8 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// 	return
 	// }
 
-	// if weakTipsCount := len(weakTips); weakTipsCount < OptimalWeakTipsCount {
-	// 	fillUpCount := config.NumberOfParents - weakTipsCount
+	// if weakParentsCount := len(weakTips); weakParentsCount < OptimalWeakParentsCount {
+	// 	fillUpCount := config.ParentsCount - weakParentsCount
 
 	// 	if fillUpCount >= len(strongTips) {
 	// 		return
@@ -163,8 +163,8 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// 	return
 	// }
 
-	// strongTips.Trim(OptimalStrongTipsCount)
-	// weakTips.Trim(OptimalWeakTipsCount)
+	// strongTips.Trim(OptimalStrongParentsCount)
+	// weakTips.Trim(OptimalWeakParentsCount)
 
 	return
 }

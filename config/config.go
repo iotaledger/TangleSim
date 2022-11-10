@@ -19,25 +19,25 @@ var (
 var (
 	NodesCount       = 40        // NodesCount is the total number of nodes simulated in the network.
 	TPS              = 100       // TPS defines the total network throughput.
-	NumberOfParents  = 8         // NumberOfParents that a new message is selecting from the tip pool.
+	ParentsCount     = 8         // ParentsCount that a new message is selecting from the tip pool.
 	NeighbourCountWS = 8         // Number of neighbors node is connected to in WattsStrogatz network topology.
 	RandomnessWS     = 1.0       // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
 	IMIF             = "poisson" // IMIF Inter Message Issuing Function for time delay between activity messages: poisson or uniform.
-	PayloadLoss      = 0.0       // The payload loss in the network.
+	PacketLoss       = 0.0       // The packet loss in the network.
 	MinDelay         = 100       // The minimum network delay in ms.
 	MaxDelay         = 100       // The maximum network delay in ms.
 
-	DecelerationFactor = 1 // The factor to control the speed in the simulation.
+	SlowdownFactor = 1 // The factor to control the speed in the simulation.
 )
 
 // Weight setup
 
 var (
-	NodesTotalWeight        = 100_000_000 // Total number of weight for the whole network.
-	ZipfParameter           = 0.9         // the 's' parameter for the Zipf distribution used to model weight distribution. s=0 all nodes are equal, s=2 network centralized.
-	WeightThreshold         = 0.66        // Threshold for AW collection above which messages are considered confirmed.
-	WeightThresholdAbsolute = true        // If true the threshold is alway counted from zero if false the weight collected is counted from the next peer weight.
-	RelevantValidatorWeight = 0           // The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages (disabled now)
+	NodesTotalWeight              = 100_000_000 // Total number of weight for the whole network.
+	ZipfParameter                 = 0.9         // the 's' parameter for the Zipf distribution used to model weight distribution. s=0 all nodes are equal, s=2 network centralized.
+	ConfirmationThreshold         = 0.66        // Threshold for AW collection above which messages are considered confirmed.
+	ConfirmationThresholdAbsolute = true        // If true the threshold is alway counted from zero if false the weight collected is counted from the next peer weight.
+	RelevantValidatorWeight       = 0           // The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages (disabled now)
 )
 
 // Tip Selection Algorithm setup

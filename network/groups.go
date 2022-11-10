@@ -172,7 +172,7 @@ func (g *AdversaryGroups) ApplyNetworkDelayForAdversaryNodes(network *Network) {
 	}
 }
 
-func (g *AdversaryGroups) ApplyNeighborsAdversaryNodes(network *Network) {
+func (g *AdversaryGroups) ApplyNeighborsAdversaryNodes(network *Network, configuration *Configuration) {
 	for _, adversaryGroup := range *g {
 		for _, nodeID := range adversaryGroup.NodeIDs {
 			adversary := network.Peer(nodeID)
@@ -181,6 +181,7 @@ func (g *AdversaryGroups) ApplyNeighborsAdversaryNodes(network *Network) {
 					network.Peers[peer.ID].Socket,
 					adversaryGroup.Delay,
 					0,
+					configuration,
 				)
 			}
 		}

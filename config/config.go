@@ -3,12 +3,13 @@ package config
 // simulator settings
 
 var (
-	ResultDir                  = "results"   // Path where all the result files will be saved
-	SimulationTarget           = "DS"        // The simulation target, CT: Confirmation Time, DS: Double Spending
-	SimulationStopThreshold    = 1.0         // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
-	ConsensusMonitorTick       = 100         // Tick to monitor the consensus, in milliseconds.
-	MonitoredAWPeers           = [...]int{0} // Nodes for which we monitor the AW growth
-	MonitoredWitnessWeightPeer = 0           // Peer for which we monitor Witness Weight
+	ResultDir                       = "results"   // Path where all the result files will be saved
+	SimulationTarget                = "DS"        // The simulation target, CT: Confirmation Time, DS: Double Spending
+	SimulationStopThreshold         = 1.0         // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
+	ConsensusMonitorTick            = 100         // Tick to monitor the consensus, in milliseconds.
+	MonitoredAWPeers                = [...]int{0} // Nodes for which we monitor the AW growth
+	MonitoredWitnessWeightPeer      = 0           // Peer for which we monitor Witness Weight
+	MonitoredWitnessWeightMessageID = 200         // A specified message ID to monitor the witness weights
 )
 
 // Network setup

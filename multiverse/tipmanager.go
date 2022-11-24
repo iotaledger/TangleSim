@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/datastructure/randommap"
+	"github.com/iotaledger/hive.go/datastructure/walker"
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
 )
@@ -119,21 +120,40 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// N = 1000, BPS ~ 10
 	peerID := t.tangle.Peer.ID
 	if peerID == 99 {
-		var oldTips []MessageID
-		currentTime := time.Now()
+		type void struct{}
+		oldTips := make(map[MessageID]void)
 		for _, tip := range tipSet.strongTips.Keys() {
-			tipIssuanceTime := t.tangle.Storage.messageDB[tip.(MessageID)].IssuanceTime
-			fmt.Printf("tipAge %f\n", currentTime.Sub(tipIssuanceTime).Seconds())
-			// TODO: back tracing the confirmed blocks...
-			// TODO: change the TSC to be 30 secs, or changed to be x * mean(confirmation_time) + b
-			//       x = [1, 2, 3, 4....], b = [5, 10, 15, ...]
-			// TODO: make TSC configurable
-			if currentTime.Sub(tipIssuanceTime).Seconds() > 5 {
-				oldTips = append(oldTips, tip.(*Message).ID)
-				fmt.Printf("Prune %d\n", tip.(*Message).ID)
+			messageID := tip.(MessageID)
+			for latestAcceptedBlocks := range t.tangle.Storage.Message(messageID).StrongParents {
+				// T1
+				acceptanceTangleTime := t.tangle.Storage.Message(latestAcceptedBlocks).IssuanceTime
+
+				// T2
+				oldestUnconfirmedTime := time.Now()
+				// Walk through the past cone to find the oldest unconfirmed blocks
+				t.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
+					confirmedTimestamp := messageMetadata.ConfirmationTime()
+					// Reaches the confirmed blocks, stop traversing
+					if !confirmedTimestamp.IsZero() {
+						return
+					} else {
+						if message.IssuanceTime.Before(oldestUnconfirmedTime) {
+							oldestUnconfirmedTime = message.IssuanceTime
+						}
+					}
+					for strongChildID := range message.StrongParents {
+						walker.Push(strongChildID)
+					}
+				}, NewMessageIDs(messageID), false)
+				timeSinceConfirmation := acceptanceTangleTime.Sub(oldestUnconfirmedTime)
+				fmt.Printf("timeSinceConfirmation %f\n", timeSinceConfirmation.Seconds())
+				// if timeSinceConfirmation > tsc_condition {
+				// 	oldTips[tip.(*Message).ID] = void{}
+				// 	fmt.Printf("Prune %d\n", tip.(*Message).ID)
+				// }
 			}
 		}
-		for _, oldTip := range oldTips {
+		for oldTip := range oldTips {
 			tipSet.strongTips.Delete(oldTip)
 		}
 	}

@@ -1,6 +1,7 @@
 package multiverse
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -113,6 +114,29 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
+
+	// monitored peerID for TSC and orphanage
+	// N = 1000, BPS ~ 10
+	peerID := t.tangle.Peer.ID
+	if peerID == 99 {
+		var oldTips []MessageID
+		currentTime := time.Now()
+		for _, tip := range tipSet.strongTips.Keys() {
+			tipIssuanceTime := t.tangle.Storage.messageDB[tip.(MessageID)].IssuanceTime
+			fmt.Printf("tipAge %f\n", currentTime.Sub(tipIssuanceTime).Seconds())
+			// TODO: back tracing the confirmed blocks...
+			// TODO: change the TSC to be 30 secs, or changed to be x * mean(confirmation_time) + b
+			//       x = [1, 2, 3, 4....], b = [5, 10, 15, ...]
+			// TODO: make TSC configurable
+			if currentTime.Sub(tipIssuanceTime).Seconds() > 5 {
+				oldTips = append(oldTips, tip.(*Message).ID)
+				fmt.Printf("Prune %d\n", tip.(*Message).ID)
+			}
+		}
+		for _, oldTip := range oldTips {
+			tipSet.strongTips.Delete(oldTip)
+		}
+	}
 
 	strongTips = tipSet.StrongTips(config.TipsCount, t.tsa)
 	// In the paper we consider all strong tips

@@ -3,7 +3,7 @@ package config
 var (
 	NodesCount              = 100
 	NodesTotalWeight        = 100_000_000
-	ZipfParameter           = 0.9
+	ZipfParameter           = 0.0
 	WeightThreshold         = 0.66
 	WeightThresholdAbsolute = true
 	TipsCount               = 8   // The TipsCount for a message

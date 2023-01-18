@@ -31,6 +31,7 @@ type MessageMetadata struct {
 	weightSlice      []byte
 	weight           uint64
 	confirmationTime time.Time
+	manaBurnValue    float64
 }
 
 func (m *MessageMetadata) WeightSlice() []byte {
@@ -89,6 +90,14 @@ func (m *MessageMetadata) SetInheritedColor(color Color) (modified bool) {
 
 func (m *MessageMetadata) InheritedColor() (color Color) {
 	return m.inheritedColor
+}
+
+func (m *MessageMetadata) SetManaBurnValue(manaBurnValue float64) {
+	m.manaBurnValue = manaBurnValue
+}
+
+func (m *MessageMetadata) ManaBurnValue() (manaBurnValue float64) {
+	return m.manaBurnValue
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -155,9 +164,9 @@ func (m MessageIDs) Trim(length int) {
 // The maxOpinion is the Opinion with the highest Color value and the maxApprovalWeight
 //
 // The approvalWeights stores the accumulated weights of each Color for messages
-//    - The message will have an associated Color inherited from its parents
-//    - The Color of a message is assigned from `IssuePayload`
-//    - The strongTips/weakTips will be selected from the TipSet[ownOpinion]
+//   - The message will have an associated Color inherited from its parents
+//   - The Color of a message is assigned from `IssuePayload`
+//   - The strongTips/weakTips will be selected from the TipSet[ownOpinion]
 //
 // The different color values are used as a tie breaker, i.e., when 2 colors have the same weight, the larger color value
 // opinion will be regarded as the ownOpinion. Each color simply represents a perception of a certain state of a tangle

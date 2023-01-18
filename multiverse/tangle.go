@@ -6,17 +6,18 @@ import (
 )
 
 type Tangle struct {
-	Peer               *network.Peer
-	WeightDistribution *network.ConsensusWeightDistribution
-	Storage            *Storage
-	Solidifier         *Solidifier
-	ApprovalManager    *ApprovalManager
-	Requester          *Requester
-	Booker             *Booker
-	OpinionManager     OpinionManagerInterface
-	TipManager         *TipManager
-	MessageFactory     *MessageFactory
-	Utils              *Utils
+	Peer                 *network.Peer
+	WeightDistribution   *network.ConsensusWeightDistribution
+	Storage              *Storage
+	Solidifier           *Solidifier
+	ApprovalManager      *ApprovalManager
+	Requester            *Requester
+	Booker               *Booker
+	OpinionManager       OpinionManagerInterface
+	TipManager           *TipManager
+	MessageFactory       *MessageFactory
+	Utils                *Utils
+	MessagePriorityQueue *MessagePriorityQueue
 }
 
 func NewTangle() (tangle *Tangle) {
@@ -31,7 +32,7 @@ func NewTangle() (tangle *Tangle) {
 	tangle.MessageFactory = NewMessageFactory(tangle, uint64(config.NodesCount))
 	tangle.ApprovalManager = NewApprovalManager(tangle)
 	tangle.Utils = NewUtils(tangle)
-
+	tangle.MessagePriorityQueue = NewMessagePriorityQueue(tangle)
 	return
 }
 

@@ -35,6 +35,13 @@ goshimmer
 
 config.json
 .env
-results
 /scripts/log.txt
 /multiverse_sim
+
+# Debuggin related files
+results/
+result/
+result_remote/
+paper_figs/
+BYLin.md
+Debug.md

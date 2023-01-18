@@ -44,6 +44,7 @@ multivers-simulation
 # Debugging related files
 results/
 result/
+debug/
 result_remote/
 paper_figs/
 BYLin.md

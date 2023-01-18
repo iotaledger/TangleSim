@@ -38,7 +38,10 @@ config.json
 /scripts/log.txt
 /multiverse_sim
 
-# Debuggin related files
+## Binary files
+multivers-simulation
+
+# Debugging related files
 results/
 result/
 result_remote/

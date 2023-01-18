@@ -24,6 +24,10 @@ func NewMessagePriorityQueue(tangle *Tangle) (mq *MessagePriorityQueue) {
 	}
 }
 
+func (mq *MessagePriorityQueue) GetMaxManaBurn() float64 {
+	return (*mq.priorityQueue)[0].manaBurnValue
+}
+
 func (mq *MessagePriorityQueue) PopMessageMetadata() MessageMetadata {
 	return heap.Pop(mq.priorityQueue).(MessageMetadata)
 }

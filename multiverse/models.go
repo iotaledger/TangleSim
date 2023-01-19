@@ -18,6 +18,7 @@ type Message struct {
 	Issuer         network.PeerID
 	Payload        Color
 	IssuanceTime   time.Time
+	ManaBurnValue  float64
 }
 
 // endregion Message ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -31,7 +32,6 @@ type MessageMetadata struct {
 	weightSlice      []byte
 	weight           uint64
 	confirmationTime time.Time
-	manaBurnValue    float64
 }
 
 func (m *MessageMetadata) WeightSlice() []byte {
@@ -90,14 +90,6 @@ func (m *MessageMetadata) SetInheritedColor(color Color) (modified bool) {
 
 func (m *MessageMetadata) InheritedColor() (color Color) {
 	return m.inheritedColor
-}
-
-func (m *MessageMetadata) SetManaBurnValue(manaBurnValue float64) {
-	m.manaBurnValue = manaBurnValue
-}
-
-func (m *MessageMetadata) ManaBurnValue() (manaBurnValue float64) {
-	return m.manaBurnValue
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -778,6 +778,9 @@ func secureNetwork(testNetwork *network.Network) {
 		fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
 
 		go startSecurityWorker(peer, band)
+
+		// Increment the accessMana of each node
+		go startAccessManaIncrementRoutine(peer)
 	}
 }
 
@@ -801,6 +804,37 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 				}
 			}
 			sendMessage(peer)
+		}
+	}
+}
+
+func startAccessManaIncrementRoutine(peer *network.Peer) {
+	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor))
+	ticker := time.NewTicker(pace)
+
+	for {
+		select {
+		case <-ticker.C:
+			// Increment the accessMana of the node
+			nodeWeightPercentage := float64(peer.Node.(multiverse.NodeInterface).Tangle().WeightDistribution.Weight(peer.ID)) / float64(config.NodesTotalWeight)
+			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncreaseAccessMana(nodeWeightPercentage * float64(config.NodesCount))
+
+			// Trigger the scheduler to pop messages and gossip them
+			accessMana := peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetAccessMana()
+
+			count := 0
+			for accessMana >= 0 && !peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IsEmpty() {
+				count += 1
+				m, newAccessMana := peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.PopMessage()
+				peer.GossipNetworkMessage(&m)
+				accessMana = newAccessMana
+				log.Debugf("Peer %d has newAccessMana: %f and gossiped message %d with ManaBurnValue %f",
+					peer.ID, newAccessMana, m.ID, m.ManaBurnValue)
+			}
+			if count > 0 {
+				log.Debugf("Peer %d popped %d messages with remaining priority queue size %d",
+					peer.ID, count, peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.PriorityQueueLen())
+			}
 		}
 	}
 }

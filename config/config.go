@@ -4,7 +4,7 @@ package config
 
 var (
 	ResultDir                       = "results"   // Path where all the result files will be saved
-	SimulationTarget                = "DS"        // The simulation target, CT: Confirmation Time, DS: Double Spending
+	SimulationTarget                = "CT"        // The simulation target, CT: Confirmation Time, DS: Double Spending
 	SimulationStopThreshold         = 1.0         // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
 	ConsensusMonitorTick            = 100         // Tick to monitor the consensus, in milliseconds.
 	MonitoredAWPeers                = [...]int{0} // Nodes for which we monitor the AW growth
@@ -44,6 +44,16 @@ var (
 	TSA           = "URTS" // Currently only one supported TSA is URTS
 	DeltaURTS     = 5.0    // in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199
 	WeakTipsRatio = 0.0    // The ratio of weak tips
+)
+
+// TODO: expose the configuration in Parser
+// Mana Burn Setup
+// 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
+var (
+	// BurnPolicy = ZeroValueArray(NodesCount)
+	BurnPolicy         = RandomValueArray(99, 2, 3, NodesCount)
+	NodeInitAccessMana = ZeroValueArray(NodesCount)
+	ExtraBurn          = 1.0
 )
 
 // Adversary setup - enabled by setting SimulationTarget="DS"

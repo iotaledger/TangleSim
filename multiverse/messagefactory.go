@@ -31,6 +31,7 @@ func (m *MessageFactory) CreateMessage(payload Color) (message *Message) {
 		Issuer:         m.tangle.Peer.ID,
 		Payload:        payload,
 		IssuanceTime:   time.Now(),
+		ManaBurnValue:  BurnMana(m.tangle),
 	}
 }
 

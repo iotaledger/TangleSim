@@ -612,21 +612,21 @@ class FigurePlotter:
             #         f'Uniform Random Delay = 50–950 (ms)', fontsize=12)
             # variations.append(f'{v}, {thorughput[i]}')
             # variations.append(float(v)*100)
-            print(z, v)
-            variations.append(int(eval(v)[0]))
+            print(v)
+            variations.append(v)
 
         # print(data)
         plt.violinplot(data)
-        plt.xlabel('Adversary Weight (%)')
+        # plt.xlabel('Adversary Weight (%)')
         # plt.xlabel('Uniform Random Network Delay (ms)')
         # plt.xlabel('Node Count, TPS')
         # plt.ylim(0, 6)
-        # plt.xlabel('Zipf Parameter')
+        plt.xlabel('Mana Burn Policies')
         plt.xticks(ticks=list(range(1, 1 + len(variations))),
-                   labels=variations)
+                   labels=['No Burn', 'Greedy, Random Greedy'])
 
-        axes = plt.axes()
-        axes.set_ylim([0, 6])
+        # axes = plt.axes()
+        # axes.set_ylim([0, 6])
         plt.ylabel('Confirmation Time (s)')
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent, dpi=300)

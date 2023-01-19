@@ -49,4 +49,5 @@ result_remote/
 paper_figs/
 BYLin.md
 debug*
+*.sh
 

@@ -23,7 +23,7 @@ func BurnMana(tangle *Tangle) (burn float64) {
 		if tangle.Scheduler.accessMana > 0 {
 			return tangle.Scheduler.accessMana
 		} else {
-			return 1.0
+			return 0.0
 		}
 	case Greedy:
 		if !tangle.Scheduler.IsEmpty() {

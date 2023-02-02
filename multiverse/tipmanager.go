@@ -149,7 +149,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 					}
 				}, NewMessageIDs(messageID), false)
 				timeSinceConfirmation := acceptanceTangleTime.Sub(oldestUnconfirmedTime)
-				fmt.Printf("timeSinceConfirmation %f\n", timeSinceConfirmation.Seconds())
+				fmt.Printf("unconfirmationAge %f\n", timeSinceConfirmation.Seconds())
 				// if timeSinceConfirmation > tsc_condition {
 				// 	oldTips[tip.(*Message).ID] = void{}
 				// 	fmt.Printf("Prune %d\n", tip.(*Message).ID)

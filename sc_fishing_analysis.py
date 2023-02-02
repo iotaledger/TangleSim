@@ -11,9 +11,10 @@ def analyze(filename, tag):
         x = [float(lines.split()[1])
              for lines in f.readlines() if lines.split()[0] == tag]
     print(x)
-    plt.hist(x, weights=np.ones(len(x))/len(x), bins=10, label="Data")
-    plt.xlim(-1.0, 2.5)
-    plt.ylim(0, 0.3)
+    plt.hist(x, weights=np.ones(len(x))/len(x),
+             bins=10, label="Data")
+    plt.xlim(0, 3)
+    plt.ylim(0, 0.5)
     plt.ylabel("Probability")
     plt.xlabel(f'{tag} (s)')
     # plt.title(f'{tag} of Every Tip')

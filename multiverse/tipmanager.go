@@ -124,20 +124,21 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 		oldTips := make(map[MessageID]void)
 		for _, tip := range tipSet.strongTips.Keys() {
 			messageID := tip.(MessageID)
+			currentTangleTime := time.Now()
+			tipTangleTime := t.tangle.Storage.Message(messageID).IssuanceTime
 			for latestAcceptedBlocks := range t.tangle.Storage.Message(messageID).StrongParents {
 				if latestAcceptedBlocks == Genesis {
 					continue
 				}
-				// T1
-				acceptanceTangleTime := t.tangle.Storage.Message(latestAcceptedBlocks).IssuanceTime
 
-				// T2
 				oldestUnconfirmedTime := time.Now()
+				youngestConfirmationTime := time.Now()
 				// Walk through the past cone to find the oldest unconfirmed blocks
 				t.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
 					confirmedTimestamp := messageMetadata.ConfirmationTime()
 					// Reaches the confirmed blocks, stop traversing
 					if !confirmedTimestamp.IsZero() {
+						youngestConfirmationTime = confirmedTimestamp
 						return
 					} else {
 						if message.IssuanceTime.Before(oldestUnconfirmedTime) {
@@ -148,8 +149,11 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 						walker.Push(strongChildID)
 					}
 				}, NewMessageIDs(messageID), false)
-				timeSinceConfirmation := acceptanceTangleTime.Sub(oldestUnconfirmedTime)
-				fmt.Printf("unconfirmationAge %f\n", timeSinceConfirmation.Seconds())
+
+				fmt.Printf("UnconfirmationAge %f\n", currentTangleTime.Sub(oldestUnconfirmedTime).Seconds())
+				fmt.Printf("ConfirmationAge %f\n", currentTangleTime.Sub(youngestConfirmationTime).Seconds())
+				fmt.Printf("UnconfirmationAgeSinceTip %f\n", tipTangleTime.Sub(oldestUnconfirmedTime).Seconds())
+				fmt.Printf("ConfirmationAgeSinceTip %f\n", tipTangleTime.Sub(youngestConfirmationTime).Seconds())
 				// if timeSinceConfirmation > tsc_condition {
 				// 	oldTips[tip.(*Message).ID] = void{}
 				// 	fmt.Printf("Prune %d\n", tip.(*Message).ID)

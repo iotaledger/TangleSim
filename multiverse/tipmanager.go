@@ -138,7 +138,8 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 					confirmedTimestamp := messageMetadata.ConfirmationTime()
 					// Reaches the confirmed blocks, stop traversing
 					if !confirmedTimestamp.IsZero() {
-						youngestConfirmationTime = confirmedTimestamp
+						// Use the issuance time of the youngest confirmed block
+						youngestConfirmationTime = message.IssuanceTime
 						return
 					} else {
 						if message.IssuanceTime.Before(oldestUnconfirmedTime) {

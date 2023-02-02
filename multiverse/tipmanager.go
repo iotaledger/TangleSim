@@ -125,6 +125,9 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 		for _, tip := range tipSet.strongTips.Keys() {
 			messageID := tip.(MessageID)
 			for latestAcceptedBlocks := range t.tangle.Storage.Message(messageID).StrongParents {
+				if latestAcceptedBlocks == Genesis {
+					continue
+				}
 				// T1
 				acceptanceTangleTime := t.tangle.Storage.Message(latestAcceptedBlocks).IssuanceTime
 

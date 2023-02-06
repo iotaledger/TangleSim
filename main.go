@@ -825,7 +825,7 @@ func startAccessManaIncrementRoutine(peer *network.Peer) {
 			count := 0
 			for accessMana >= 0 && !peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IsEmpty() {
 				count += 1
-				m, newAccessMana := peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.PopMessage()
+				m, newAccessMana := peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
 				peer.GossipNetworkMessage(&m)
 				accessMana = newAccessMana
 				log.Debugf("Peer %d has newAccessMana: %f and gossiped message %d with ManaBurnValue %f",

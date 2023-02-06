@@ -44,9 +44,8 @@ func (n *Node) Setup(peer *network.Peer, weightDistribution *network.ConsensusWe
 		n.peer.GossipNetworkMessage(&MessageRequest{MessageID: messageID, Issuer: n.peer.ID})
 	}))
 	n.tangle.Booker.Events.MessageBooked.Attach(events.NewClosure(func(messageID MessageID) {
-		// n.peer.GossipNetworkMessage(n.tangle.Storage.Message(messageID))
-		// Push the message into the PriorityQueue of the Scheduler, instead of gossiping directly
-		n.tangle.Scheduler.PushMessage(*n.tangle.Storage.Message(messageID))
+		// Push the message to the scheduling buffer
+		n.tangle.Scheduler.EnqueueMessage(*n.tangle.Storage.Message(messageID))
 	}))
 }
 

@@ -32,6 +32,10 @@ type MessageMetadata struct {
 	weightSlice      []byte
 	weight           uint64
 	confirmationTime time.Time
+	arrivalTime      time.Time
+	enqueueTime      time.Time
+	scheduleTime     time.Time
+	dropTime         time.Time
 }
 
 func (m *MessageMetadata) WeightSlice() []byte {
@@ -56,6 +60,18 @@ func (m *MessageMetadata) ConfirmationTime() time.Time {
 
 func (m *MessageMetadata) SetConfirmationTime(confirmationTime time.Time) {
 	m.confirmationTime = confirmationTime
+}
+
+func (m *MessageMetadata) SetEnqueueTime(enqueueTime time.Time) {
+	m.enqueueTime = enqueueTime
+}
+
+func (m *MessageMetadata) SetScheduleTime(scheduleTime time.Time) {
+	m.scheduleTime = scheduleTime
+}
+
+func (m *MessageMetadata) SetDropTime(dropTime time.Time) {
+	m.dropTime = dropTime
 }
 
 func (m *MessageMetadata) ID() (messageID MessageID) {

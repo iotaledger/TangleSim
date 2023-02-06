@@ -2,7 +2,9 @@ package multiverse
 
 import (
 	"container/heap"
+	"time"
 
+	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
 )
 
@@ -15,6 +17,8 @@ type Scheduler struct {
 	tangle        *Tangle
 	priorityQueue *MessageHeap
 	accessMana    float64
+
+	Events *SchedulerEvents
 }
 
 func NewScheduler(tangle *Tangle) (mq *Scheduler) {
@@ -24,12 +28,29 @@ func NewScheduler(tangle *Tangle) (mq *Scheduler) {
 		tangle:        tangle,
 		priorityQueue: h,
 		accessMana:    0.0,
+		Events: &SchedulerEvents{
+			MessageEnqueued:  events.NewEvent(messageIDEventCaller),
+			MessageScheduled: events.NewEvent(messageIDEventCaller),
+			MessageDropped:   events.NewEvent(messageIDEventCaller),
+		},
 	}
 }
 
 func (s *Scheduler) Setup(tangle *Tangle) {
 	// Setup the initial AccessMana when the peer ID is created
 	s.accessMana = config.NodeInitAccessMana[tangle.Peer.ID]
+	s.Events.MessageEnqueued.Attach(events.NewClosure(func(messageID MessageID) {
+		messageMetaData := *s.tangle.Storage.MessageMetadata(messageID)
+		messageMetaData.SetEnqueueTime(time.Now())
+	}))
+	s.Events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
+		messageMetaData := *s.tangle.Storage.MessageMetadata(messageID)
+		messageMetaData.SetScheduleTime(time.Now())
+	}))
+	s.Events.MessageDropped.Attach(events.NewClosure(func(messageID MessageID) {
+		messageMetaData := *s.tangle.Storage.MessageMetadata(messageID)
+		messageMetaData.SetDropTime(time.Now())
+	}))
 }
 
 func (s *Scheduler) IsEmpty() bool {
@@ -60,15 +81,17 @@ func (s *Scheduler) GetMaxManaBurn() float64 {
 	return (*s.priorityQueue)[0].ManaBurnValue
 }
 
-func (s *Scheduler) PopMessage() (Message, float64) {
+func (s *Scheduler) ScheduleMessage() (Message, float64) {
 	// Consume the accessMana and pop the Message
 	m := heap.Pop(s.priorityQueue).(Message)
 	s.accessMana -= m.ManaBurnValue
+	s.Events.MessageScheduled.Trigger(m.ID)
 	return m, s.accessMana
 }
 
-func (s *Scheduler) PushMessage(m Message) {
+func (s *Scheduler) EnqueueMessage(m Message) {
 	heap.Push(s.priorityQueue, m)
+	s.Events.MessageEnqueued.Trigger(m.ID)
 }
 
 func (h MessageHeap) Len() int { return len(h) }
@@ -94,3 +117,9 @@ func (h *MessageHeap) Pop() any {
 }
 
 // Scheduler ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+type SchedulerEvents struct {
+	MessageEnqueued  *events.Event
+	MessageScheduled *events.Event
+	MessageDropped   *events.Event
+}

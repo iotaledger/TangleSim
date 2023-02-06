@@ -44,6 +44,7 @@ func (s *Storage) Store(message *Message) {
 		id:          message.ID,
 		weightSlice: make([]byte, int(math.Ceil(float64(config.NodesCount)/8.0))),
 		arrivalTime: time.Now(),
+		ready:       false,
 	}
 	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
 	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)

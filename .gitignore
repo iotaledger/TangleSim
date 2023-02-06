@@ -37,6 +37,7 @@ config.json
 .env
 /scripts/log.txt
 /multiverse_sim
+*.pyc
 
 ## Binary files
 multivers-simulation

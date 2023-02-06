@@ -45,7 +45,7 @@ func (n *Node) Setup(peer *network.Peer, weightDistribution *network.ConsensusWe
 	}))
 	n.tangle.Booker.Events.MessageBooked.Attach(events.NewClosure(func(messageID MessageID) {
 		// Push the message to the scheduling buffer
-		n.tangle.Scheduler.EnqueueMessage(*n.tangle.Storage.Message(messageID))
+		n.tangle.Scheduler.EnqueueMessage(messageID)
 	}))
 }
 

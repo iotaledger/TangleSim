@@ -15,21 +15,24 @@ type MessageHeap []Message
 
 type Scheduler struct {
 	tangle        *Tangle
-	priorityQueue *MessageHeap
+	readyQueue    *MessageHeap
+	nonReadyQueue *MessageHeap
 	accessMana    float64
 
 	Events *SchedulerEvents
 }
 
 func NewScheduler(tangle *Tangle) (mq *Scheduler) {
-	h := &MessageHeap{}
-	heap.Init(h)
+	readyHeap := &MessageHeap{}
+	heap.Init(readyHeap)
+	nonReadyHeap := &MessageHeap{}
+	heap.Init(nonReadyHeap)
 	return &Scheduler{
 		tangle:        tangle,
-		priorityQueue: h,
+		readyQueue:    readyHeap,
+		nonReadyQueue: nonReadyHeap,
 		accessMana:    0.0,
 		Events: &SchedulerEvents{
-			MessageEnqueued:  events.NewEvent(messageIDEventCaller),
 			MessageScheduled: events.NewEvent(messageIDEventCaller),
 			MessageDropped:   events.NewEvent(messageIDEventCaller),
 		},
@@ -39,26 +42,49 @@ func NewScheduler(tangle *Tangle) (mq *Scheduler) {
 func (s *Scheduler) Setup(tangle *Tangle) {
 	// Setup the initial AccessMana when the peer ID is created
 	s.accessMana = config.NodeInitAccessMana[tangle.Peer.ID]
-	s.Events.MessageEnqueued.Attach(events.NewClosure(func(messageID MessageID) {
-		messageMetaData := *s.tangle.Storage.MessageMetadata(messageID)
-		messageMetaData.SetEnqueueTime(time.Now())
-	}))
 	s.Events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
-		messageMetaData := *s.tangle.Storage.MessageMetadata(messageID)
-		messageMetaData.SetScheduleTime(time.Now())
+		s.tangle.Storage.MessageMetadata(messageID).SetScheduleTime(time.Now())
+		s.updateChildrenReady(messageID)
 	}))
 	s.Events.MessageDropped.Attach(events.NewClosure(func(messageID MessageID) {
-		messageMetaData := *s.tangle.Storage.MessageMetadata(messageID)
-		messageMetaData.SetDropTime(time.Now())
+		s.tangle.Storage.MessageMetadata(messageID).SetDropTime(time.Now())
 	}))
+}
+
+func (s *Scheduler) updateChildrenReady(messageID MessageID) {
+	for strongChildID := range s.tangle.Storage.strongChildrenDB[messageID] {
+		if s.messageReady(strongChildID) {
+			s.tangle.Storage.MessageMetadata(strongChildID).SetReady()
+		}
+	}
+	for weakChildID := range s.tangle.Storage.weakChildrenDB[messageID] {
+		if s.messageReady(weakChildID) {
+			s.tangle.Storage.MessageMetadata(weakChildID).SetReady()
+		}
+	}
+}
+
+func (s *Scheduler) messageReady(messageID MessageID) bool {
+	message := s.tangle.Storage.Message(messageID)
+	for strongParentID := range message.StrongParents {
+		if !s.tangle.Storage.MessageMetadata(strongParentID).Scheduled() && !s.tangle.Storage.MessageMetadata(strongParentID).Confirmed() {
+			return false
+		}
+	}
+	for weakParentID := range message.WeakParents {
+		if !s.tangle.Storage.MessageMetadata(weakParentID).Scheduled() && !s.tangle.Storage.MessageMetadata(weakParentID).Confirmed() {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Scheduler) IsEmpty() bool {
-	return s.priorityQueue.Len() == 0
+	return s.readyQueue.Len() == 0
 }
 
-func (s *Scheduler) PriorityQueueLen() int {
-	return s.priorityQueue.Len()
+func (s *Scheduler) ReadyLen() int {
+	return s.readyQueue.Len()
 }
 func (s *Scheduler) IncreaseAccessMana(manaIncrement float64) {
 	s.accessMana += manaIncrement
@@ -78,20 +104,25 @@ func (s *Scheduler) GetAccessMana() (mana float64) {
 }
 
 func (s *Scheduler) GetMaxManaBurn() float64 {
-	return (*s.priorityQueue)[0].ManaBurnValue
+	return (*s.readyQueue)[0].ManaBurnValue
 }
 
 func (s *Scheduler) ScheduleMessage() (Message, float64) {
 	// Consume the accessMana and pop the Message
-	m := heap.Pop(s.priorityQueue).(Message)
+	m := heap.Pop(s.readyQueue).(Message)
 	s.accessMana -= m.ManaBurnValue
 	s.Events.MessageScheduled.Trigger(m.ID)
 	return m, s.accessMana
 }
 
-func (s *Scheduler) EnqueueMessage(m Message) {
-	heap.Push(s.priorityQueue, m)
-	s.Events.MessageEnqueued.Trigger(m.ID)
+func (s *Scheduler) EnqueueMessage(messageID MessageID) {
+	s.tangle.Storage.MessageMetadata(messageID).SetEnqueueTime(time.Now())
+	// Check if the message is ready to decide which queue to append to
+	if s.messageReady(messageID) {
+		s.tangle.Storage.MessageMetadata(messageID).SetReady()
+	}
+	m := *s.tangle.Storage.Message(messageID)
+	heap.Push(s.readyQueue, m)
 }
 
 func (h MessageHeap) Len() int { return len(h) }
@@ -119,7 +150,6 @@ func (h *MessageHeap) Pop() any {
 // Scheduler ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type SchedulerEvents struct {
-	MessageEnqueued  *events.Event
 	MessageScheduled *events.Event
 	MessageDropped   *events.Event
 }

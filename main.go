@@ -833,7 +833,7 @@ func startAccessManaIncrementRoutine(peer *network.Peer) {
 			}
 			if count > 0 {
 				log.Debugf("Peer %d popped %d messages with remaining priority queue size %d",
-					peer.ID, count, peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.PriorityQueueLen())
+					peer.ID, count, peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ReadyLen())
 			}
 		}
 	}

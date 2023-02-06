@@ -28,6 +28,7 @@ type Message struct {
 type MessageMetadata struct {
 	id               MessageID
 	solid            bool
+	ready            bool
 	inheritedColor   Color
 	weightSlice      []byte
 	weight           uint64
@@ -76,6 +77,18 @@ func (m *MessageMetadata) SetDropTime(dropTime time.Time) {
 
 func (m *MessageMetadata) ID() (messageID MessageID) {
 	return m.id
+}
+
+func (m *MessageMetadata) SetReady() {
+	m.ready = true
+}
+
+func (m *MessageMetadata) Scheduled() bool {
+	return !m.scheduleTime.IsZero()
+}
+
+func (m *MessageMetadata) Confirmed() bool {
+	return !m.confirmationTime.IsZero()
 }
 
 func (m *MessageMetadata) SetSolid(solid bool) (modified bool) {

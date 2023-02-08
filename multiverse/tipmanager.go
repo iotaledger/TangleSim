@@ -132,29 +132,41 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 				}
 
 				oldestUnconfirmedTime := time.Now()
-				youngestConfirmationTime := time.Now()
+				oldestConfirmationTime := time.Now()
+
 				// Walk through the past cone to find the oldest unconfirmed blocks
 				t.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
 					confirmedTimestamp := messageMetadata.ConfirmationTime()
 					// Reaches the confirmed blocks, stop traversing
 					if !confirmedTimestamp.IsZero() {
 						// Use the issuance time of the youngest confirmed block
-						youngestConfirmationTime = message.IssuanceTime
-						return
+						issuanceTime := message.IssuanceTime
+						if issuanceTime.Before(oldestConfirmationTime) {
+							oldestConfirmationTime = issuanceTime
+						}
 					} else {
 						if message.IssuanceTime.Before(oldestUnconfirmedTime) {
 							oldestUnconfirmedTime = message.IssuanceTime
 						}
+						// Only continue the BFS when the current block is unconfirmed
+						for strongChildID := range message.StrongParents {
+							walker.Push(strongChildID)
+						}
 					}
-					for strongChildID := range message.StrongParents {
-						walker.Push(strongChildID)
-					}
+
 				}, NewMessageIDs(messageID), false)
 
+				// Distance between (Now, Issuance Time of the oldest UNCONFIRMED block that has confirmed parents)
 				fmt.Printf("UnconfirmationAge %f\n", currentTangleTime.Sub(oldestUnconfirmedTime).Seconds())
-				fmt.Printf("ConfirmationAge %f\n", currentTangleTime.Sub(youngestConfirmationTime).Seconds())
+
+				// Distance between (Now, Issuance Time of the oldest CONFIRMED block that has no confirmed children)
+				fmt.Printf("ConfirmationAge %f\n", currentTangleTime.Sub(oldestConfirmationTime).Seconds())
+
+				// Distance between (Issuance Time of the tip, Issuance Time of the oldest UNCONFIRMED block that has confirmed parents)
 				fmt.Printf("UnconfirmationAgeSinceTip %f\n", tipTangleTime.Sub(oldestUnconfirmedTime).Seconds())
-				fmt.Printf("ConfirmationAgeSinceTip %f\n", tipTangleTime.Sub(youngestConfirmationTime).Seconds())
+
+				// Distance between (Issuance Time of the tip, Issuance Time of the oldest CONFIRMED block that has no confirmed children)
+				fmt.Printf("ConfirmationAgeSinceTip %f\n", tipTangleTime.Sub(oldestConfirmationTime).Seconds())
 				// if timeSinceConfirmation > tsc_condition {
 				// 	oldTips[tip.(*Message).ID] = void{}
 				// 	fmt.Printf("Prune %d\n", tip.(*Message).ID)

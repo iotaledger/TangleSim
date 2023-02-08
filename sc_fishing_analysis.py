@@ -14,7 +14,7 @@ def analyze(filename, tag):
     plt.hist(x, weights=np.ones(len(x))/len(x),
              bins=10, label="Data")
     plt.xlim(0, 3)
-    plt.ylim(0, 0.5)
+    plt.ylim(0, 0.3)
     plt.ylabel("Probability")
     plt.xlabel(f'{tag} (s)')
     # plt.title(f'{tag} of Every Tip')

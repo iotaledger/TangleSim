@@ -196,7 +196,7 @@ func dumpConfig(fileName string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, ParentsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS int
 		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
-		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                          string
+		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode, BurnPolicyNames                                                                         string
 		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                   []int
 		AdversarySpeedup, AdversaryMana                                                                                                                                        []float64
 		AdversaryInitColor, AccidentalMana                                                                                                                                     []string
@@ -234,6 +234,7 @@ func dumpConfig(fileName string) {
 		AccidentalMana:          config.AccidentalMana,
 		AdversaryPeeringAll:     config.AdversaryPeeringAll,
 		AdversarySpeedup:        config.AdversarySpeedup,
+		BurnPolicyNames:         config.BurnPolicyNames,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")
@@ -775,7 +776,7 @@ func secureNetwork(testNetwork *network.Network) {
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
 		band := peer.AdversarySpeedup * weightOfPeer * float64(config.TPS) / nodeTotalWeightedWeight
-		fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
+		//fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
 
 		go startSecurityWorker(peer, band)
 

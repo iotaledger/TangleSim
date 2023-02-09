@@ -23,6 +23,7 @@ testNodes/*
 
 # Project files
 .idea
+.vscode/
 
 # Database directory
 mainnetdb/
@@ -45,6 +46,7 @@ multivers-simulation
 # Debugging related files
 results/
 result/
+figures/
 debug/
 result_remote/
 paper_figs/

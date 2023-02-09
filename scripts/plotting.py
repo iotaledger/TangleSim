@@ -586,12 +586,11 @@ class FigurePlotter:
                 logging.error(f'{fs}: Incomplete Data!')
                 continue
             variation_data[v] = (data, x_axis_adjust)
-
         data = []
         variations = []
 
         # thorughput = [100, 4000]
-        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
+        for i, (v, d) in enumerate(variation_data.items()):
             z = (d[0]*1e-9).tolist()
             if len(z) == 0:
                 continue
@@ -612,7 +611,6 @@ class FigurePlotter:
             #         f'Uniform Random Delay = 50–950 (ms)', fontsize=12)
             # variations.append(f'{v}, {thorughput[i]}')
             # variations.append(float(v)*100)
-            print(v)
             variations.append(v)
 
         # print(data)
@@ -623,7 +621,7 @@ class FigurePlotter:
         # plt.ylim(0, 6)
         plt.xlabel('Mana Burn Policies')
         plt.xticks(ticks=list(range(1, 1 + len(variations))),
-                   labels=['No Burn', 'Greedy, Random Greedy'])
+                   labels=variations)
 
         # axes = plt.axes()
         # axes.set_ylim([0, 6])

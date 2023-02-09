@@ -50,8 +50,9 @@ var (
 // Mana Burn Setup
 // 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
 var (
-	// BurnPolicy = ZeroValueArray(NodesCount)
-	BurnPolicy         = RandomValueArray(99, 2, 3, NodesCount)
+	// BurnPolicies = ZeroValueArray(NodesCount)
+	BurnPolicies       = RandomValueArray(99, 2, 3, NodesCount)
+	BurnPolicyNames    = ""
 	NodeInitAccessMana = ZeroValueArray(NodesCount)
 	ExtraBurn          = 1.0
 )

@@ -16,7 +16,7 @@ const (
 )
 
 func BurnMana(tangle *Tangle) (burn float64) {
-	switch policy := config.BurnPolicy[tangle.Peer.ID]; BurnPolicyType(policy) {
+	switch policy := config.BurnPolicies[tangle.Peer.ID]; BurnPolicyType(policy) {
 	case NoBurn:
 		return 0.0
 	case Anxious:

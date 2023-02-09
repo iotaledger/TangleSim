@@ -81,4 +81,10 @@ FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node
                              "Convergence Time v.s. Different Adversary Speed",
                              "Flips v.s. Different Adversary Speed",
                              "Unconfirming Counts v.s. Different Adversary Speed",
-                             "Confirmation Weight Depth v.s. Different Adversary Speed")}
+                             "Confirmation Weight Depth v.s. Different Adversary Speed"),
+                      'MB': ("BurnPolicyNames", "Confirmation Time v.s. Different Burn Policies",
+                             "Convergence Time v.s. Different Burn Policies",
+                             "Flips v.s. Different Burn Policies",
+                             "Unconfirming Counts v.s. Different Burn Policies",
+                             "Confirmation Weight Depth v.s. Different Burn Policies"),
+                             }

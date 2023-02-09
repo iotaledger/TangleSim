@@ -2,6 +2,7 @@ package multiverse
 
 import (
 	"container/heap"
+	"fmt"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
@@ -65,15 +66,27 @@ func (s *Scheduler) updateChildrenReady(messageID MessageID) {
 }
 
 func (s *Scheduler) messageReady(messageID MessageID) bool {
+	if !s.tangle.Storage.MessageMetadata(messageID).Solid() {
+		return false
+	}
 	message := s.tangle.Storage.Message(messageID)
 	for strongParentID := range message.StrongParents {
-		if !s.tangle.Storage.MessageMetadata(strongParentID).Scheduled() && !s.tangle.Storage.MessageMetadata(strongParentID).Confirmed() {
-			return false
+		if strongParentID > 0 {
+			strongParentMetadata := s.tangle.Storage.MessageMetadata(strongParentID)
+			if strongParentMetadata == nil {
+				fmt.Println("Strong Parent Metadata is empty")
+			}
+			if !strongParentMetadata.Scheduled() && !strongParentMetadata.Confirmed() {
+				return false
+			}
 		}
 	}
 	for weakParentID := range message.WeakParents {
-		if !s.tangle.Storage.MessageMetadata(weakParentID).Scheduled() && !s.tangle.Storage.MessageMetadata(weakParentID).Confirmed() {
-			return false
+		weakParentMetadata := s.tangle.Storage.MessageMetadata(weakParentID)
+		if weakParentID > 0 {
+			if !weakParentMetadata.Scheduled() && !weakParentMetadata.Confirmed() {
+				return false
+			}
 		}
 	}
 	return true

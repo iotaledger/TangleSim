@@ -195,6 +195,10 @@ if __name__ == '__main__':
                 for i, v in enumerate(vv):
                     os.system(
                         f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -slowdownFactor={df[i]}')
+            elif var == 'MB':
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -burnPolicies="{v}" -slowdownFactor={df[i]}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)

@@ -2,11 +2,13 @@ package simulation
 
 import (
 	"flag"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
+	"github.com/iotaledger/multivers-simulation/multiverse"
 )
 
 var log = logger.New("Simulation")
@@ -79,6 +81,8 @@ func ParseFlags() {
 		flag.String("adversarySpeedup", "", "Adversary issuing speed relative to their mana, e.g. '10 10' means that nodes in each group will issue 10 times messages than would be allowed by their mana. SimulationTarget must be 'DS'")
 	adversaryPeeringAll :=
 		flag.Bool("adversaryPeeringAll", config.AdversaryPeeringAll, "Flag indicating whether adversary nodes should be able to gossip messages to all nodes in the network directly, or should follow the peering algorithm.")
+	burnPolicies :=
+		flag.String("burnPolicies", "", "Space seperated list of policies employed by nodes, e.g., '0 1' . Options include: 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy")
 
 	// Parse the flags
 	flag.Parse()
@@ -108,6 +112,8 @@ func ParseFlags() {
 	config.RandomnessWS = *randomnessWS
 	config.NeighbourCountWS = *neighbourCountWS
 	config.SimulationMode = *simulationMode
+	config.NodeInitAccessMana = config.ZeroValueArray(config.NodesCount)
+	parseBurnPolicies(*burnPolicies)
 	parseAccidentalConfig(accidentalMana)
 	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll, adversarySpeedup)
 	log.Info("Current configuration:")
@@ -143,7 +149,34 @@ func ParseFlags() {
 	log.Info("AccidentalMana: ", config.AccidentalMana)
 	log.Info("AdversaryPeeringAll: ", config.AdversaryPeeringAll)
 	log.Info("AdversarySpeedup: ", config.AdversarySpeedup)
+	log.Info("BurnPolicyNames: ", config.BurnPolicyNames)
 
+}
+
+func parseBurnPolicies(burnPolicies string) {
+	fmt.Println(burnPolicies)
+	policiesInt := parseStrToInt(burnPolicies)
+	for i, p := range policiesInt {
+		switch multiverse.BurnPolicyType(p) {
+		case multiverse.NoBurn:
+			config.BurnPolicyNames += "No Burn"
+		case multiverse.Anxious:
+			config.BurnPolicyNames += "Anxious"
+		case multiverse.Greedy:
+			config.BurnPolicyNames += "Greedy"
+		case multiverse.RandomGreedy:
+			config.BurnPolicyNames += "Random Greedy"
+		}
+		if i < len(policiesInt)-1 {
+			config.BurnPolicyNames += " - "
+		}
+	}
+	fmt.Println(config.BurnPolicyNames)
+	if len(policiesInt) == config.NodesCount {
+		config.BurnPolicies = policiesInt
+	} else {
+		config.BurnPolicies = config.RandomArrayFromValues(0, policiesInt, config.NodesCount)
+	}
 }
 
 func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors *string, adversaryPeeringAll *bool, adversarySpeedup *string) {

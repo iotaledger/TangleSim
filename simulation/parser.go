@@ -157,7 +157,6 @@ func ParseFlags() {
 }
 
 func parseBurnPolicies(burnPolicies string) {
-	fmt.Println(burnPolicies)
 	policiesInt := parseStrToInt(burnPolicies)
 	for i, p := range policiesInt {
 		switch multiverse.BurnPolicyType(p) {
@@ -174,12 +173,12 @@ func parseBurnPolicies(burnPolicies string) {
 			config.BurnPolicyNames += " - "
 		}
 	}
-	fmt.Println(config.BurnPolicyNames)
 	if len(policiesInt) == config.NodesCount {
 		config.BurnPolicies = policiesInt
 	} else {
 		config.BurnPolicies = config.RandomArrayFromValues(0, policiesInt, config.NodesCount)
 	}
+	fmt.Println(config.BurnPolicies)
 }
 
 func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors *string, adversaryPeeringAll *bool, adversarySpeedup *string) {

@@ -45,6 +45,9 @@ func NewScheduler(tangle *Tangle) (mq *Scheduler) {
 
 func (s *Scheduler) Setup(tangle *Tangle) {
 	// Setup the initial AccessMana when the peer ID is created
+	for id := 0; id < config.NodesCount; id++ {
+		s.accessMana[network.PeerID(id)] = 0.0
+	}
 	s.Events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
 		s.tangle.Storage.MessageMetadata(messageID).SetScheduleTime(time.Now())
 		s.updateChildrenReady(messageID)

@@ -15,7 +15,7 @@ var (
 // Network setup
 
 var (
-	NodesCount       = 10        // NodesCount is the total number of nodes simulated in the network.
+	NodesCount       = 20        // NodesCount is the total number of nodes simulated in the network.
 	SchedulingRate   = 100       // Scheduler rate in units of messages per second.
 	IssuingRate      = 90        // Total rate of issuing messages in units of messages per second.
 	ParentsCount     = 8         // ParentsCount that a new message is selecting from the tip pool.
@@ -52,8 +52,8 @@ var (
 // 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
 var (
 	// BurnPolicies = ZeroValueArray(NodesCount)
-	BurnPolicies    = RandomValueArray(99, 2, 3, NodesCount)
-	BurnPolicyNames = "Greedy - Random Greedy"
+	BurnPolicies    = []int{}
+	BurnPolicyNames = ""
 	ExtraBurn       = 1.0
 )
 

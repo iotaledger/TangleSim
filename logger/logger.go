@@ -11,5 +11,5 @@ func init() {
 	if err := logger.InitGlobalLogger(configuration.New()); err != nil {
 		panic(err)
 	}
-	logger.SetLevel(logger.LevelInfo)
+	logger.SetLevel(logger.LevelDebug)
 }

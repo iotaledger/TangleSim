@@ -194,13 +194,13 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, ParentsCount, TPS, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                             float64
-		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode, BurnPolicyNames                                                                         string
-		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                   []int
-		AdversarySpeedup, AdversaryMana                                                                                                                                        []float64
-		AdversaryInitColor, AccidentalMana                                                                                                                                     []string
-		AdversaryPeeringAll                                                                                                                                                    bool
+		NodesCount, NodesTotalWeight, ParentsCount, SchedulingRate, IssuingRate, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS int
+		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                     float64
+		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode, BurnPolicyNames                                                                                                 string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                           []int
+		AdversarySpeedup, AdversaryMana                                                                                                                                                                []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                                             []string
+		AdversaryPeeringAll                                                                                                                                                                            bool
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -210,7 +210,8 @@ func dumpConfig(fileName string) {
 		ParentsCount:            config.ParentsCount,
 		WeakTipsRatio:           config.WeakTipsRatio,
 		TSA:                     config.TSA,
-		TPS:                     config.TPS,
+		SchedulingRate:          config.SchedulingRate,
+		IssuingRate:             config.IssuingRate,
 		SlowdownFactor:          config.SlowdownFactor,
 		ConsensusMonitorTick:    config.ConsensusMonitorTick,
 		RelevantValidatorWeight: config.RelevantValidatorWeight,
@@ -545,27 +546,9 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 	simulationWg.Add(1)
 	simulationWg.Done()
 
-	log.Infof("New opinions counter[ %3d Undefined / %3d Blue / %3d Red / %3d Green ]",
-		colorCounters.Get("opinions", multiverse.UndefinedColor),
-		colorCounters.Get("opinions", multiverse.Blue),
-		colorCounters.Get("opinions", multiverse.Red),
-		colorCounters.Get("opinions", multiverse.Green),
-	)
-	log.Infof("Network Status: %3d TPS :: Consensus[ %3d Undefined / %3d Blue / %3d Red / %3d Green ] :: %d  Honest Nodes :: %d Adversary Nodes :: %d Validators",
-		atomicCounters.Get("tps")*1000/int64(config.ConsensusMonitorTick),
-		colorCounters.Get("confirmedNodes", multiverse.UndefinedColor),
-		colorCounters.Get("confirmedNodes", multiverse.Blue),
-		colorCounters.Get("confirmedNodes", multiverse.Red),
-		colorCounters.Get("confirmedNodes", multiverse.Green),
-		honestNodesCount,
-		adversaryNodesCount,
-		atomicCounters.Get("relevantValidators"),
-	)
-
 	sinceIssuance := "0"
 	if !dsIssuanceTime.IsZero() {
 		sinceIssuance = strconv.FormatInt(time.Since(dsIssuanceTime).Nanoseconds(), 10)
-
 	}
 
 	dumpResultDS(dsResultsWriter, sinceIssuance)
@@ -775,7 +758,7 @@ func secureNetwork(testNetwork *network.Network) {
 		// Band widths summed up: 100000/121 + 20000/121 + 1000/121 = 1000
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
-		band := peer.AdversarySpeedup * weightOfPeer * float64(config.TPS) / nodeTotalWeightedWeight
+		band := peer.AdversarySpeedup * weightOfPeer * float64(config.IssuingRate) / nodeTotalWeightedWeight
 		//fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
 
 		go startSecurityWorker(peer, band)
@@ -810,30 +793,24 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 }
 
 func startAccessManaIncrementRoutine(peer *network.Peer) {
-	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor))
+	pace := time.Duration(1 / float64(config.SchedulingRate) * float64(config.SlowdownFactor))
 	ticker := time.NewTicker(pace)
 
 	for {
 		select {
 		case <-ticker.C:
-			// Increment the accessMana of the node
-			nodeWeightPercentage := float64(peer.Node.(multiverse.NodeInterface).Tangle().WeightDistribution.Weight(peer.ID)) / float64(config.NodesTotalWeight)
-			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncreaseAccessMana(nodeWeightPercentage * float64(config.NodesCount))
-
+			// Increment the accessMana of all nodes within this node's scheduler
+			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana()
+			log.Infof("Mana updated for Peer %d", peer.ID)
 			// Trigger the scheduler to pop messages and gossip them
-			accessMana := peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetAccessMana()
-
 			count := 0
-			for accessMana >= 0 && !peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IsEmpty() {
-				count += 1
-				m, newAccessMana := peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
+			if m, newAccessMana, scheduled := peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage(); scheduled {
 				peer.GossipNetworkMessage(&m)
-				accessMana = newAccessMana
-				log.Debugf("Peer %d has newAccessMana: %f and gossiped message %d with ManaBurnValue %f",
+				log.Infof("Message Scheduled: Peer %d has newAccessMana %f and gossiped message %d with ManaBurnValue %f",
 					peer.ID, newAccessMana, m.ID, m.ManaBurnValue)
 			}
 			if count > 0 {
-				log.Debugf("Peer %d popped %d messages with remaining priority queue size %d",
+				log.Infof("Peer %d popped %d messages with remaining priority queue size %d",
 					peer.ID, count, peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ReadyLen())
 			}
 		}

@@ -33,8 +33,10 @@ func ParseFlags() {
 		flag.Float64("weakTipsRatio", config.WeakTipsRatio, "The ratio of weak tips")
 	tsaPtr :=
 		flag.String("tsa", config.TSA, "The tip selection algorithm")
-	tpsPtr :=
-		flag.Int("tps", config.TPS, "the tips per seconds")
+	schedulingRate :=
+		flag.Int("schedulingRate", config.SchedulingRate, "The scheduling rate of the scheduler in message per second.")
+	issuingRatePtr :=
+		flag.Int("issuingRate", config.IssuingRate, "the tips per seconds")
 	slowdownFactorPtr :=
 		flag.Int("slowdownFactor", config.SlowdownFactor, "The factor to control the speed in the simulation")
 	consensusMonitorTickPtr :=
@@ -96,7 +98,7 @@ func ParseFlags() {
 	config.ParentsCount = *parentsCountPtr
 	config.WeakTipsRatio = *weakTipsRatioPtr
 	config.TSA = *tsaPtr
-	config.TPS = *tpsPtr
+	config.IssuingRate = *issuingRatePtr
 	config.SlowdownFactor = *slowdownFactorPtr
 	config.ConsensusMonitorTick = *consensusMonitorTickPtr
 	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
@@ -112,7 +114,7 @@ func ParseFlags() {
 	config.RandomnessWS = *randomnessWS
 	config.NeighbourCountWS = *neighbourCountWS
 	config.SimulationMode = *simulationMode
-	config.NodeInitAccessMana = config.ZeroValueArray(config.NodesCount)
+	config.SchedulingRate = *schedulingRate
 	parseBurnPolicies(*burnPolicies)
 	parseAccidentalConfig(accidentalMana)
 	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll, adversarySpeedup)
@@ -125,7 +127,8 @@ func ParseFlags() {
 	log.Info("ParentsCount: ", config.ParentsCount)
 	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
 	log.Info("TSA: ", config.TSA)
-	log.Info("TPS: ", config.TPS)
+	log.Info("SchedulingRate:", config.SchedulingRate)
+	log.Info("IssuingRate: ", config.IssuingRate)
 	log.Info("SlowdownFactor: ", config.SlowdownFactor)
 	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
 	log.Info("RelevantValidatorWeight: ", config.RelevantValidatorWeight)

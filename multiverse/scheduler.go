@@ -3,10 +3,12 @@ package multiverse
 import (
 	"container/heap"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
+	"github.com/iotaledger/multivers-simulation/network"
 )
 
 // region Scheduler //////////////////////////////////////////////////////////////////////////////////////////////
@@ -18,9 +20,10 @@ type Scheduler struct {
 	tangle        *Tangle
 	readyQueue    *MessageHeap
 	nonReadyQueue *MessageHeap
-	accessMana    float64
+	accessMana    map[network.PeerID]float64
 
-	Events *SchedulerEvents
+	manaMutex sync.RWMutex
+	Events    *SchedulerEvents
 }
 
 func NewScheduler(tangle *Tangle) (mq *Scheduler) {
@@ -32,7 +35,7 @@ func NewScheduler(tangle *Tangle) (mq *Scheduler) {
 		tangle:        tangle,
 		readyQueue:    readyHeap,
 		nonReadyQueue: nonReadyHeap,
-		accessMana:    0.0,
+		accessMana:    make(map[network.PeerID]float64, config.NodesCount),
 		Events: &SchedulerEvents{
 			MessageScheduled: events.NewEvent(messageIDEventCaller),
 			MessageDropped:   events.NewEvent(messageIDEventCaller),
@@ -42,7 +45,6 @@ func NewScheduler(tangle *Tangle) (mq *Scheduler) {
 
 func (s *Scheduler) Setup(tangle *Tangle) {
 	// Setup the initial AccessMana when the peer ID is created
-	s.accessMana = config.NodeInitAccessMana[tangle.Peer.ID]
 	s.Events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
 		s.tangle.Storage.MessageMetadata(messageID).SetScheduleTime(time.Now())
 		s.updateChildrenReady(messageID)
@@ -99,33 +101,59 @@ func (s *Scheduler) IsEmpty() bool {
 func (s *Scheduler) ReadyLen() int {
 	return s.readyQueue.Len()
 }
-func (s *Scheduler) IncreaseAccessMana(manaIncrement float64) {
-	s.accessMana += manaIncrement
+func (s *Scheduler) IncreaseNodeAccessMana(nodeID network.PeerID, manaIncrement float64) {
+	s.manaMutex.Lock()
+	defer s.manaMutex.Unlock()
+	s.accessMana[nodeID] += manaIncrement
 }
 
-func (s *Scheduler) DecreaseAccessMana(manaIncrement float64) (newAccessMana float64) {
-	s.accessMana -= manaIncrement
-	return s.accessMana
+func (s *Scheduler) IncrementAccessMana() {
+	s.manaMutex.Lock()
+	defer s.manaMutex.Unlock()
+	weights := s.tangle.WeightDistribution.Weights()
+	totalWeight := config.NodesTotalWeight
+	for id := range s.accessMana {
+		s.accessMana[id] += float64(weights[id]) / float64(totalWeight)
+	}
 }
 
-func (s *Scheduler) SetAccessMana(mana float64) {
-	s.accessMana = mana
+func (s *Scheduler) DecreaseNodeAccessMana(nodeID network.PeerID, manaIncrement float64) (newAccessMana float64) {
+	s.manaMutex.Lock()
+	defer s.manaMutex.Unlock()
+	s.accessMana[nodeID] -= manaIncrement
+	return s.accessMana[nodeID]
 }
 
-func (s *Scheduler) GetAccessMana() (mana float64) {
-	return s.accessMana
+func (s *Scheduler) SetNodeAccessMana(nodeID network.PeerID, newMana float64) {
+	s.manaMutex.Lock()
+	defer s.manaMutex.Unlock()
+	s.accessMana[nodeID] = newMana
+}
+
+func (s *Scheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) {
+	s.manaMutex.RLock()
+	defer s.manaMutex.RUnlock()
+	return s.accessMana[nodeID]
 }
 
 func (s *Scheduler) GetMaxManaBurn() float64 {
-	return (*s.readyQueue)[0].ManaBurnValue
+	if s.nonReadyQueue.Len() > 0 {
+		return (*s.readyQueue)[0].ManaBurnValue
+	} else {
+		return 0.0
+	}
 }
 
-func (s *Scheduler) ScheduleMessage() (Message, float64) {
+func (s *Scheduler) ScheduleMessage() (Message, float64, bool) {
 	// Consume the accessMana and pop the Message
-	m := heap.Pop(s.readyQueue).(Message)
-	s.accessMana -= m.ManaBurnValue
-	s.Events.MessageScheduled.Trigger(m.ID)
-	return m, s.accessMana
+	if s.IsEmpty() {
+		return Message{}, 0.0, false
+	} else {
+		m := heap.Pop(s.readyQueue).(Message)
+		newAccessMana := s.DecreaseNodeAccessMana(m.Issuer, m.ManaBurnValue)
+		s.Events.MessageScheduled.Trigger(m.ID)
+		return m, newAccessMana, true
+	}
 }
 
 func (s *Scheduler) EnqueueMessage(messageID MessageID) {

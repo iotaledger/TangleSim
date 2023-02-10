@@ -15,8 +15,9 @@ var (
 // Network setup
 
 var (
-	NodesCount       = 100       // NodesCount is the total number of nodes simulated in the network.
-	TPS              = 100       // TPS defines the total network throughput.
+	NodesCount       = 10        // NodesCount is the total number of nodes simulated in the network.
+	SchedulingRate   = 100       // Scheduler rate in units of messages per second.
+	IssuingRate      = 90        // Total rate of issuing messages in units of messages per second.
 	ParentsCount     = 8         // ParentsCount that a new message is selecting from the tip pool.
 	NeighbourCountWS = 8         // Number of neighbors node is connected to in WattsStrogatz network topology.
 	RandomnessWS     = 1.0       // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
@@ -51,10 +52,9 @@ var (
 // 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
 var (
 	// BurnPolicies = ZeroValueArray(NodesCount)
-	BurnPolicies       = RandomValueArray(99, 2, 3, NodesCount)
-	BurnPolicyNames    = ""
-	NodeInitAccessMana = ZeroValueArray(NodesCount)
-	ExtraBurn          = 1.0
+	BurnPolicies    = RandomValueArray(99, 2, 3, NodesCount)
+	BurnPolicyNames = "Greedy - Random Greedy"
+	ExtraBurn       = 1.0
 )
 
 // Adversary setup - enabled by setting SimulationTarget="DS"

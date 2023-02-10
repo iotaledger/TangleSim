@@ -65,7 +65,7 @@ func secureNetwork(testNetwork *network.Network, slowdownFactor int) {
 			continue
 		}
 
-		issuingPeriod := float64(config.NodesTotalWeight) / float64(config.TPS) / weightOfPeer
+		issuingPeriod := float64(config.NodesTotalWeight) / float64(config.IssuingRate) / weightOfPeer
 		pace := time.Duration(issuingPeriod * float64(slowdownFactor) * float64(time.Second))
 		go startSecurityWorker(peer, pace)
 	}

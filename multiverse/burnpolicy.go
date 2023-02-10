@@ -20,24 +20,11 @@ func BurnMana(tangle *Tangle) (burn float64) {
 	case NoBurn:
 		return 0.0
 	case Anxious:
-		if tangle.Scheduler.accessMana > 0 {
-			return tangle.Scheduler.accessMana
-		} else {
-			return 0.0
-		}
+		return tangle.Scheduler.GetNodeAccessMana(tangle.Peer.ID)
 	case Greedy:
-		if !tangle.Scheduler.IsEmpty() {
-			return tangle.Scheduler.GetMaxManaBurn() + config.ExtraBurn
-		} else {
-			return 1.0
-		}
+		return tangle.Scheduler.GetMaxManaBurn() + config.ExtraBurn
 	case RandomGreedy:
-		if !tangle.Scheduler.IsEmpty() {
-			return tangle.Scheduler.GetMaxManaBurn() + config.ExtraBurn*rand.Float64()
-
-		} else {
-			return 1.0
-		}
+		return tangle.Scheduler.GetMaxManaBurn() + config.ExtraBurn*rand.Float64()
 	default:
 		return 0.0
 	}

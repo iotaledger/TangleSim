@@ -23,8 +23,4 @@ func RandomArrayFromValues(seed int64, values []int, length int) []int {
 	return a
 }
 
-func ZeroValueArray(length int) []float64 {
-	return make([]float64, length)
-}
-
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -2,6 +2,7 @@ package multiverse
 
 import (
 	"math"
+	"sync"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
@@ -13,20 +14,20 @@ import (
 type Storage struct {
 	Events *StorageEvents
 
-	tangle            *Tangle
 	messageDB         map[MessageID]*Message
 	messageMetadataDB map[MessageID]*MessageMetadata
 	strongChildrenDB  map[MessageID]MessageIDs
 	weakChildrenDB    map[MessageID]MessageIDs
+
+	mutex sync.RWMutex
 }
 
-func NewStorage(tangle *Tangle) (storage *Storage) {
+func NewStorage() (storage *Storage) {
 	return &Storage{
 		Events: &StorageEvents{
 			MessageStored: events.NewEvent(messageIDEventCaller),
 		},
 
-		tangle:            tangle,
 		messageDB:         make(map[MessageID]*Message),
 		messageMetadataDB: make(map[MessageID]*MessageMetadata),
 		strongChildrenDB:  make(map[MessageID]MessageIDs),
@@ -35,6 +36,8 @@ func NewStorage(tangle *Tangle) (storage *Storage) {
 }
 
 func (s *Storage) Store(message *Message) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	if _, exists := s.messageDB[message.ID]; exists {
 		return
 	}
@@ -53,20 +56,26 @@ func (s *Storage) Store(message *Message) {
 }
 
 func (s *Storage) Message(messageID MessageID) (message *Message) {
-	message = s.messageDB[messageID]
-	return
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.messageDB[messageID]
 }
 
 func (s *Storage) MessageMetadata(messageID MessageID) (messageMetadata *MessageMetadata) {
-	messageMetadata = s.messageMetadataDB[messageID]
-	return
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	return s.messageMetadataDB[messageID]
 }
 
 func (s *Storage) StrongChildren(messageID MessageID) (strongChildren MessageIDs) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	return s.strongChildrenDB[messageID]
 }
 
 func (s *Storage) WeakChildren(messageID MessageID) (weakChildren MessageIDs) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	return s.weakChildrenDB[messageID]
 }
 

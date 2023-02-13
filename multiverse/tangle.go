@@ -23,7 +23,7 @@ type Tangle struct {
 func NewTangle() (tangle *Tangle) {
 	tangle = &Tangle{}
 
-	tangle.Storage = NewStorage(tangle)
+	tangle.Storage = NewStorage()
 	tangle.Solidifier = NewSolidifier(tangle)
 	tangle.Requester = NewRequester(tangle)
 	tangle.Booker = NewBooker(tangle)

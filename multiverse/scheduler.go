@@ -49,8 +49,9 @@ func (s *Scheduler) Setup(tangle *Tangle) {
 		s.accessMana[network.PeerID(id)] = 0.0
 	}
 	s.Events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
-		s.tangle.Storage.MessageMetadata(messageID).SetScheduleTime(time.Now())
-		s.updateChildrenReady(messageID)
+		s.tangle.Peer.GossipNetworkMessage(s.tangle.Storage.Message(messageID))
+		log.Debugf("Peer %d Gossiped message %d",
+			s.tangle.Peer.ID, messageID)
 	}))
 	s.Events.MessageDropped.Attach(events.NewClosure(func(messageID MessageID) {
 		s.tangle.Storage.MessageMetadata(messageID).SetDropTime(time.Now())
@@ -58,12 +59,12 @@ func (s *Scheduler) Setup(tangle *Tangle) {
 }
 
 func (s *Scheduler) updateChildrenReady(messageID MessageID) {
-	for strongChildID := range s.tangle.Storage.strongChildrenDB[messageID] {
+	for strongChildID := range s.tangle.Storage.StrongChildren(messageID) {
 		if s.messageReady(strongChildID) {
 			s.tangle.Storage.MessageMetadata(strongChildID).SetReady()
 		}
 	}
-	for weakChildID := range s.tangle.Storage.weakChildrenDB[messageID] {
+	for weakChildID := range s.tangle.Storage.WeakChildren(messageID) {
 		if s.messageReady(weakChildID) {
 			s.tangle.Storage.MessageMetadata(weakChildID).SetReady()
 		}
@@ -154,6 +155,10 @@ func (s *Scheduler) ScheduleMessage() (Message, float64, bool) {
 	} else {
 		m := heap.Pop(s.readyQueue).(Message)
 		newAccessMana := s.DecreaseNodeAccessMana(m.Issuer, m.ManaBurnValue)
+		s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
+		s.updateChildrenReady(m.ID)
+		log.Debugf("Peer %d Scheduled message %d: from issuer %d with access mana %f and message ManaBurnValue %f",
+			s.tangle.Peer.ID, m.ID, m.Issuer, newAccessMana, m.ManaBurnValue)
 		s.Events.MessageScheduled.Trigger(m.ID)
 		return m, newAccessMana, true
 	}

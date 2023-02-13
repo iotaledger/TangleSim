@@ -760,11 +760,13 @@ func secureNetwork(testNetwork *network.Network) {
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
 		band := peer.AdversarySpeedup * weightOfPeer * float64(config.IssuingRate) / nodeTotalWeightedWeight
 		//fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
-		fmt.Println("About to start security worker.")
 		go startSecurityWorker(peer, band)
 
 		// Increment the accessMana of each node
 		go startAccessManaIncrementRoutine(peer)
+
+		// Start the scheduler for each node
+		go startSchedulerRoutine(peer)
 	}
 }
 
@@ -792,8 +794,22 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 	}
 }
 
+func startSchedulerRoutine(peer *network.Peer) {
+	pace := time.Duration((float64(time.Second) * float64(config.SlowdownFactor)) / float64(config.SchedulingRate))
+	ticker := time.NewTicker(pace)
+
+	for {
+		select {
+		case <-ticker.C:
+			// Trigger the scheduler to pop messages and gossip them
+			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
+		}
+	}
+}
+
 func startAccessManaIncrementRoutine(peer *network.Peer) {
-	pace := time.Duration(float64(time.Second) / float64(config.SchedulingRate) * float64(config.SlowdownFactor))
+	// update access mana once every second
+	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor))
 	ticker := time.NewTicker(pace)
 
 	for {
@@ -801,13 +817,7 @@ func startAccessManaIncrementRoutine(peer *network.Peer) {
 		case <-ticker.C:
 			// Increment the accessMana of all nodes within this node's scheduler
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana()
-			log.Infof("Mana updated for Peer %d", peer.ID)
-			// Trigger the scheduler to pop messages and gossip them
-			if m, newAccessMana, scheduled := peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage(); scheduled {
-				peer.GossipNetworkMessage(&m)
-				log.Infof("Message Scheduled: Peer %d has newAccessMana %f and gossiped message %d with ManaBurnValue %f",
-					peer.ID, newAccessMana, m.ID, m.ManaBurnValue)
-			}
+			//log.Debugf("Mana updated for Peer %d", peer.ID)
 		}
 	}
 }

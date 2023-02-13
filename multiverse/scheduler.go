@@ -77,22 +77,25 @@ func (s *Scheduler) messageReady(messageID MessageID) bool {
 	}
 	message := s.tangle.Storage.Message(messageID)
 	for strongParentID := range message.StrongParents {
-		if strongParentID > 0 {
-			strongParentMetadata := s.tangle.Storage.MessageMetadata(strongParentID)
-			if strongParentMetadata == nil {
-				fmt.Println("Strong Parent Metadata is empty")
-			}
-			if !strongParentMetadata.Scheduled() && !strongParentMetadata.Confirmed() {
-				return false
-			}
+		if strongParentID == Genesis {
+			continue
 		}
+		strongParentMetadata := s.tangle.Storage.MessageMetadata(strongParentID)
+		if strongParentMetadata == nil {
+			fmt.Println("Strong Parent Metadata is empty")
+		}
+		if !strongParentMetadata.Scheduled() && !strongParentMetadata.Confirmed() {
+			return false
+		}
+
 	}
 	for weakParentID := range message.WeakParents {
 		weakParentMetadata := s.tangle.Storage.MessageMetadata(weakParentID)
-		if weakParentID > 0 {
-			if !weakParentMetadata.Scheduled() && !weakParentMetadata.Confirmed() {
-				return false
-			}
+		if weakParentID == Genesis {
+			continue
+		}
+		if !weakParentMetadata.Scheduled() && !weakParentMetadata.Confirmed() {
+			return false
 		}
 	}
 	return true
@@ -128,12 +131,6 @@ func (s *Scheduler) DecreaseNodeAccessMana(nodeID network.PeerID, manaIncrement 
 	return s.accessMana[nodeID]
 }
 
-func (s *Scheduler) SetNodeAccessMana(nodeID network.PeerID, newMana float64) {
-	s.manaMutex.Lock()
-	defer s.manaMutex.Unlock()
-	s.accessMana[nodeID] = newMana
-}
-
 func (s *Scheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) {
 	s.manaMutex.RLock()
 	defer s.manaMutex.RUnlock()
@@ -151,6 +148,7 @@ func (s *Scheduler) GetMaxManaBurn() float64 {
 func (s *Scheduler) ScheduleMessage() (Message, float64, bool) {
 	// Consume the accessMana and pop the Message
 	if s.IsEmpty() {
+		//log.Debugf("Scheduler is empty: Peer %d", s.tangle.Peer.ID)
 		return Message{}, 0.0, false
 	} else {
 		m := heap.Pop(s.readyQueue).(Message)
@@ -168,7 +166,10 @@ func (s *Scheduler) EnqueueMessage(messageID MessageID) {
 	s.tangle.Storage.MessageMetadata(messageID).SetEnqueueTime(time.Now())
 	// Check if the message is ready to decide which queue to append to
 	if s.messageReady(messageID) {
+		//log.Debugf("message ready")
 		s.tangle.Storage.MessageMetadata(messageID).SetReady()
+	} else {
+		log.Debug("Message not ready")
 	}
 	m := *s.tangle.Storage.Message(messageID)
 	heap.Push(s.readyQueue, m)

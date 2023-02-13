@@ -114,6 +114,12 @@ func (m *MessageMetadata) ID() (messageID MessageID) {
 	return m.id
 }
 
+func (m *MessageMetadata) Ready() bool {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	return m.ready
+}
+
 func (m *MessageMetadata) SetReady() {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()

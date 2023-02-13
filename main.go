@@ -773,7 +773,7 @@ func secureNetwork(testNetwork *network.Network) {
 func startSecurityWorker(peer *network.Peer, band float64) {
 	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor) / band)
 
-	log.Debug("Peer ID: ", peer.ID, " Pace: ", pace)
+	log.Debug("Starting security worker for Peer ID: ", peer.ID, " Pace: ", pace)
 	if pace == time.Duration(0) {
 		log.Warn("Peer ID: ", peer.ID, " has 0 pace!")
 		return
@@ -796,12 +796,14 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 
 func startSchedulerRoutine(peer *network.Peer) {
 	pace := time.Duration((float64(time.Second) * float64(config.SlowdownFactor)) / float64(config.SchedulingRate))
+	log.Debug("Starting scheduler routine for Peer ID: ", peer.ID, " Pace: ", pace)
 	ticker := time.NewTicker(pace)
 
 	for {
 		select {
 		case <-ticker.C:
 			// Trigger the scheduler to pop messages and gossip them
+			//log.Debugf("Trying to schedule: Peer %d", peer.ID)
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
 		}
 	}
@@ -810,6 +812,7 @@ func startSchedulerRoutine(peer *network.Peer) {
 func startAccessManaIncrementRoutine(peer *network.Peer) {
 	// update access mana once every second
 	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor))
+	log.Debug("Starting Mana increment routine for Peer ID: ", peer.ID, " Pace: ", pace)
 	ticker := time.NewTicker(pace)
 
 	for {

@@ -147,6 +147,8 @@ func (s *Scheduler) GetMaxManaBurn() float64 {
 
 func (s *Scheduler) ScheduleMessage() (Message, float64, bool) {
 	// Consume the accessMana and pop the Message
+	s.manaMutex.Lock()
+	defer s.manaMutex.Unlock()
 	if s.IsEmpty() {
 		//log.Debugf("Scheduler is empty: Peer %d", s.tangle.Peer.ID)
 		return Message{}, 0.0, false

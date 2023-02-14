@@ -37,6 +37,7 @@ func NewStorage() (storage *Storage) {
 
 func (s *Storage) Store(message *Message) {
 	s.mutex.Lock()
+	s.mutex.Unlock()
 	if _, exists := s.messageDB[message.ID]; exists {
 		return
 	}
@@ -50,7 +51,6 @@ func (s *Storage) Store(message *Message) {
 	}
 	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
 	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
-	s.mutex.Unlock()
 	s.Events.MessageStored.Trigger(message.ID)
 }
 

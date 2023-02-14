@@ -118,13 +118,13 @@ func (s *Scheduler) IncreaseNodeAccessMana(nodeID network.PeerID, manaIncrement 
 	s.accessMana[nodeID] += manaIncrement
 }
 
-func (s *Scheduler) IncrementAccessMana() {
+func (s *Scheduler) IncrementAccessMana(schedulingRate float64) {
 	s.manaMutex.Lock()
 	defer s.manaMutex.Unlock()
 	weights := s.tangle.WeightDistribution.Weights()
 	totalWeight := config.NodesTotalWeight
 	for id := range s.accessMana {
-		s.accessMana[id] += float64(weights[id]) / float64(totalWeight)
+		s.accessMana[id] += float64(weights[id]) / float64(totalWeight) / schedulingRate
 	}
 }
 
@@ -172,7 +172,7 @@ func (s *Scheduler) EnqueueMessage(messageID MessageID) {
 	s.tangle.Storage.MessageMetadata(messageID).SetEnqueueTime(time.Now())
 	// Check if the message is ready to decide which queue to append to
 	if s.messageReady(messageID) {
-		//log.Debugf("message ready")
+		log.Debugf("message ready")
 		s.tangle.Storage.MessageMetadata(messageID).SetReady()
 	} else {
 		log.Debug("Message not ready")

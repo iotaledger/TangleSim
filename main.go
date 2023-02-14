@@ -763,7 +763,7 @@ func secureNetwork(testNetwork *network.Network) {
 		go startSecurityWorker(peer, band)
 
 		// Increment the accessMana of each node
-		go startAccessManaIncrementRoutine(peer)
+		// go startAccessManaIncrementRoutine(peer)
 
 		// Start the scheduler for each node
 		go startSchedulerRoutine(peer)
@@ -804,26 +804,27 @@ func startSchedulerRoutine(peer *network.Peer) {
 		case <-ticker.C:
 			// Trigger the scheduler to pop messages and gossip them
 			//log.Debugf("Trying to schedule: Peer %d", peer.ID)
+			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.SchedulingRate))
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
 		}
 	}
 }
 
-func startAccessManaIncrementRoutine(peer *network.Peer) {
-	// update access mana once every second
-	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor))
-	log.Debug("Starting Mana increment routine for Peer ID: ", peer.ID, " Pace: ", pace)
-	ticker := time.NewTicker(pace)
+// func startAccessManaIncrementRoutine(peer *network.Peer) {
+// 	// update access mana once every second
+// 	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor))
+// 	log.Debug("Starting Mana increment routine for Peer ID: ", peer.ID, " Pace: ", pace)
+// 	ticker := time.NewTicker(pace)
 
-	for {
-		select {
-		case <-ticker.C:
-			// Increment the accessMana of all nodes within this node's scheduler
-			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana()
-			//log.Debugf("Mana updated for Peer %d", peer.ID)
-		}
-	}
-}
+// 	for {
+// 		select {
+// 		case <-ticker.C:
+// 			// Increment the accessMana of all nodes within this node's scheduler
+// 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana()
+// 			//log.Debugf("Mana updated for Peer %d", peer.ID)
+// 		}
+// 	}
+// }
 
 func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 	atomicCounters.Add("tps", 1)

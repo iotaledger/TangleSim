@@ -113,14 +113,14 @@ func (s *Scheduler) ReadyLen() int {
 	return s.readyQueue.Len()
 }
 func (s *Scheduler) IncreaseNodeAccessMana(nodeID network.PeerID, manaIncrement float64) {
-	s.manaMutex.Lock()
-	defer s.manaMutex.Unlock()
+	// s.manaMutex.Lock()
+	// defer s.manaMutex.Unlock()
 	s.accessMana[nodeID] += manaIncrement
 }
 
 func (s *Scheduler) IncrementAccessMana(schedulingRate float64) {
-	s.manaMutex.Lock()
-	defer s.manaMutex.Unlock()
+	// s.manaMutex.Lock()
+	// defer s.manaMutex.Unlock()
 	weights := s.tangle.WeightDistribution.Weights()
 	totalWeight := config.NodesTotalWeight
 	for id := range s.accessMana {
@@ -129,16 +129,16 @@ func (s *Scheduler) IncrementAccessMana(schedulingRate float64) {
 }
 
 func (s *Scheduler) DecreaseNodeAccessMana(nodeID network.PeerID, manaIncrement float64) (newAccessMana float64) {
-	s.manaMutex.Lock()
-	defer s.manaMutex.Unlock()
+	// s.manaMutex.Lock()
+	// defer s.manaMutex.Unlock()
 	s.accessMana[nodeID] -= manaIncrement
 	newAccessMana = s.accessMana[nodeID]
 	return newAccessMana
 }
 
 func (s *Scheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) {
-	s.manaMutex.Lock()
-	defer s.manaMutex.Unlock()
+	// s.manaMutex.Lock()
+	// defer s.manaMutex.Unlock()
 	mana = s.accessMana[nodeID]
 	return mana
 }

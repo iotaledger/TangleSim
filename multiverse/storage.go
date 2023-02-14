@@ -2,7 +2,6 @@ package multiverse
 
 import (
 	"math"
-	"sync"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
@@ -19,7 +18,7 @@ type Storage struct {
 	strongChildrenDB  map[MessageID]MessageIDs
 	weakChildrenDB    map[MessageID]MessageIDs
 
-	mutex sync.RWMutex
+	// mutex sync.RWMutex
 }
 
 func NewStorage() (storage *Storage) {
@@ -36,8 +35,8 @@ func NewStorage() (storage *Storage) {
 }
 
 func (s *Storage) Store(message *Message) {
-	s.mutex.Lock()
-	s.mutex.Unlock()
+	// s.mutex.Lock()
+	// s.mutex.Unlock()
 	if _, exists := s.messageDB[message.ID]; exists {
 		return
 	}
@@ -55,26 +54,26 @@ func (s *Storage) Store(message *Message) {
 }
 
 func (s *Storage) Message(messageID MessageID) (message *Message) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	// s.mutex.RLock()
+	// defer s.mutex.RUnlock()
 	return s.messageDB[messageID]
 }
 
 func (s *Storage) MessageMetadata(messageID MessageID) (messageMetadata *MessageMetadata) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	// s.mutex.RLock()
+	// defer s.mutex.RUnlock()
 	return s.messageMetadataDB[messageID]
 }
 
 func (s *Storage) StrongChildren(messageID MessageID) (strongChildren MessageIDs) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	// s.mutex.RLock()
+	// defer s.mutex.RUnlock()
 	return s.strongChildrenDB[messageID]
 }
 
 func (s *Storage) WeakChildren(messageID MessageID) (weakChildren MessageIDs) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	// s.mutex.RLock()
+	// defer s.mutex.RUnlock()
 	return s.weakChildrenDB[messageID]
 }
 

@@ -1,7 +1,6 @@
 package multiverse
 
 import (
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -39,108 +38,108 @@ type MessageMetadata struct {
 	scheduleTime     time.Time
 	dropTime         time.Time
 
-	mutex sync.RWMutex
+	// mutex sync.RWMutex
 }
 
 func (m *MessageMetadata) WeightByte(index int) byte {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	// m.mutex.RLock()
+	// defer m.mutex.RUnlock()
 	return m.weightSlice[index]
 }
 
 func (m *MessageMetadata) SetWeightByte(index int, weight byte) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	// m.mutex.Lock()
+	// defer m.mutex.Unlock()
 	m.weightSlice[index] = weight
 }
 
 func (m *MessageMetadata) SetWeightSlice(weightSlice []byte) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	// m.mutex.Lock()
+	// defer m.mutex.Unlock()
 	m.weightSlice = weightSlice
 }
 
 func (m *MessageMetadata) Weight() uint64 {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	// m.mutex.RLock()
+	// defer m.mutex.RUnlock()
 	return m.weight
 }
 
 func (m *MessageMetadata) AddWeight(weight uint64) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	// m.mutex.Lock()
+	// defer m.mutex.Unlock()
 	m.weight += weight
 }
 
 func (m *MessageMetadata) SetWeight(weight uint64) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	// m.mutex.Lock()
+	// defer m.mutex.Unlock()
 	m.weight = weight
 }
 
 func (m *MessageMetadata) ConfirmationTime() time.Time {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	// m.mutex.RLock()
+	// defer m.mutex.RUnlock()
 	return m.confirmationTime
 }
 
 func (m *MessageMetadata) SetConfirmationTime(confirmationTime time.Time) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	// m.mutex.Lock()
+	// defer m.mutex.Unlock()
 	m.confirmationTime = confirmationTime
 }
 
 func (m *MessageMetadata) SetEnqueueTime(enqueueTime time.Time) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	// m.mutex.Lock()
+	// defer m.mutex.Unlock()
 	m.enqueueTime = enqueueTime
 }
 
 func (m *MessageMetadata) SetScheduleTime(scheduleTime time.Time) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	// m.mutex.Lock()
+	// defer m.mutex.Unlock()
 	m.scheduleTime = scheduleTime
 }
 
 func (m *MessageMetadata) SetDropTime(dropTime time.Time) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	// m.mutex.Lock()
+	// defer m.mutex.Unlock()
 	m.dropTime = dropTime
 }
 
 func (m *MessageMetadata) ID() (messageID MessageID) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	// m.mutex.RLock()
+	// defer m.mutex.RUnlock()
 	return m.id
 }
 
 func (m *MessageMetadata) Ready() bool {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	// m.mutex.RLock()
+	// defer m.mutex.RUnlock()
 	return m.ready
 }
 
 func (m *MessageMetadata) SetReady() {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	// m.mutex.Lock()
+	// defer m.mutex.Unlock()
 	m.ready = true
 }
 
 func (m *MessageMetadata) Scheduled() bool {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	// m.mutex.RLock()
+	// defer m.mutex.RUnlock()
 	return !m.scheduleTime.IsZero()
 }
 
 func (m *MessageMetadata) Confirmed() bool {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	// m.mutex.RLock()
+	// defer m.mutex.RUnlock()
 	return !m.confirmationTime.IsZero()
 }
 
 func (m *MessageMetadata) SetSolid(solid bool) (modified bool) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	// m.mutex.Lock()
+	// defer m.mutex.Unlock()
 	if solid == m.solid {
 		return
 	}
@@ -152,14 +151,14 @@ func (m *MessageMetadata) SetSolid(solid bool) (modified bool) {
 }
 
 func (m *MessageMetadata) Solid() (solid bool) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	// m.mutex.RLock()
+	// defer m.mutex.RUnlock()
 	return m.solid
 }
 
 func (m *MessageMetadata) SetInheritedColor(color Color) (modified bool) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	// m.mutex.Lock()
+	// defer m.mutex.Unlock()
 	if color == m.inheritedColor {
 		return
 	}
@@ -171,8 +170,8 @@ func (m *MessageMetadata) SetInheritedColor(color Color) (modified bool) {
 }
 
 func (m *MessageMetadata) InheritedColor() (color Color) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+	// m.mutex.RLock()
+	// defer m.mutex.RUnlock()
 	return m.inheritedColor
 }
 

@@ -766,7 +766,7 @@ func secureNetwork(testNetwork *network.Network) {
 		// go startAccessManaIncrementRoutine(peer)
 
 		// Start the scheduler for each node
-		go startSchedulerRoutine(peer)
+		// go startSchedulerRoutine(peer)
 	}
 }
 
@@ -780,6 +780,10 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 	}
 	ticker := time.NewTicker(pace)
 
+	paceScheduler := time.Duration((float64(time.Second) * float64(config.SlowdownFactor)) / float64(config.SchedulingRate))
+	log.Debug("Starting scheduler routine for Peer ID: ", peer.ID, " Pace: ", paceScheduler)
+	tickerScheduler := time.NewTicker(paceScheduler)
+
 	for {
 		select {
 		case <-ticker.C:
@@ -790,6 +794,11 @@ func startSecurityWorker(peer *network.Peer, band float64) {
 				}
 			}
 			sendMessage(peer)
+		case <-tickerScheduler.C:
+			// Trigger the scheduler to pop messages and gossip them
+			//log.Debugf("Trying to schedule: Peer %d", peer.ID)
+			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.SchedulingRate))
+			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
 		}
 	}
 }

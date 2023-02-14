@@ -59,6 +59,8 @@ func (s *Scheduler) Setup(tangle *Tangle) {
 }
 
 func (s *Scheduler) updateChildrenReady(messageID MessageID) {
+	s.manaMutex.Lock()
+	defer s.manaMutex.Unlock()
 	for strongChildID := range s.tangle.Storage.StrongChildren(messageID) {
 		if s.messageReady(strongChildID) {
 			s.tangle.Storage.MessageMetadata(strongChildID).SetReady()
@@ -72,6 +74,8 @@ func (s *Scheduler) updateChildrenReady(messageID MessageID) {
 }
 
 func (s *Scheduler) messageReady(messageID MessageID) bool {
+	s.manaMutex.RLock()
+	defer s.manaMutex.RUnlock()
 	if !s.tangle.Storage.MessageMetadata(messageID).Solid() {
 		return false
 	}
@@ -128,13 +132,15 @@ func (s *Scheduler) DecreaseNodeAccessMana(nodeID network.PeerID, manaIncrement 
 	s.manaMutex.Lock()
 	defer s.manaMutex.Unlock()
 	s.accessMana[nodeID] -= manaIncrement
-	return s.accessMana[nodeID]
+	newAccessMana = s.accessMana[nodeID]
+	return newAccessMana
 }
 
 func (s *Scheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) {
-	s.manaMutex.RLock()
-	defer s.manaMutex.RUnlock()
-	return s.accessMana[nodeID]
+	s.manaMutex.Lock()
+	defer s.manaMutex.Unlock()
+	mana = s.accessMana[nodeID]
+	return mana
 }
 
 func (s *Scheduler) GetMaxManaBurn() float64 {
@@ -147,8 +153,6 @@ func (s *Scheduler) GetMaxManaBurn() float64 {
 
 func (s *Scheduler) ScheduleMessage() (Message, float64, bool) {
 	// Consume the accessMana and pop the Message
-	s.manaMutex.Lock()
-	defer s.manaMutex.Unlock()
 	if s.IsEmpty() {
 		//log.Debugf("Scheduler is empty: Peer %d", s.tangle.Peer.ID)
 		return Message{}, 0.0, false

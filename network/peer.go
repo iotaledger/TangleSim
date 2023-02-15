@@ -68,14 +68,7 @@ func (p *Peer) String() string {
 }
 
 func (p *Peer) run() {
-	for {
-		select {
-		case <-p.shutdownSignal:
-			return
-		case networkMessage := <-p.Socket:
-			p.Node.HandleNetworkMessage(networkMessage)
-		}
-	}
+	<-p.shutdownSignal
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

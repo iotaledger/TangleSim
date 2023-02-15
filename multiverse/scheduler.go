@@ -3,7 +3,6 @@ package multiverse
 import (
 	"container/heap"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
@@ -17,25 +16,22 @@ import (
 type MessageHeap []Message
 
 type Scheduler struct {
-	tangle        *Tangle
-	readyQueue    *MessageHeap
-	nonReadyQueue *MessageHeap
-	accessMana    map[network.PeerID]float64
+	tangle      *Tangle
+	readyQueue  *MessageHeap
+	nonReadyMap map[MessageID]*Message
+	accessMana  map[network.PeerID]float64
 
-	manaMutex sync.RWMutex
-	Events    *SchedulerEvents
+	Events *SchedulerEvents
 }
 
 func NewScheduler(tangle *Tangle) (mq *Scheduler) {
 	readyHeap := &MessageHeap{}
 	heap.Init(readyHeap)
-	nonReadyHeap := &MessageHeap{}
-	heap.Init(nonReadyHeap)
 	return &Scheduler{
-		tangle:        tangle,
-		readyQueue:    readyHeap,
-		nonReadyQueue: nonReadyHeap,
-		accessMana:    make(map[network.PeerID]float64, config.NodesCount),
+		tangle:      tangle,
+		readyQueue:  readyHeap,
+		nonReadyMap: make(map[MessageID]*Message),
+		accessMana:  make(map[network.PeerID]float64, config.NodesCount),
 		Events: &SchedulerEvents{
 			MessageScheduled: events.NewEvent(messageIDEventCaller),
 			MessageDropped:   events.NewEvent(messageIDEventCaller),
@@ -50,8 +46,8 @@ func (s *Scheduler) Setup(tangle *Tangle) {
 	}
 	s.Events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
 		s.tangle.Peer.GossipNetworkMessage(s.tangle.Storage.Message(messageID))
-		log.Debugf("Peer %d Gossiped message %d",
-			s.tangle.Peer.ID, messageID)
+		//		log.Debugf("Peer %d Gossiped message %d",
+		//	s.tangle.Peer.ID, messageID)
 	}))
 	s.Events.MessageDropped.Attach(events.NewClosure(func(messageID MessageID) {
 		s.tangle.Storage.MessageMetadata(messageID).SetDropTime(time.Now())
@@ -59,23 +55,28 @@ func (s *Scheduler) Setup(tangle *Tangle) {
 }
 
 func (s *Scheduler) updateChildrenReady(messageID MessageID) {
-	s.manaMutex.Lock()
-	defer s.manaMutex.Unlock()
 	for strongChildID := range s.tangle.Storage.StrongChildren(messageID) {
-		if s.messageReady(strongChildID) {
-			s.tangle.Storage.MessageMetadata(strongChildID).SetReady()
+		if s.isReady(strongChildID) {
+			s.setReady(strongChildID)
 		}
 	}
 	for weakChildID := range s.tangle.Storage.WeakChildren(messageID) {
-		if s.messageReady(weakChildID) {
+		if s.isReady(weakChildID) {
 			s.tangle.Storage.MessageMetadata(weakChildID).SetReady()
 		}
 	}
 }
 
-func (s *Scheduler) messageReady(messageID MessageID) bool {
-	s.manaMutex.RLock()
-	defer s.manaMutex.RUnlock()
+func (s *Scheduler) setReady(messageID MessageID) {
+	s.tangle.Storage.MessageMetadata(messageID).SetReady()
+	// move from non ready queue to ready queue if this child is already enqueued
+	if m, exists := s.nonReadyMap[messageID]; exists {
+		delete(s.nonReadyMap, messageID)
+		heap.Push(s.readyQueue, *m)
+	}
+}
+
+func (s *Scheduler) isReady(messageID MessageID) bool {
 	if !s.tangle.Storage.MessageMetadata(messageID).Solid() {
 		return false
 	}
@@ -113,14 +114,10 @@ func (s *Scheduler) ReadyLen() int {
 	return s.readyQueue.Len()
 }
 func (s *Scheduler) IncreaseNodeAccessMana(nodeID network.PeerID, manaIncrement float64) {
-	// s.manaMutex.Lock()
-	// defer s.manaMutex.Unlock()
 	s.accessMana[nodeID] += manaIncrement
 }
 
 func (s *Scheduler) IncrementAccessMana(schedulingRate float64) {
-	// s.manaMutex.Lock()
-	// defer s.manaMutex.Unlock()
 	weights := s.tangle.WeightDistribution.Weights()
 	totalWeight := config.NodesTotalWeight
 	for id := range s.accessMana {
@@ -129,22 +126,18 @@ func (s *Scheduler) IncrementAccessMana(schedulingRate float64) {
 }
 
 func (s *Scheduler) DecreaseNodeAccessMana(nodeID network.PeerID, manaIncrement float64) (newAccessMana float64) {
-	// s.manaMutex.Lock()
-	// defer s.manaMutex.Unlock()
 	s.accessMana[nodeID] -= manaIncrement
 	newAccessMana = s.accessMana[nodeID]
 	return newAccessMana
 }
 
 func (s *Scheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) {
-	// s.manaMutex.Lock()
-	// defer s.manaMutex.Unlock()
 	mana = s.accessMana[nodeID]
 	return mana
 }
 
 func (s *Scheduler) GetMaxManaBurn() float64 {
-	if s.nonReadyQueue.Len() > 0 {
+	if s.readyQueue.Len() > 0 {
 		return (*s.readyQueue)[0].ManaBurnValue
 	} else {
 		return 0.0
@@ -171,14 +164,16 @@ func (s *Scheduler) ScheduleMessage() (Message, float64, bool) {
 func (s *Scheduler) EnqueueMessage(messageID MessageID) {
 	s.tangle.Storage.MessageMetadata(messageID).SetEnqueueTime(time.Now())
 	// Check if the message is ready to decide which queue to append to
-	if s.messageReady(messageID) {
-		log.Debugf("message ready")
+	if s.isReady(messageID) {
+		//log.Debugf("Ready Message Enqueued")
 		s.tangle.Storage.MessageMetadata(messageID).SetReady()
+		m := *s.tangle.Storage.Message(messageID)
+		heap.Push(s.readyQueue, m)
 	} else {
-		log.Debug("Message not ready")
+		//log.Debug("Not Ready Message Enqueued")
+		s.tangle.Storage.MessageMetadata(messageID).SetReady()
+		s.nonReadyMap[messageID] = s.tangle.Storage.Message(messageID)
 	}
-	m := *s.tangle.Storage.Message(messageID)
-	heap.Push(s.readyQueue, m)
 }
 
 func (h MessageHeap) Len() int { return len(h) }

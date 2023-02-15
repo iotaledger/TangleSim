@@ -98,12 +98,15 @@ func main() {
 		network.AdversaryPeeringAll(config.AdversaryPeeringAll),
 		network.AdversarySpeedup(config.AdversarySpeedup),
 	)
-	testNetwork.Start()
-	defer testNetwork.Shutdown()
 
 	resultsWriters := monitorNetworkState(testNetwork)
 	defer flushWriters(resultsWriters)
-	secureNetwork(testNetwork)
+
+	// start a go routine for each node to start issuing messages
+	startIssuingMessages(testNetwork)
+	// start a go routine for each node to start processing messages received from nieghbours and scheduling.
+	startProcessingMessages(testNetwork)
+	defer testNetwork.Shutdown()
 
 	// To simulate the confirmation time w/o any double spending, the colored msgs are not to be sent
 	if config.SimulationTarget == "DS" {
@@ -117,6 +120,27 @@ func main() {
 	case <-time.After(time.Duration(config.SlowdownFactor) * maxSimulationDuration):
 		shutdownSimulation()
 		log.Info("Shutting down simulation (simulation timed out) ... [DONE]")
+	}
+}
+
+func startProcessingMessages(n *network.Network) {
+	for _, peer := range n.Peers {
+		go processMessages(peer)
+	}
+}
+
+func processMessages(peer *network.Peer) {
+	pace := time.Duration((float64(time.Second) * float64(config.SlowdownFactor)) / float64(config.SchedulingRate))
+	ticker := time.NewTicker(pace)
+	for {
+		select {
+		case networkMessage := <-peer.Socket:
+			peer.Node.HandleNetworkMessage(networkMessage)
+		case <-ticker.C:
+			// Trigger the scheduler to pop messages and gossip them
+			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.SchedulingRate))
+			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
+		}
 	}
 }
 
@@ -148,6 +172,50 @@ func SimulateDoubleSpent(testNetwork *network.Network) {
 			}
 		}
 	}
+}
+
+func startIssuingMessages(testNetwork *network.Network) {
+	nodeTotalWeight := float64(testNetwork.WeightDistribution.TotalWeight())
+	for _, peer := range testNetwork.Peers {
+		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
+		atomicCounters.Add("relevantValidators", 1)
+
+		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
+		band := peer.AdversarySpeedup * weightOfPeer * float64(config.IssuingRate) / nodeTotalWeight
+		//fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
+		go issueMessages(peer, band)
+	}
+}
+
+func issueMessages(peer *network.Peer, band float64) {
+	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor) / band)
+
+	log.Debug("Starting security worker for Peer ID: ", peer.ID, " Pace: ", pace)
+	if pace == time.Duration(0) {
+		log.Warn("Peer ID: ", peer.ID, " has 0 pace!")
+		return
+	}
+	ticker := time.NewTicker(pace)
+
+	for range ticker.C {
+		if config.IMIF == "poisson" {
+			pace = time.Duration(float64(time.Second) * float64(config.SlowdownFactor) * rand.ExpFloat64() / band)
+			if pace > 0 {
+				ticker.Reset(pace)
+			}
+		}
+		sendMessage(peer)
+	}
+}
+
+func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
+	atomicCounters.Add("tps", 1)
+
+	if len(optionalColor) >= 1 {
+		peer.Node.(multiverse.NodeInterface).IssuePayload(optionalColor[0])
+	}
+
+	peer.Node.(multiverse.NodeInterface).IssuePayload(multiverse.UndefinedColor)
 }
 
 func shutdownSimulation() {
@@ -730,119 +798,6 @@ func createWriter(fileName string, header []string, resultsWriters *[]*csv.Write
 		panic(err)
 	}
 	return resultsWriter
-}
-
-func secureNetwork(testNetwork *network.Network) {
-	// In the simulation we let all nodes can send messages.
-
-	// Nodes Total Weighted Weight, which is used to simulate the congested honest nodes with speeded up adversary.
-	// The total throughput remains the same.
-	nodeTotalWeightedWeight := 0.0
-	for _, peer := range testNetwork.Peers {
-		nodeTotalWeightedWeight += float64(testNetwork.WeightDistribution.Weight(peer.ID)) * peer.AdversarySpeedup
-	}
-
-	for _, peer := range testNetwork.Peers {
-		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
-		// if float64(config.RelevantValidatorWeight)*weightOfPeer <= largestWeight {
-		// 	continue
-		// }
-
-		atomicCounters.Add("relevantValidators", 1)
-
-		// Each peer should send messages according to their mana: Fix TPS for example 1000;
-		// A node with a x% of mana will issue 1000*x% messages per second
-
-		// Weight: 100, 20, 1
-		// TPS: 1000
-		// Band widths summed up: 100000/121 + 20000/121 + 1000/121 = 1000
-
-		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
-		band := peer.AdversarySpeedup * weightOfPeer * float64(config.IssuingRate) / nodeTotalWeightedWeight
-		//fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
-		go startSecurityWorker(peer, band)
-
-		// Increment the accessMana of each node
-		// go startAccessManaIncrementRoutine(peer)
-
-		// Start the scheduler for each node
-		// go startSchedulerRoutine(peer)
-	}
-}
-
-func startSecurityWorker(peer *network.Peer, band float64) {
-	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor) / band)
-
-	log.Debug("Starting security worker for Peer ID: ", peer.ID, " Pace: ", pace)
-	if pace == time.Duration(0) {
-		log.Warn("Peer ID: ", peer.ID, " has 0 pace!")
-		return
-	}
-	ticker := time.NewTicker(pace)
-
-	paceScheduler := time.Duration((float64(time.Second) * float64(config.SlowdownFactor)) / float64(config.SchedulingRate))
-	log.Debug("Starting scheduler routine for Peer ID: ", peer.ID, " Pace: ", paceScheduler)
-	tickerScheduler := time.NewTicker(paceScheduler)
-
-	for {
-		select {
-		case <-ticker.C:
-			if config.IMIF == "poisson" {
-				pace = time.Duration(float64(time.Second) * float64(config.SlowdownFactor) * rand.ExpFloat64() / band)
-				if pace > 0 {
-					ticker.Reset(pace)
-				}
-			}
-			sendMessage(peer)
-		case <-tickerScheduler.C:
-			// Trigger the scheduler to pop messages and gossip them
-			//log.Debugf("Trying to schedule: Peer %d", peer.ID)
-			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.SchedulingRate))
-			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
-		}
-	}
-}
-
-func startSchedulerRoutine(peer *network.Peer) {
-	pace := time.Duration((float64(time.Second) * float64(config.SlowdownFactor)) / float64(config.SchedulingRate))
-	log.Debug("Starting scheduler routine for Peer ID: ", peer.ID, " Pace: ", pace)
-	ticker := time.NewTicker(pace)
-
-	for {
-		select {
-		case <-ticker.C:
-			// Trigger the scheduler to pop messages and gossip them
-			//log.Debugf("Trying to schedule: Peer %d", peer.ID)
-			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.SchedulingRate))
-			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
-		}
-	}
-}
-
-// func startAccessManaIncrementRoutine(peer *network.Peer) {
-// 	// update access mana once every second
-// 	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor))
-// 	log.Debug("Starting Mana increment routine for Peer ID: ", peer.ID, " Pace: ", pace)
-// 	ticker := time.NewTicker(pace)
-
-// 	for {
-// 		select {
-// 		case <-ticker.C:
-// 			// Increment the accessMana of all nodes within this node's scheduler
-// 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana()
-// 			//log.Debugf("Mana updated for Peer %d", peer.ID)
-// 		}
-// 	}
-// }
-
-func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
-	atomicCounters.Add("tps", 1)
-
-	if len(optionalColor) >= 1 {
-		peer.Node.(multiverse.NodeInterface).IssuePayload(optionalColor[0])
-	}
-
-	peer.Node.(multiverse.NodeInterface).IssuePayload(multiverse.UndefinedColor)
 }
 
 // Max returns the larger of x or y.

@@ -91,6 +91,9 @@ def parse_arg():
     parser.add_argument("-as", "--ADVERSARY_STRATEGY", dest='ADVERSARY_STRATEGY',
                         help="Adversary types",
                         default=config.cd['ADVERSARY_STRATEGY'])
+    parser.add_argument("-nc", "--NODES_COUNT", dest='NODES_COUNT',
+                        help="Nodes count",
+                        default=config.cd['NODES_COUNT'])
 
     # Update the che configuration dictionary
     args = parser.parse_args()
@@ -197,68 +200,23 @@ if __name__ == '__main__':
                         f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -slowdownFactor={df[i]}')
             elif var == 'MB':
                 for i, v in enumerate(vv):
+                    t = config.cd['SCRIPT_START_TIME']
+                    nc = config.cd['NODES_COUNT']
+                    tick = config.cd['MONITOR_INTERVAL']
                     os.system(
-                        f'{exec} --simulationTarget={target}  -burnPolicies="{v}" -slowdownFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -burnPolicies="{v}" -slowdownFactor={df[i]} -scriptStartTime={t} -nodesCount={nc} -consensusMonitorTick={tick}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)
 
-            move_results(sim_result_path, folder)
+            #move_results(sim_result_path, folder)
 
     # Plot the figures
     if config.cd['PLOT_FIGURES']:
-        plotter = FigurePlotter(config.cd)
+        messages, time = parse_per_node_rates(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/disseminatedMessages.csv")
+        plot_per_node_rates(messages, time, config.cd, "Dissemination Rate")
+        messages, time = parse_per_node_rates(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/fullyConfirmedMessages.csv")
+        plot_per_node_rates(messages, time, config.cd, "Confirmation Rate")
 
-        # (The variation name in the configuration file, the confirmation time figure title,
-        #  the convergence time figure title, the flips title, the unconfirming count title,
-        #  the confirmation weight depth figure title)
-        (n, t_confirmation, t_convergence, t_flips,
-         t_unconfirming, t_depth) = c.FIGURE_NAMING_DICT[var]
 
-        folder = base_folder
-        iter_suffix = ''
-        print("base_folder", base_folder)
-        for iter in range(repetition):
-
-            # if repetition != 1:
-            #     folder = base_folder + f'/iter_{iter}'
-            #     iter_suffix = f'_iter_{iter}'
-            # if target == 'CT':
-            #     if repetition != 1 and iter == 0:
-            #         plotter.number_of_requested_missing_messages_batch(
-            #             n, base_folder + '/*/mm*csv', f'CT_{n}_mm.pdf', t_confirmation, n)
-            # if target == 'DS':
-            #     if repetition != 1 and iter == 0:
-            #         # The distribution plots of multiple iterations are ran only one time.
-            #         plotter.convergence_time_distribution_plot(
-            #             n, base_folder, f'DS_{n}_cv.png', len(vv), repetition, title=t_convergence)
-
-            #         plotter.flips_distribution_plot(
-            #             n, base_folder, f'DS_{n}_fl.png', len(vv), repetition, title=t_flips)
-
-            #         plotter.unconfirmed_count_distribution_plot(
-            #             n, base_folder, f'DS_{n}_uc.png', len(vv), repetition, title=t_unconfirming)
-
-            #         plotter.confirmation_depth_distribution_plot(
-            #             n, base_folder, f'DP_{n}_cd.png', len(vv), repetition, title=t_depth)
-
-            #     plotter.confirmed_like_color_plot(
-            #         n, folder + '/cc*csv', f'DS_{n}_cc{iter_suffix}.png', len(vv))
-
-            # plotter.confirmation_time_plot(
-            #     n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.png', t_confirmation, c.VAR_DICT[n])
-
-            plotter.confirmation_time_violinplot(
-                n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, n)
-
-            # plotter.number_of_requested_missing_messages(
-            #     n, folder + '/mm*csv', f'CT_{n}_mm{iter_suffix}.pdf', t_confirmation, n)
-
-            # plotter.throughput_plot(n, folder + '/tp*csv',
-            #                         f'CT_{n}_tp{iter_suffix}.png', len(vv))
-
-            # plotter.throughput_all_plot(n, folder + '/all-tp*csv',
-            #                             f'CT_{n}_all_tp{iter_suffix}.pdf', len(vv))
-
-            # plotter.witness_weight_plot(
-            #     n, folder, f'CT_{n}_ww{iter_suffix}.pdf', c.VAR_DICT[n], repetition)
+        

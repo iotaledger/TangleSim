@@ -53,10 +53,9 @@ var (
 	csvMutex sync.Mutex
 
 	// simulation variables
-	dumpingTicker         = time.NewTicker(time.Duration(config.SlowdownFactor*config.ConsensusMonitorTick) * time.Millisecond)
-	simulationWg          = sync.WaitGroup{}
-	maxSimulationDuration = time.Minute
-	shutdownSignal        = make(chan types.Empty)
+	dumpingTicker  = time.NewTicker(time.Duration(config.SlowdownFactor*config.ConsensusMonitorTick) * time.Millisecond)
+	simulationWg   = sync.WaitGroup{}
+	shutdownSignal = make(chan types.Empty)
 
 	// global declarations
 	dsIssuanceTime           time.Time
@@ -84,9 +83,6 @@ var (
 	fullyConfirmedMessageMutex    sync.RWMutex
 	fullyConfirmedMessages        = make(map[multiverse.MessageID]*multiverse.Message)
 	fullyConfirmedMessageMetadata = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
-
-	// simulation start time string in the result file name
-	simulationStartTimeStr string
 )
 
 func main() {
@@ -112,8 +108,9 @@ func main() {
 	)
 	// The simulation start time
 	simulationStartTime = time.Now()
-	simulationStartTimeStr = simulationStartTime.UTC().Format(time.RFC3339)
-	os.MkdirAll(path.Join(config.ResultDir, simulationStartTimeStr), 0755)
+	os.MkdirAll(path.Join(config.ResultDir, config.ScriptStartTimeStr), 0755)
+	// Dump the configuration of this simulation
+	dumpConfig(path.Join(config.ResultDir, config.ScriptStartTimeStr, "mb.config"))
 	monitorGlobalMetrics(testNetwork)
 	//resultsWriters := monitorNetworkState(testNetwork)
 	//defer flushWriters(resultsWriters)
@@ -132,7 +129,7 @@ func main() {
 	case <-shutdownSignal:
 		shutdownSimulation(testNetwork)
 		log.Info("Shutting down simulation (consensus reached) ... [DONE]")
-	case <-time.After(time.Duration(config.SlowdownFactor) * maxSimulationDuration):
+	case <-time.After(time.Duration(config.SlowdownFactor) * config.SimulationDuration):
 		shutdownSimulation(testNetwork)
 		log.Info("Shutting down simulation (simulation timed out) ... [DONE]")
 	}
@@ -316,7 +313,7 @@ func monitorGlobalMetrics(net *network.Network) {
 	header := []string{"ns since start"}
 	gmHeader = append(gmHeader, header...)
 	// Define the file name of the dissemination results
-	file, err := os.Create(path.Join(config.ResultDir, simulationStartTimeStr, "disseminatedMessages.csv"))
+	file, err := os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "disseminatedMessages.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -326,7 +323,7 @@ func monitorGlobalMetrics(net *network.Network) {
 	}
 
 	// Define the file name of the confirmination results
-	file, err = os.Create(path.Join(config.ResultDir, simulationStartTimeStr, "fullyConfirmedMessages.csv"))
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "fullyConfirmedMessages.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -343,7 +340,7 @@ func monitorGlobalMetrics(net *network.Network) {
 }
 
 func dumpLatencyData() {
-	file, err := os.Create(path.Join(config.ResultDir, simulationStartTimeStr, "DisseminationLatency.csv"))
+	file, err := os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "DisseminationLatency.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -368,7 +365,7 @@ func dumpLatencyData() {
 		}
 		writer.Flush()
 	}
-	file, err = os.Create(path.Join(config.ResultDir, simulationStartTimeStr, "ConfirmationLatency.csv"))
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "ConfirmationLatency.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -395,7 +392,7 @@ func dumpLatencyData() {
 }
 
 func dumpFinalRecorder() {
-	fileName := fmt.Sprint("nd-", simulationStartTimeStr, ".csv")
+	fileName := fmt.Sprint("nd-", config.ScriptStartTimeStr, ".csv")
 	file, err := os.Create(path.Join(config.ResultDir, fileName))
 	if err != nil {
 		panic(err)
@@ -430,7 +427,7 @@ func flushWriters(writers []*csv.Writer) {
 	}
 }
 
-func dumpConfig(fileName string) {
+func dumpConfig(filePath string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, ParentsCount, SchedulingRate, IssuingRate, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS int
 		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                     float64
@@ -480,13 +477,7 @@ func dumpConfig(fileName string) {
 	if err != nil {
 		log.Error(err)
 	}
-	if _, err = os.Stat(config.ResultDir); os.IsNotExist(err) {
-		err = os.Mkdir(config.ResultDir, 0700)
-		if err != nil {
-			log.Error(err)
-		}
-	}
-	if ioutil.WriteFile(path.Join(config.ResultDir, fileName), bytes, 0644) != nil {
+	if ioutil.WriteFile(filePath, bytes, 0644) != nil {
 		log.Error(err)
 	}
 }
@@ -569,24 +560,21 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	mostLikedColor = multiverse.UndefinedColor
 	honestOnlyMostLikedColor = multiverse.UndefinedColor
 
-	// Dump the configuration of this simulation
-	dumpConfig(fmt.Sprint("aw-", simulationStartTimeStr, ".config"))
-
 	// Dump the network information
-	dumpNetwork(testNetwork, fmt.Sprint("nw-", simulationStartTimeStr, ".csv"))
+	dumpNetwork(testNetwork, fmt.Sprint("nw-", config.ScriptStartTimeStr, ".csv"))
 
 	// Dump the info about adversary nodes
-	adResultsWriter := createWriter(fmt.Sprintf("ad-%s.csv", simulationStartTimeStr), adHeader, &resultsWriters)
+	adResultsWriter := createWriter(fmt.Sprintf("ad-%s.csv", config.ScriptStartTimeStr), adHeader, &resultsWriters)
 	dumpResultsAD(adResultsWriter, testNetwork)
 
 	// Dump the double spending result
-	dsResultsWriter := createWriter(fmt.Sprintf("ds-%s.csv", simulationStartTimeStr), dsHeader, &resultsWriters)
+	dsResultsWriter := createWriter(fmt.Sprintf("ds-%s.csv", config.ScriptStartTimeStr), dsHeader, &resultsWriters)
 
 	// Dump the tip pool and processed message (throughput) results
-	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", simulationStartTimeStr), tpHeader, &resultsWriters)
+	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", config.ScriptStartTimeStr), tpHeader, &resultsWriters)
 
 	// Dump the requested missing message result
-	mmResultsWriter := createWriter(fmt.Sprintf("mm-%s.csv", simulationStartTimeStr), mmHeader, &resultsWriters)
+	mmResultsWriter := createWriter(fmt.Sprintf("mm-%s.csv", config.ScriptStartTimeStr), mmHeader, &resultsWriters)
 
 	tpAllHeader := make([]string, 0, config.NodesCount+1)
 
@@ -598,13 +586,13 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	tpAllHeader = append(tpAllHeader, header...)
 
 	// Dump the tip pool and processed message (throughput) results
-	tpAllResultsWriter := createWriter(fmt.Sprintf("all-tp-%s.csv", simulationStartTimeStr), tpAllHeader, &resultsWriters)
+	tpAllResultsWriter := createWriter(fmt.Sprintf("all-tp-%s.csv", config.ScriptStartTimeStr), tpAllHeader, &resultsWriters)
 
 	// Dump the info about how many nodes have confirmed and liked a certain color
-	ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", simulationStartTimeStr), ccHeader, &resultsWriters)
+	ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", config.ScriptStartTimeStr), ccHeader, &resultsWriters)
 
 	// Define the file name of the ww results
-	wwResultsWriter := createWriter(fmt.Sprintf("ww-%s.csv", simulationStartTimeStr), wwHeader, &resultsWriters)
+	wwResultsWriter := createWriter(fmt.Sprintf("ww-%s.csv", config.ScriptStartTimeStr), wwHeader, &resultsWriters)
 
 	// Dump the Witness Weight
 	wwPeer := testNetwork.Peers[config.MonitoredWitnessWeightPeer]
@@ -636,7 +624,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			panic(fmt.Sprintf("unknowm peer with id %d", id))
 		}
 		// Define the file name of the aw results
-		awResultsWriter := createWriter(fmt.Sprintf("aw%d-%s.csv", id, simulationStartTimeStr), awHeader, &resultsWriters)
+		awResultsWriter := createWriter(fmt.Sprintf("aw%d-%s.csv", id, config.ScriptStartTimeStr), awHeader, &resultsWriters)
 
 		awPeer.Node.(multiverse.NodeInterface).Tangle().ApprovalManager.Events.MessageConfirmed.Attach(
 			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64, messageIDCounter int64) {

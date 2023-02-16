@@ -85,6 +85,8 @@ func ParseFlags() {
 		flag.Bool("adversaryPeeringAll", config.AdversaryPeeringAll, "Flag indicating whether adversary nodes should be able to gossip messages to all nodes in the network directly, or should follow the peering algorithm.")
 	burnPolicies :=
 		flag.String("burnPolicies", "", "Space seperated list of policies employed by nodes, e.g., '0 1' . Options include: 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy")
+	scriptStartTime :=
+		flag.String("scriptStartTime", config.ScriptStartTimeStr, "Time the external script started, to be used for results directory.")
 
 	// Parse the flags
 	flag.Parse()
@@ -116,6 +118,7 @@ func ParseFlags() {
 	config.SimulationMode = *simulationMode
 	config.SchedulingRate = *schedulingRate
 	parseBurnPolicies(*burnPolicies)
+	config.ScriptStartTimeStr = *scriptStartTime
 	parseAccidentalConfig(accidentalMana)
 	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll, adversarySpeedup)
 	log.Info("Current configuration:")

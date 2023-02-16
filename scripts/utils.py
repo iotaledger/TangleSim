@@ -10,6 +10,7 @@ import pandas as pd
 import argparse
 import logging
 import os
+import csv
 
 
 class ArgumentParserWithDefaults(argparse.ArgumentParser):
@@ -117,3 +118,33 @@ def get_diameter(fn, ofn, plot=False, transparent=False):
     plt.savefig(ofn, transparent=transparent)
     plt.close()
     return diameter
+
+def parse_per_node_rates(file):
+    with open(file, newline='') as csvfile:
+        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        header = next(reader)
+        n_nodes = len(header)-1
+        n_data = sum(1 for _ in reader)
+        messages = np.zeros((n_nodes, n_data))
+        times = np.zeros(n_data)
+        csvfile.seek(0)
+        i=-1
+        for row in reader:
+            if i<0:
+                i += 1
+                continue
+            times[i] = int(row[-1])
+            messages[:,i] = [int(j) for j in row[:-1]]
+            i += 1
+    return messages, times
+
+def plot_per_node_rates(messages, times, cd, title):
+    fig, ax = plt.subplots(figsize=(8,4))
+    ax.grid(linestyle='--')
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Rate (Blocks/s)")
+    ax.title.set_text(title)
+    avg_window = 10
+    for NodeID in range(cd['NODES_COUNT']):
+        ax.plot(times[avg_window:]/10**9, (messages[NodeID,avg_window:]-messages[NodeID,:-avg_window])*1000/(avg_window*cd['MONITOR_INTERVAL']))
+    plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+'.png', bbox_inches='tight')

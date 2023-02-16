@@ -33,17 +33,17 @@ def parse_arg():
           put in the same folder, and the output figures will be overwritten.
         - Usage example of generating different Ss (0~2.2) and different Ks (2, 4, 8, 16, 32, 64)
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULT_PATH_1' -fop 'YOUR_FIGURE_OUTPUT_PATH_1' -exec 'go run . --tipsCount=2' -rt 100 -st DS
+              -rp 'YOUR_RESULT_PATH_1' -fop 'YOUR_FIGURE_OUTPUT_PATH_1' -exec 'go run . --parentsCount=2' -rt 100 -st DS
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULTS_PATH_2' -fop 'YOUR_FIGURE_OUTPUT_PATH_2' -exec 'go run . --tipsCount=4; -rt 100 -st DS
+              -rp 'YOUR_RESULTS_PATH_2' -fop 'YOUR_FIGURE_OUTPUT_PATH_2' -exec 'go run . --parentsCount=4; -rt 100 -st DS
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULTS_PATH_3' -fop 'YOUR_FIGURE_OUTPUT_PATH_3' -exec 'go run . --tipsCount=8' -rt 100 -st DS
+              -rp 'YOUR_RESULTS_PATH_3' -fop 'YOUR_FIGURE_OUTPUT_PATH_3' -exec 'go run . --parentsCount=8' -rt 100 -st DS
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULTS_PATH_4' -fop 'YOUR_FIGURE_OUTPUT_PATH_4' -exec 'go run . --tipsCount=16' -rt 100 -st DS
+              -rp 'YOUR_RESULTS_PATH_4' -fop 'YOUR_FIGURE_OUTPUT_PATH_4' -exec 'go run . --parentsCount=16' -rt 100 -st DS
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULTS_PATH_5' -fop 'YOUR_FIGURE_OUTPUT_PATH_5' -exec 'go run . --tipsCount=32' -rt 100 -st DS
+              -rp 'YOUR_RESULTS_PATH_5' -fop 'YOUR_FIGURE_OUTPUT_PATH_5' -exec 'go run . --parentsCount=32' -rt 100 -st DS
             - python3 main.py -rs -pf -v S -vv 0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 -df 1
-              -rp 'YOUR_RESULTS_PATH_6' -fop 'YOUR_FIGURE_OUTPUT_PATH_6' -exec 'go run . --tipsCount=64' -rt 100 -st DS
+              -rp 'YOUR_RESULTS_PATH_6' -fop 'YOUR_FIGURE_OUTPUT_PATH_6' -exec 'go run . --parentsCount=64' -rt 100 -st DS
     """), formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument("-msp", "--MULTIVERSE_PATH", type=str,
@@ -68,7 +68,7 @@ def parse_arg():
                         help="The variation values, e.g., '100 200 300' for different N",
                         default=config.cd['VARIATION_VALUES'])
     parser.add_argument("-df", "--DECELERATION_FACTORS", nargs="+", type=int,
-                        help="The deceleration factors for each variation. If only one element, then it will be used for all runs",
+                        help="The slowdown factors for each variation. If only one element, then it will be used for all runs",
                         default=config.cd['DECELERATION_FACTORS'])
     parser.add_argument("-exec", "--EXECUTE", type=str,
                         help="Execution way, e.g., 'go run .' or './multiverse_sim'",
@@ -113,7 +113,7 @@ if __name__ == '__main__':
     # Update the che configuration dictionary
     config = parse_arg()
 
-    # Check the deceleration factors settings
+    # Check the slowdown factors settings
     df = config.cd['DECELERATION_FACTORS']
     vv = config.cd['VARIATION_VALUES']
     if len(df) != 1 and (len(df) != len(vv)):
@@ -152,35 +152,31 @@ if __name__ == '__main__':
             if var in c.SIMULATION_VAR_DICT:
                 # Simulation var
                 vn = c.SIMULATION_VAR_DICT[var]
+                # TPS = [100, 4000]
                 for i, v in enumerate(vv):
-                    if vn == 'zipfParameter':
+                    if vn == 'zipfParameter' or vn == 'payloadLoss':
                         v = float(v)
                     else:
                         v = int(v)
                     os.system(
-                        f'{exec} --simulationTarget={target} --{vn}={v} --decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --{vn}={v} --slowdownFactor={df[i]}')
             elif var == 'D':
                 for i, v in enumerate(vv):
-                    # os.system(
-                    #     f'{exec} --simulationTarget={target} --minDelay={int(v)} --maxDelay={int(v)} -decelerationFactor={df[i]}')
-                    # os.system(
-                    #     f'{exec} --simulationTarget={target} --minDelay={int(v)-50} --maxDelay={int(v)+50} -decelerationFactor={df[i]}')
                     os.system(
-                        f'{exec} --simulationTarget={target} --minDelay={100 - int(v)} --maxDelay={100 + int(v)} -decelerationFactor={df[i]}')
-
+                        f'{exec} --simulationTarget={target} --minDelay={float(v)} --maxDelay={float(v)} -slowdownFactor={df[i]}')
             elif var == 'AW':
                 for i, v in enumerate([(0.66, True), (0.75, True), (0.5, False), (0.5, True)]):
                     os.system(
-                        f'{exec} --simulationTarget={target} --weightThreshold={v[0]} --weightThresholdAbsolute={v[1]} -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target} --confirmationThreshold={v[0]} --confirmationThresholdAbsolute={v[1]} -slowdownFactor={df[i]}')
             elif var == 'IM':
                 for i, v in enumerate(vv):
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Accidental -accidentalMana="{v}" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Accidental -accidentalMana="{v}" -slowdownFactor={df[i]}')
             elif var == 'AD':
                 for i, v in enumerate(vv):
                     v = str(float(v)/2)
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v} {v}" -adversaryType="{adv_strategy}" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v} {v}" -adversaryType="{adv_strategy}" -adversaryInitColors="R B" -slowdownFactor={df[i]}')
             elif var == 'AC':
                 for i, v in enumerate(vv):
                     if "adversaryMana" not in exec:
@@ -190,15 +186,19 @@ if __name__ == '__main__':
 
                     v = str(int(float(v)/2))
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -slowdownFactor={df[i]}')
             elif var == 'BS':
                 for i, v in enumerate(vv):
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -slowdownFactor={df[i]}')
             elif var == 'SU':
                 for i, v in enumerate(vv):
                     os.system(
-                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -decelerationFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -slowdownFactor={df[i]}')
+            elif var == 'MB':
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -burnPolicies="{v}" -slowdownFactor={df[i]}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)
@@ -217,12 +217,16 @@ if __name__ == '__main__':
 
         folder = base_folder
         iter_suffix = ''
+        print("base_folder", base_folder)
         for iter in range(repetition):
 
-            if repetition != 1:
-                folder = base_folder + f'/iter_{iter}'
-                iter_suffix = f'_iter_{iter}'
-
+            # if repetition != 1:
+            #     folder = base_folder + f'/iter_{iter}'
+            #     iter_suffix = f'_iter_{iter}'
+            # if target == 'CT':
+            #     if repetition != 1 and iter == 0:
+            #         plotter.number_of_requested_missing_messages_batch(
+            #             n, base_folder + '/*/mm*csv', f'CT_{n}_mm.pdf', t_confirmation, n)
             # if target == 'DS':
             #     if repetition != 1 and iter == 0:
             #         # The distribution plots of multiple iterations are ran only one time.
@@ -246,6 +250,9 @@ if __name__ == '__main__':
 
             plotter.confirmation_time_violinplot(
                 n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, n)
+
+            # plotter.number_of_requested_missing_messages(
+            #     n, folder + '/mm*csv', f'CT_{n}_mm{iter_suffix}.pdf', t_confirmation, n)
 
             # plotter.throughput_plot(n, folder + '/tp*csv',
             #                         f'CT_{n}_tp{iter_suffix}.png', len(vv))

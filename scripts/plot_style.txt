@@ -14,7 +14,7 @@ xtick.labelsize: 20
 ytick.labelsize: 20
 axes.labelsize: 20
 font.size: 10
-axes.prop_cycle : (cycler('color', ['bc80bd','fb8072', 'b3de69','fdb462','fccde5','8dd3c7','ffed6f','bebada','80b1d3', 'ccebc5', 'd9d9d9']))
+axes.prop_cycle : (cycler('color', ['8dd3c7','ffed6f','bebada','80b1d3', 'ccebc5', 'd9d9d9']))
 mathtext.fontset: stix
 font.family: STIXGeneral
 lines.linewidth: 2
@@ -39,4 +39,4 @@ axes.spines.top : False
 axes.grid: False
 figure.titlesize: 23
 figure.dpi: 300
-figure.figsize: 6.4,9.6
+figure.figsize: 6.4,3.2

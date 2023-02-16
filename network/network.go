@@ -1,6 +1,7 @@
 package network
 
 import (
+	"math/rand"
 	"time"
 
 	"github.com/iotaledger/multivers-simulation/config"
@@ -91,6 +92,10 @@ func NewConfiguration(options ...Option) (configuration *Configuration) {
 
 func (c *Configuration) RandomNetworkDelay() time.Duration {
 	return c.minDelay + time.Duration(crypto.Randomness.Float64()*float64(c.maxDelay-c.minDelay))
+}
+
+func (c *Configuration) ExpRandomNetworkDelay() time.Duration {
+	return time.Duration(rand.ExpFloat64() * (float64(c.maxDelay+c.minDelay) / 2))
 }
 
 func (c *Configuration) RandomPacketLoss() float64 {

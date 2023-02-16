@@ -3,36 +3,40 @@ package config
 // simulator settings
 
 var (
-	ResultDir               = "results" // Path where all the result files will be saved
-	SimulationTarget        = "DS"      // The simulation target, CT: Confirmation Time, DS: Double Spending
-	SimulationStopThreshold = 1.0       // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
-	ConsensusMonitorTick    = 100       // Tick to monitor the consensus, in milliseconds.
+	ResultDir                       = "results"   // Path where all the result files will be saved
+	SimulationTarget                = "CT"        // The simulation target, CT: Confirmation Time, DS: Double Spending
+	SimulationStopThreshold         = 1.0         // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
+	ConsensusMonitorTick            = 100         // Tick to monitor the consensus, in milliseconds.
+	MonitoredAWPeers                = [...]int{0} // Nodes for which we monitor the AW growth
+	MonitoredWitnessWeightPeer      = 0           // Peer for which we monitor Witness Weight
+	MonitoredWitnessWeightMessageID = 200         // A specified message ID to monitor the witness weights
 )
 
 // Network setup
 
 var (
-	NodesCount       = 100       // NodesCount is the total number of nodes simulated in the network.
-	TPS              = 100       // TPS defines the total network throughput.
-	NumberOfParents  = 8         // NumberOfParents that a new message is selecting from the tip pool.
+	NodesCount       = 20        // NodesCount is the total number of nodes simulated in the network.
+	SchedulingRate   = 100       // Scheduler rate in units of messages per second.
+	IssuingRate      = 90        // Total rate of issuing messages in units of messages per second.
+	ParentsCount     = 8         // ParentsCount that a new message is selecting from the tip pool.
 	NeighbourCountWS = 8         // Number of neighbors node is connected to in WattsStrogatz network topology.
 	RandomnessWS     = 1.0       // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
 	IMIF             = "poisson" // IMIF Inter Message Issuing Function for time delay between activity messages: poisson or uniform.
-	PayloadLoss      = 0.0       // The payload loss in the network.
+	PacketLoss       = 0.0       // The packet loss in the network.
 	MinDelay         = 100       // The minimum network delay in ms.
 	MaxDelay         = 100       // The maximum network delay in ms.
 
-	DecelerationFactor = 1 // The factor to control the speed in the simulation.
+	SlowdownFactor = 1 // The factor to control the speed in the simulation.
 )
 
 // Weight setup
 
 var (
-	NodesTotalWeight        = 100_000_000 // Total number of weight for the whole network.
-	ZipfParameter           = 0.9         // the 's' parameter for the Zipf distribution used to model weight distribution. s=0 all nodes are equal, s=2 network centralized.
-	WeightThreshold         = 0.66        // Threshold for AW collection above which messages are considered confirmed.
-	WeightThresholdAbsolute = true        // If true the threshold is alway counted from zero if false the weight collected is counted from the next peer weight.
-	RelevantValidatorWeight = 0           // The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages (disabled now)
+	NodesTotalWeight              = 100_000_000 // Total number of weight for the whole network.
+	ZipfParameter                 = 0.9         // the 's' parameter for the Zipf distribution used to model weight distribution. s=0 all nodes are equal, s=2 network centralized.
+	ConfirmationThreshold         = 0.66        // Threshold for AW collection above which messages are considered confirmed.
+	ConfirmationThresholdAbsolute = true        // If true the threshold is alway counted from zero if false the weight collected is counted from the next peer weight.
+	RelevantValidatorWeight       = 0           // The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages (disabled now)
 )
 
 // Tip Selection Algorithm setup
@@ -43,11 +47,21 @@ var (
 	WeakTipsRatio = 0.0    // The ratio of weak tips
 )
 
+// TODO: expose the configuration in Parser
+// Mana Burn Setup
+// 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
+var (
+	// BurnPolicies = ZeroValueArray(NodesCount)
+	BurnPolicies    = []int{}
+	BurnPolicyNames = ""
+	ExtraBurn       = 1.0
+)
+
 // Adversary setup - enabled by setting SimulationTarget="DS"
 var (
 	// SimulationMode for the DS simulations one of:
 	// 'Accidental' - accidental double spends sent by max, min or random weight node from Zipf distrib,
-	// 'Adversary' - need to use adversary groups (parameters starting with 'Adversary...'), simulates a double-spend attack.
+	// 'Adversary' - need to use adversary groups (parameters starting with 'Adversary...')
 	// 'Blowball' - enables adversary node that is able to perform a blowball attack.
 	SimulationMode   = "Blowball"
 	DoubleSpendDelay = 5 // Delay after which double spending transactions will be issued. In seconds.
@@ -67,10 +81,4 @@ var (
 	BlowballDelay   = 5  // The delay in seconds between the consecutive blowballs
 	BlowballMaxSent = 2  // The maximum number of blowballs sent to the network
 	BlowballNodeID  = 0  // The node ID of the blowball node
-)
-
-var (
-	MonitoredAWPeers                = [...]int{0}
-	MonitoredWitnessWeightMessageID = 100 // The message ID used to monitor the WitnessWeight (WW)
-	MonitoredWitnessWeightPeer      = 0   // The peer ID used to monitor the WitnessWeight (WW)
 )

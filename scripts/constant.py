@@ -13,9 +13,9 @@ TARGET = "Confirmation Time (ns)"
 ISSUED_MESSAGE = "# of Issued Messages"
 
 # Rename the parameters
-VAR_DICT = {'TipsCount': 'k', 'ZipfParameter': 's',
-            'NodesCount': 'N', 'MinDelay': 'D', 'WeightThreshold': 'AW', 'AccidentalMana': 'IM', 'AdversaryMana': 'AD',
-            'AdversaryNodeCounts': 'AC', 'AdversarySpeedup': 'SU'}
+VAR_DICT = {'ParentsCount': 'k', 'ZipfParameter': 's',
+            'NodesCount': 'N', 'MinDelay': 'D', 'ConfirmationThreshold': 'AW', 'AccidentalMana': 'IM', 'AdversaryMana': 'AD',
+            'AdversaryNodeCounts': 'AC', 'AdversarySpeedup': 'SU', 'PacketLoss': 'P'}
 
 # Items for double spending figures
 COLORED_CONFIRMED_LIKE_ITEMS = [
@@ -29,7 +29,8 @@ DS_STY_LIST = ['-', '-', '--', '--', "-.", "-."]
 # The simulation mapping
 SIMULATION_VAR_DICT = {'N': 'nodesCount',
                        'S': 'zipfParameter',
-                       'K': 'tipsCount'}
+                       'K': 'parentsCount',
+                       'P': 'packetLoss'}
 
 # The figure naming mapping
 FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node Counts",
@@ -41,7 +42,7 @@ FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node
                             "Flips v.s. Different Zipf's Parameters",
                             "Unconfirming Counts v.s. Different Zipf's Parameters",
                             "Confirmation Weight Depth v.s. Different Zipf's Parameters"),
-                      'K': ("TipsCount", "Confirmation Time v.s. Different Parents Counts",
+                      'K': ("ParentsCount", "Confirmation Time v.s. Different Parents Counts",
                             "Convergence Time v.s. Different Parents Counts", "Flips v.s. Different Parents Counts",
                             "Unconfirming Counts v.s. Different Parents Counts",
                             "Confirmation Weight Depth v.s. Different Parents Counts"),
@@ -49,7 +50,11 @@ FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node
                             "Convergence Time v.s. Different Delays", "Flips v.s. Different Delays",
                             "Unconfirming Counts v.s. Different Delays",
                             "Confirmation Weight Depth v.s. Different Delays"),
-                      'AW': ("WeightThreshold", "Confirmation Time v.s. Different Thresholds",
+                      'P': ("PacketLoss", "Confirmation Time v.s. Different Packet Losses",
+                            "Convergence Time v.s. Different Packet Losses", "Flips v.s. Different Packet Losses",
+                            "Unconfirming Counts v.s. Different Packet Losses",
+                            "Confirmation Weight Depth v.s. Different Packet Losses"),
+                      'AW': ("ConfirmationThreshold", "Confirmation Time v.s. Different Thresholds",
                              "Convergence Time v.s. Different Threshold", "Flips v.s. Different Thresholds",
                              "Unconfirming Counts v.s. Different Thresholds",
                              "Confirmation Weight Depth v.s. Different Thresholds"),
@@ -76,4 +81,10 @@ FIGURE_NAMING_DICT = {'N': ("NodesCount", "Confirmation Time v.s. Different Node
                              "Convergence Time v.s. Different Adversary Speed",
                              "Flips v.s. Different Adversary Speed",
                              "Unconfirming Counts v.s. Different Adversary Speed",
-                             "Confirmation Weight Depth v.s. Different Adversary Speed")}
+                             "Confirmation Weight Depth v.s. Different Adversary Speed"),
+                      'MB': ("BurnPolicyNames", "Confirmation Time v.s. Different Burn Policies",
+                             "Convergence Time v.s. Different Burn Policies",
+                             "Flips v.s. Different Burn Policies",
+                             "Unconfirming Counts v.s. Different Burn Policies",
+                             "Confirmation Weight Depth v.s. Different Burn Policies"),
+                             }

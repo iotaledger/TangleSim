@@ -2,11 +2,13 @@ package simulation
 
 import (
 	"flag"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
+	"github.com/iotaledger/multivers-simulation/multiverse"
 )
 
 var log = logger.New("Simulation")
@@ -21,28 +23,30 @@ func ParseFlags() {
 		flag.Int("nodesTotalWeight", config.NodesTotalWeight, "The total weight of nodes")
 	zipfParameterPtr :=
 		flag.Float64("zipfParameter", config.ZipfParameter, "The zipf's parameter")
-	weightThresholdPtr :=
-		flag.Float64("weightThreshold", config.WeightThreshold, "The weightThreshold of confirmed messages/color")
-	weightThresholdAbsolutePtr :=
-		flag.Bool("weightThresholdAbsolute", config.WeightThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
-	tipsCountPtr :=
-		flag.Int("tipsCount", config.NumberOfParents, "The tips count for a message")
+	confirmationThresholdPtr :=
+		flag.Float64("confirmationThreshold", config.ConfirmationThreshold, "The confirmationThreshold of confirmed messages/color")
+	confirmationThresholdAbsolutePtr :=
+		flag.Bool("confirmationThresholdAbsolute", config.ConfirmationThresholdAbsolute, "If set to false, the weight is counted by subtracting AW of the two largest conflicting branches.")
+	parentsCountPtr :=
+		flag.Int("parentsCount", config.ParentsCount, "The parents count for a message")
 	weakTipsRatioPtr :=
 		flag.Float64("weakTipsRatio", config.WeakTipsRatio, "The ratio of weak tips")
 	tsaPtr :=
 		flag.String("tsa", config.TSA, "The tip selection algorithm")
-	tpsPtr :=
-		flag.Int("tps", config.TPS, "the tips per seconds")
-	decelerationFactorPtr :=
-		flag.Int("decelerationFactor", config.DecelerationFactor, "The factor to control the speed in the simulation")
+	schedulingRate :=
+		flag.Int("schedulingRate", config.SchedulingRate, "The scheduling rate of the scheduler in message per second.")
+	issuingRatePtr :=
+		flag.Int("issuingRate", config.IssuingRate, "the tips per seconds")
+	slowdownFactorPtr :=
+		flag.Int("slowdownFactor", config.SlowdownFactor, "The factor to control the speed in the simulation")
 	consensusMonitorTickPtr :=
 		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
 	doubleSpendDelayPtr :=
 		flag.Int("doubleSpendDelay", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
 	relevantValidatorWeightPtr :=
 		flag.Int("releventValidatorWeight", config.RelevantValidatorWeight, "The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages")
-	payloadLoss :=
-		flag.Float64("payloadLoss", config.PayloadLoss, "The payload loss percentage")
+	packetLoss :=
+		flag.Float64("packetLoss", config.PacketLoss, "The packet loss percentage")
 	minDelay :=
 		flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
 	maxDelay :=
@@ -79,6 +83,8 @@ func ParseFlags() {
 		flag.String("adversarySpeedup", "", "Adversary issuing speed relative to their mana, e.g. '10 10' means that nodes in each group will issue 10 times messages than would be allowed by their mana. SimulationTarget must be 'DS'")
 	adversaryPeeringAll :=
 		flag.Bool("adversaryPeeringAll", config.AdversaryPeeringAll, "Flag indicating whether adversary nodes should be able to gossip messages to all nodes in the network directly, or should follow the peering algorithm.")
+	burnPolicies :=
+		flag.String("burnPolicies", "", "Space seperated list of policies employed by nodes, e.g., '0 1' . Options include: 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy")
 
 	// Parse the flags
 	flag.Parse()
@@ -87,17 +93,17 @@ func ParseFlags() {
 	config.NodesCount = *nodesCountPtr
 	config.NodesTotalWeight = *nodesTotalWeightPtr
 	config.ZipfParameter = *zipfParameterPtr
-	config.WeightThreshold = *weightThresholdPtr
-	config.WeightThresholdAbsolute = *weightThresholdAbsolutePtr
-	config.NumberOfParents = *tipsCountPtr
+	config.ConfirmationThreshold = *confirmationThresholdPtr
+	config.ConfirmationThresholdAbsolute = *confirmationThresholdAbsolutePtr
+	config.ParentsCount = *parentsCountPtr
 	config.WeakTipsRatio = *weakTipsRatioPtr
 	config.TSA = *tsaPtr
-	config.TPS = *tpsPtr
-	config.DecelerationFactor = *decelerationFactorPtr
+	config.IssuingRate = *issuingRatePtr
+	config.SlowdownFactor = *slowdownFactorPtr
 	config.ConsensusMonitorTick = *consensusMonitorTickPtr
 	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
 	config.DoubleSpendDelay = *doubleSpendDelayPtr
-	config.PayloadLoss = *payloadLoss
+	config.PacketLoss = *packetLoss
 	config.MinDelay = *minDelay
 	config.MaxDelay = *maxDelay
 	config.DeltaURTS = *deltaURTS
@@ -108,23 +114,26 @@ func ParseFlags() {
 	config.RandomnessWS = *randomnessWS
 	config.NeighbourCountWS = *neighbourCountWS
 	config.SimulationMode = *simulationMode
+	config.SchedulingRate = *schedulingRate
+	parseBurnPolicies(*burnPolicies)
 	parseAccidentalConfig(accidentalMana)
 	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll, adversarySpeedup)
 	log.Info("Current configuration:")
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
 	log.Info("ZipfParameter: ", config.ZipfParameter)
-	log.Info("WeightThreshold: ", config.WeightThreshold)
-	log.Info("WeightThresholdAbsolute: ", config.WeightThresholdAbsolute)
-	log.Info("NumberOfParents: ", config.NumberOfParents)
+	log.Info("ConfirmationThreshold: ", config.ConfirmationThreshold)
+	log.Info("ConfirmationThresholdAbsolute: ", config.ConfirmationThresholdAbsolute)
+	log.Info("ParentsCount: ", config.ParentsCount)
 	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
 	log.Info("TSA: ", config.TSA)
-	log.Info("TPS: ", config.TPS)
-	log.Info("DecelerationFactor: ", config.DecelerationFactor)
+	log.Info("SchedulingRate:", config.SchedulingRate)
+	log.Info("IssuingRate: ", config.IssuingRate)
+	log.Info("SlowdownFactor: ", config.SlowdownFactor)
 	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
 	log.Info("RelevantValidatorWeight: ", config.RelevantValidatorWeight)
 	log.Info("DoubleSpendDelay: ", config.DoubleSpendDelay)
-	log.Info("PayloadLoss: ", config.PayloadLoss)
+	log.Info("PacketLoss: ", config.PacketLoss)
 	log.Info("MinDelay: ", config.MinDelay)
 	log.Info("MaxDelay: ", config.MaxDelay)
 	log.Info("DeltaURTS:", config.DeltaURTS)
@@ -143,7 +152,33 @@ func ParseFlags() {
 	log.Info("AccidentalMana: ", config.AccidentalMana)
 	log.Info("AdversaryPeeringAll: ", config.AdversaryPeeringAll)
 	log.Info("AdversarySpeedup: ", config.AdversarySpeedup)
+	log.Info("BurnPolicyNames: ", config.BurnPolicyNames)
 
+}
+
+func parseBurnPolicies(burnPolicies string) {
+	policiesInt := parseStrToInt(burnPolicies)
+	for i, p := range policiesInt {
+		switch multiverse.BurnPolicyType(p) {
+		case multiverse.NoBurn:
+			config.BurnPolicyNames += "No Burn"
+		case multiverse.Anxious:
+			config.BurnPolicyNames += "Anxious"
+		case multiverse.Greedy:
+			config.BurnPolicyNames += "Greedy"
+		case multiverse.RandomGreedy:
+			config.BurnPolicyNames += "Random Greedy"
+		}
+		if i < len(policiesInt)-1 {
+			config.BurnPolicyNames += " - "
+		}
+	}
+	if len(policiesInt) == config.NodesCount {
+		config.BurnPolicies = policiesInt
+	} else {
+		config.BurnPolicies = config.RandomArrayFromValues(0, policiesInt, config.NodesCount)
+	}
+	fmt.Println(config.BurnPolicies)
 }
 
 func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors *string, adversaryPeeringAll *bool, adversarySpeedup *string) {

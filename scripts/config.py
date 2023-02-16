@@ -26,14 +26,14 @@ class Configuration:
         self.cd['SIMULATION_TARGET'] = 'CT'
 
         # The variations to run
-        # N, K, S, D (Number of nodes/parents, Zipfs, delays)
-        self.cd['VARIATIONS'] = 'N'
+        # N, K, S, D, 'MB' (Number of nodes/parents, Zipfs, delays, manaburn policies)
+        self.cd['VARIATIONS'] = 'MB'
 
         # The variations value list
-        self.cd['VARIATION_VALUES'] = list(range(100, 1001, 100))
+        self.cd['VARIATION_VALUES'] = ["0"]
 
         # The deceleration factor list
-        self.cd['DECELERATION_FACTORS'] = [1, 2, 2, 3, 5, 10, 15, 20, 25, 30]
+        self.cd['DECELERATION_FACTORS'] = [1]
 
         # The repetition of each variation
         self.cd['REPETITION_TIME'] = 1
@@ -52,8 +52,8 @@ class Configuration:
         self.cd['COLORED_MSG_ISSUANCE_TIME'] = 2000_000_000
 
         # Flags of operations
-        self.cd['RUN_SIM'] = False
-        self.cd['PLOT_FIGURES'] = False
+        self.cd['RUN_SIM'] = True
+        self.cd['PLOT_FIGURES'] = True
 
         # Adversary strategies
         self.cd["ADVERSARY_STRATEGY"] = "1 1"

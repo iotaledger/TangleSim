@@ -18,6 +18,7 @@ type Message struct {
 	Issuer         network.PeerID
 	Payload        Color
 	IssuanceTime   time.Time
+	ManaBurnValue  float64
 }
 
 // endregion Message ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,14 +28,23 @@ type Message struct {
 type MessageMetadata struct {
 	id               MessageID
 	solid            bool
+	ready            bool
 	inheritedColor   Color
 	weightSlice      []byte
 	weight           uint64
 	confirmationTime time.Time
+	arrivalTime      time.Time
+	enqueueTime      time.Time
+	scheduleTime     time.Time
+	dropTime         time.Time
 }
 
-func (m *MessageMetadata) WeightSlice() []byte {
-	return m.weightSlice
+func (m *MessageMetadata) WeightByte(index int) byte {
+	return m.weightSlice[index]
+}
+
+func (m *MessageMetadata) SetWeightByte(index int, weight byte) {
+	m.weightSlice[index] = weight
 }
 
 func (m *MessageMetadata) SetWeightSlice(weightSlice []byte) {
@@ -43,6 +53,10 @@ func (m *MessageMetadata) SetWeightSlice(weightSlice []byte) {
 
 func (m *MessageMetadata) Weight() uint64 {
 	return m.weight
+}
+
+func (m *MessageMetadata) AddWeight(weight uint64) {
+	m.weight += weight
 }
 
 func (m *MessageMetadata) SetWeight(weight uint64) {
@@ -57,8 +71,36 @@ func (m *MessageMetadata) SetConfirmationTime(confirmationTime time.Time) {
 	m.confirmationTime = confirmationTime
 }
 
+func (m *MessageMetadata) SetEnqueueTime(enqueueTime time.Time) {
+	m.enqueueTime = enqueueTime
+}
+
+func (m *MessageMetadata) SetScheduleTime(scheduleTime time.Time) {
+	m.scheduleTime = scheduleTime
+}
+
+func (m *MessageMetadata) SetDropTime(dropTime time.Time) {
+	m.dropTime = dropTime
+}
+
 func (m *MessageMetadata) ID() (messageID MessageID) {
 	return m.id
+}
+
+func (m *MessageMetadata) Ready() bool {
+	return m.ready
+}
+
+func (m *MessageMetadata) SetReady() {
+	m.ready = true
+}
+
+func (m *MessageMetadata) Scheduled() bool {
+	return !m.scheduleTime.IsZero()
+}
+
+func (m *MessageMetadata) Confirmed() bool {
+	return !m.confirmationTime.IsZero()
 }
 
 func (m *MessageMetadata) SetSolid(solid bool) (modified bool) {
@@ -155,9 +197,9 @@ func (m MessageIDs) Trim(length int) {
 // The maxOpinion is the Opinion with the highest Color value and the maxApprovalWeight
 //
 // The approvalWeights stores the accumulated weights of each Color for messages
-//    - The message will have an associated Color inherited from its parents
-//    - The Color of a message is assigned from `IssuePayload`
-//    - The strongTips/weakTips will be selected from the TipSet[ownOpinion]
+//   - The message will have an associated Color inherited from its parents
+//   - The Color of a message is assigned from `IssuePayload`
+//   - The strongTips/weakTips will be selected from the TipSet[ownOpinion]
 //
 // The different color values are used as a tie breaker, i.e., when 2 colors have the same weight, the larger color value
 // opinion will be regarded as the ownOpinion. Each color simply represents a perception of a certain state of a tangle

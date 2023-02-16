@@ -35,7 +35,7 @@ func TestTipManager(t *testing.T) {
 	defer testNetwork.Shutdown()
 
 	monitorNetworkState(testNetwork)
-	secureNetwork(testNetwork, config.DecelerationFactor)
+	secureNetwork(testNetwork, config.SlowdownFactor)
 
 	time.Sleep(30 * time.Second)
 	log.Info("Number of confirmed message for node 0: ", confirmedMessageCounter)
@@ -55,7 +55,7 @@ func monitorNetworkState(testNetwork *network.Network) {
 	return
 }
 
-func secureNetwork(testNetwork *network.Network, decelerationFactor int) {
+func secureNetwork(testNetwork *network.Network, slowdownFactor int) {
 	largestWeight := float64(testNetwork.WeightDistribution.LargestWeight())
 
 	for _, peer := range testNetwork.Peers {
@@ -65,8 +65,8 @@ func secureNetwork(testNetwork *network.Network, decelerationFactor int) {
 			continue
 		}
 
-		issuingPeriod := float64(config.NodesTotalWeight) / float64(config.TPS) / weightOfPeer
-		pace := time.Duration(issuingPeriod * float64(decelerationFactor) * float64(time.Second))
+		issuingPeriod := float64(config.NodesTotalWeight) / float64(config.IssuingRate) / weightOfPeer
+		pace := time.Duration(issuingPeriod * float64(slowdownFactor) * float64(time.Second))
 		go startSecurityWorker(peer, pace)
 	}
 }

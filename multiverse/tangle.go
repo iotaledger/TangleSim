@@ -17,12 +17,13 @@ type Tangle struct {
 	TipManager         *TipManager
 	MessageFactory     *MessageFactory
 	Utils              *Utils
+	Scheduler          *Scheduler
 }
 
 func NewTangle() (tangle *Tangle) {
 	tangle = &Tangle{}
 
-	tangle.Storage = NewStorage(tangle)
+	tangle.Storage = NewStorage()
 	tangle.Solidifier = NewSolidifier(tangle)
 	tangle.Requester = NewRequester(tangle)
 	tangle.Booker = NewBooker(tangle)
@@ -31,7 +32,7 @@ func NewTangle() (tangle *Tangle) {
 	tangle.MessageFactory = NewMessageFactory(tangle, uint64(config.NodesCount))
 	tangle.ApprovalManager = NewApprovalManager(tangle)
 	tangle.Utils = NewUtils(tangle)
-
+	tangle.Scheduler = NewScheduler(tangle)
 	return
 }
 
@@ -45,6 +46,7 @@ func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.Consensus
 	t.OpinionManager.Setup()
 	t.TipManager.Setup()
 	t.ApprovalManager.Setup()
+	t.Scheduler.Setup(t)
 }
 
 func (t *Tangle) ProcessMessage(message *Message) {

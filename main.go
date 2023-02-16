@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/iotaledger/multivers-simulation/singlenodeattacks"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -86,6 +87,7 @@ func main() {
 		network.ShiftOpinion:   network.NodeClosure(adversary.NewShiftingOpinionNode),
 		network.TheSameOpinion: network.NodeClosure(adversary.NewSameOpinionNode),
 		network.NoGossip:       network.NodeClosure(adversary.NewNoGossipNode),
+		network.Blowball:       network.NodeClosure(singlenodeattacks.NewBlowballNode),
 	}
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
@@ -106,7 +108,7 @@ func main() {
 
 	// To simulate the confirmation time w/o any double spending, the colored msgs are not to be sent
 	if config.SimulationTarget == "DS" {
-		SimulateDoubleSpent(testNetwork)
+		SimulateAdversarialBehaviour(testNetwork)
 	}
 
 	select {
@@ -119,7 +121,7 @@ func main() {
 	}
 }
 
-func SimulateDoubleSpent(testNetwork *network.Network) {
+func SimulateAdversarialBehaviour(testNetwork *network.Network) {
 	time.Sleep(time.Duration(config.DoubleSpendDelay*config.DecelerationFactor) * time.Second)
 	// Here we simulate the double spending
 	dsIssuanceTime = time.Now()
@@ -146,6 +148,26 @@ func SimulateDoubleSpent(testNetwork *network.Network) {
 				log.Infof("Peer %d sent double spend msg: %v", peer.ID, color)
 			}
 		}
+	case "Blowball":
+		ticker := time.NewTicker(time.Duration(config.DecelerationFactor*config.BlowballDelay) * time.Second)
+		alreadySentCounter := 0
+		for {
+			if alreadySentCounter == config.BlowballMaxSent {
+				ticker.Stop()
+				break
+			}
+			select {
+			case <-ticker.C:
+				for _, group := range testNetwork.AdversaryGroups {
+					for _, nodeID := range group.NodeIDs {
+						peer := testNetwork.Peer(nodeID)
+						go sendMessage(peer, multiverse.UndefinedColor)
+						alreadySentCounter++
+					}
+				}
+			}
+		}
+
 	}
 }
 

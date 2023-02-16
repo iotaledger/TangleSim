@@ -18,6 +18,7 @@ type Network struct {
 	Peers              []*Peer
 	WeightDistribution *ConsensusWeightDistribution
 	AdversaryGroups    AdversaryGroups
+	Attacker           *SingleAttacker
 }
 
 func New(option ...Option) (network *Network) {
@@ -27,6 +28,7 @@ func New(option ...Option) (network *Network) {
 	network = &Network{
 		Peers:           make([]*Peer, 0),
 		AdversaryGroups: NewAdversaryGroups(),
+		Attacker:        NewSingleAttacker(),
 	}
 
 	configuration := NewConfiguration(option...)
@@ -112,6 +114,9 @@ func (c *Configuration) CreatePeers(network *Network) {
 				nodeType = network.AdversaryGroups[groupIndex].AdversaryType
 				speedupFactor = c.adversarySpeedup[groupIndex]
 			}
+			if IsAttacker(i) {
+				nodeType = Blowball
+			}
 			nodeFactory := nodesSpecification.nodeFactories[nodeType]
 
 			peer := NewPeer(nodeFactory())
@@ -175,9 +180,13 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 			nodeWeights = network.AdversaryGroups.UpdateAdversaryNodes(nodeWeights)
 		case "Accidental":
 			nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+		case "Blowball":
+			nodesCount, totalWeight = network.Attacker.CalculateWeightTotalConfig()
+			nodeWeights = n.weightGenerator(nodesCount, totalWeight)
+			nodeWeights = network.Attacker.UpdateAttackerWeight(nodeWeights)
 		}
 	} else {
-		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+		nodeWeights = n.weightGenerator(config.NodesCount, totalWeight)
 	}
 
 	return nodeWeights

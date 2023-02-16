@@ -27,11 +27,15 @@ func (m *MessageFactory) CreateMessage(payload Color) (message *Message) {
 		ID:             NewMessageID(),
 		StrongParents:  strongParents,
 		WeakParents:    weakParents,
-		SequenceNumber: atomic.AddUint64(&m.sequenceNumber, 1),
+		SequenceNumber: m.SequenceNumber(),
 		Issuer:         m.tangle.Peer.ID,
 		Payload:        payload,
 		IssuanceTime:   time.Now(),
 	}
+}
+
+func (m *MessageFactory) SequenceNumber() uint64 {
+	return atomic.AddUint64(&m.sequenceNumber, 1)
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

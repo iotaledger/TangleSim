@@ -47,9 +47,10 @@ var (
 var (
 	// SimulationMode for the DS simulations one of:
 	// 'Accidental' - accidental double spends sent by max, min or random weight node from Zipf distrib,
-	// 'Adversary' - need to use adversary groups (parameters starting with 'Adversary...')
-	SimulationMode   = "Accidental"
-	DoubleSpendDelay = 20 // Delay after which double spending transactions will be issued. In seconds.
+	// 'Adversary' - need to use adversary groups (parameters starting with 'Adversary...'), simulates a double-spend attack.
+	// 'Blowball' - enables adversary node that is able to perform a blowball attack.
+	SimulationMode   = "Blowball"
+	DoubleSpendDelay = 5 // Delay after which double spending transactions will be issued. In seconds.
 
 	AccidentalMana = []string{"random", "random"} // Defines nodes which will be used: 'min', 'max', 'random' or valid nodeID
 
@@ -60,11 +61,16 @@ var (
 	AdversaryInitColors = []string{"R", "B"}  // Defines initial color for adversary group, one of following: 'R', 'G', 'B'. Mandatory for each group.
 	AdversaryPeeringAll = false               // Defines a flag indicating whether adversarial nodes should be able to send messages to all nodes in the network, instead of following regular peering algorithm.
 	AdversarySpeedup    = []float64{1.0, 1.0} // Defines how many more messages should adversary nodes issue.
+
+	BlowballMana    = 20 // The mana of the blowball node in % of total mana
+	BlowballSize    = 20 // The size of the blowball
+	BlowballDelay   = 5  // The delay in seconds between the consecutive blowballs
+	BlowballMaxSent = 2  // The maximum number of blowballs sent to the network
+	BlowballNodeID  = 0  // The node ID of the blowball node
 )
 
 var (
 	MonitoredAWPeers                = [...]int{0}
-	MonitoredTPPeer                 = 0
 	MonitoredWitnessWeightMessageID = 100 // The message ID used to monitor the WitnessWeight (WW)
 	MonitoredWitnessWeightPeer      = 0   // The peer ID used to monitor the WitnessWeight (WW)
 )

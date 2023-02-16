@@ -48,12 +48,6 @@ func (n *Network) RandomPeers(count int) (randomPeers []*Peer) {
 	return
 }
 
-func (n *Network) Start() {
-	for _, peer := range n.Peers {
-		peer.Start()
-	}
-}
-
 func (n *Network) Shutdown() {
 	for _, peer := range n.Peers {
 		peer.Shutdown()

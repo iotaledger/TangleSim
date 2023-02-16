@@ -19,9 +19,9 @@ type Peer struct {
 	Node             Node
 	AdversarySpeedup float64
 
-	startOnce      sync.Once
-	shutdownOnce   sync.Once
-	shutdownSignal chan struct{}
+	shutdownOnce       sync.Once
+	ShutdownProcessing chan struct{}
+	ShutdownIssuing    chan struct{}
 }
 
 func NewPeer(node Node) (peer *Peer) {
@@ -31,7 +31,8 @@ func NewPeer(node Node) (peer *Peer) {
 		Socket:    make(chan interface{}, 1024),
 		Node:      node,
 
-		shutdownSignal: make(chan struct{}, 1),
+		ShutdownProcessing: make(chan struct{}, 1),
+		ShutdownIssuing:    make(chan struct{}, 1),
 	}
 
 	return
@@ -41,15 +42,10 @@ func (p *Peer) SetupNode(consensusWeightDistribution *ConsensusWeightDistributio
 	p.Node.Setup(p, consensusWeightDistribution)
 }
 
-func (p *Peer) Start() {
-	p.startOnce.Do(func() {
-		go p.run()
-	})
-}
-
 func (p *Peer) Shutdown() {
 	p.shutdownOnce.Do(func() {
-		close(p.shutdownSignal)
+		close(p.ShutdownProcessing)
+		close(p.ShutdownIssuing)
 	})
 }
 
@@ -65,10 +61,6 @@ func (p *Peer) GossipNetworkMessage(message interface{}) {
 
 func (p *Peer) String() string {
 	return fmt.Sprintf("Peer%d", p.ID)
-}
-
-func (p *Peer) run() {
-	<-p.shutdownSignal
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

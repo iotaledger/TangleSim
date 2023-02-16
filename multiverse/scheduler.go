@@ -154,8 +154,8 @@ func (s *Scheduler) ScheduleMessage() (Message, float64, bool) {
 		newAccessMana := s.DecreaseNodeAccessMana(m.Issuer, m.ManaBurnValue)
 		s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
 		s.updateChildrenReady(m.ID)
-		log.Debugf("Peer %d Scheduled message %d: from issuer %d with access mana %f and message ManaBurnValue %f",
-			s.tangle.Peer.ID, m.ID, m.Issuer, newAccessMana, m.ManaBurnValue)
+		//log.Debugf("Peer %d Scheduled message %d: from issuer %d with access mana %f and message ManaBurnValue %f",
+		//s.tangle.Peer.ID, m.ID, m.Issuer, newAccessMana, m.ManaBurnValue)
 		s.Events.MessageScheduled.Trigger(m.ID)
 		return m, newAccessMana, true
 	}

@@ -22,7 +22,7 @@ func NewSolidifier(tangle *Tangle) *Solidifier {
 }
 
 func (s *Solidifier) Setup() {
-	s.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(func(messageID MessageID) {
+	s.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(func(messageID MessageID, message *Message, messageMetadata *MessageMetadata) {
 		s.Solidify(messageID)
 	}))
 }

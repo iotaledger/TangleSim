@@ -39,6 +39,10 @@ type MessageMetadata struct {
 	dropTime         time.Time
 }
 
+func (m *MessageMetadata) ArrivalTime() time.Time {
+	return m.arrivalTime
+}
+
 func (m *MessageMetadata) WeightByte(index int) byte {
 	return m.weightSlice[index]
 }

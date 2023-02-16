@@ -24,7 +24,7 @@ type Storage struct {
 func NewStorage() (storage *Storage) {
 	return &Storage{
 		Events: &StorageEvents{
-			MessageStored: events.NewEvent(messageIDEventCaller),
+			MessageStored: events.NewEvent(messageEventCaller),
 		},
 
 		messageDB:         make(map[MessageID]*Message),
@@ -42,15 +42,16 @@ func (s *Storage) Store(message *Message) {
 	}
 
 	s.messageDB[message.ID] = message
-	s.messageMetadataDB[message.ID] = &MessageMetadata{
+	messageMetadata := &MessageMetadata{
 		id:          message.ID,
 		weightSlice: make([]byte, int(math.Ceil(float64(config.NodesCount)/8.0))),
 		arrivalTime: time.Now(),
 		ready:       false,
 	}
+	s.messageMetadataDB[message.ID] = messageMetadata
 	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
 	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
-	s.Events.MessageStored.Trigger(message.ID)
+	s.Events.MessageStored.Trigger(message.ID, message, messageMetadata)
 }
 
 func (s *Storage) Message(messageID MessageID) (message *Message) {
@@ -93,6 +94,10 @@ func (s *Storage) storeChildReferences(messageID MessageID, childReferenceDB map
 
 type StorageEvents struct {
 	MessageStored *events.Event
+}
+
+func messageEventCaller(handler interface{}, params ...interface{}) {
+	handler.(func(MessageID, *Message, *MessageMetadata))(params[0].(MessageID), params[1].(*Message), params[2].(*MessageMetadata))
 }
 
 func messageIDEventCaller(handler interface{}, params ...interface{}) {

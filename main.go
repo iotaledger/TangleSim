@@ -128,7 +128,14 @@ func main() {
 
 func startProcessingMessages(n *network.Network) {
 	for _, peer := range n.Peers {
-		go processMessages(peer)
+		// The Blowball attacker does not need to process the message
+		// TODO: Also disable `processMessages` for other attackers which do not require it.
+		if !(config.SimulationTarget == "DS" &&
+			config.SimulationMode == "Blowball" &&
+			network.IsAttacker(int(peer.ID))) {
+			log.Debug(peer.ID, "is not adversary")
+			go processMessages(peer)
+		}
 	}
 }
 
@@ -201,6 +208,7 @@ func startIssuingMessages(testNetwork *network.Network) {
 	nodeTotalWeight := float64(testNetwork.WeightDistribution.TotalWeight())
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
+		log.Warn("Peer ID Weight: ", peer.ID, weightOfPeer, nodeTotalWeight)
 		atomicCounters.Add("relevantValidators", 1)
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes

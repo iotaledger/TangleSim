@@ -18,7 +18,9 @@ func (a SingleAttacker) CalculateWeightTotalConfig() (newNodesCount int, newTota
 	return
 }
 func insert[V constraints.Numeric](array []V, element V, i int) []V {
-	return append(append(array[:i], []V{element}...), array[i:]...)
+	array = append(array[:i+1], array[i:]...)
+	array[i] = element
+	return array
 }
 
 func (a SingleAttacker) UpdateAttackerWeight(weights []uint64) []uint64 {

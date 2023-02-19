@@ -55,8 +55,6 @@ func ParseFlags() {
 		flag.Float64("deltaURTS", config.DeltaURTS, "in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199")
 	simulationStopThreshold :=
 		flag.Float64("simulationStopThreshold", config.SimulationStopThreshold, "Stop the simulation when >= SimulationStopThreshold * NodesCount have reached the same opinion")
-	simulationTarget :=
-		flag.String("simulationTarget", config.SimulationTarget, "The simulation target, CT: Confirmation Time, DS: Double Spending")
 	resultDirPtr :=
 		flag.String("resultDir", config.ResultDir, "Directory where the results will be stored")
 	imif :=
@@ -108,7 +106,6 @@ func ParseFlags() {
 	config.MaxDelay = *maxDelay
 	config.DeltaURTS = *deltaURTS
 	config.SimulationStopThreshold = *simulationStopThreshold
-	config.SimulationTarget = *simulationTarget
 	config.ResultDir = *resultDirPtr
 	config.IMIF = *imif
 	config.RandomnessWS = *randomnessWS
@@ -138,7 +135,6 @@ func ParseFlags() {
 	log.Info("MaxDelay: ", config.MaxDelay)
 	log.Info("DeltaURTS:", config.DeltaURTS)
 	log.Info("SimulationStopThreshold:", config.SimulationStopThreshold)
-	log.Info("SimulationTarget:", config.SimulationTarget)
 	log.Info("ResultDir:", config.ResultDir)
 	log.Info("IMIF: ", config.IMIF)
 	log.Info("WattsStrogatzRandomness: ", config.RandomnessWS)
@@ -234,7 +230,8 @@ func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, advers
 }
 
 func parseAccidentalConfig(accidentalMana *string) {
-	if config.SimulationMode != "Accidental" || config.SimulationTarget != "DS" {
+	// todo update it after config changes as DS config is removed
+	if config.SimulationMode != "Accidental" {
 		config.AccidentalMana = []string{}
 		return
 	}

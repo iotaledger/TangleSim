@@ -112,9 +112,7 @@ func main() {
 	defer testNetwork.Shutdown()
 
 	// To simulate the confirmation time w/o any double spending, the colored msgs are not to be sent
-	if config.SimulationTarget == "DS" {
-		SimulateAdversarialBehaviour(testNetwork)
-	}
+	SimulateAdversarialBehaviour(testNetwork)
 
 	select {
 	case <-shutdownSignal:
@@ -130,9 +128,9 @@ func startProcessingMessages(n *network.Network) {
 	for _, peer := range n.Peers {
 		// The Blowball attacker does not need to process the message
 		// TODO: Also disable `processMessages` for other attackers which do not require it.
-		if !(config.SimulationTarget == "DS" &&
-			config.SimulationMode == "Blowball" &&
-			network.IsAttacker(int(peer.ID))) {
+		// todo not sure if processing message should be disabled, as node needs to have complete tangle to walk
+		if config.SimulationMode == "Blowball" &&
+			network.IsAttacker(int(peer.ID)) {
 			log.Debug(peer.ID, "is not adversary")
 			go processMessages(peer)
 		}
@@ -155,9 +153,6 @@ func processMessages(peer *network.Peer) {
 }
 
 func SimulateAdversarialBehaviour(testNetwork *network.Network) {
-	time.Sleep(time.Duration(config.DoubleSpendDelay*config.SlowdownFactor) * time.Second)
-	// Here we simulate the double spending
-	dsIssuanceTime = time.Now()
 
 	switch config.SimulationMode {
 	case "Accidental":
@@ -166,7 +161,11 @@ func SimulateAdversarialBehaviour(testNetwork *network.Network) {
 			go sendMessage(node, color)
 			log.Infof("Peer %d sent double spend msg: %v", node.ID, color)
 		}
+	// todo adversary should be renamed to doublespend
 	case "Adversary":
+		time.Sleep(time.Duration(config.DoubleSpendDelay*config.SlowdownFactor) * time.Second)
+		// Here we simulate the double spending
+		dsIssuanceTime = time.Now()
 		for _, group := range testNetwork.AdversaryGroups {
 			color := multiverse.ColorFromStr(group.InitColor)
 
@@ -321,7 +320,6 @@ func dumpConfig(fileName string) {
 		MaxDelay:                config.MaxDelay,
 		DeltaURTS:               config.DeltaURTS,
 		SimulationStopThreshold: config.SimulationStopThreshold,
-		SimulationTarget:        config.SimulationTarget,
 		ResultDir:               config.ResultDir,
 		IMIF:                    config.IMIF,
 		RandomnessWS:            config.RandomnessWS,

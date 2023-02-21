@@ -124,8 +124,10 @@ func (s *Scheduler) IncreaseNodeAccessMana(nodeID network.PeerID, manaIncrement 
 func (s *Scheduler) IncrementAccessMana(schedulingRate float64) {
 	weights := s.tangle.WeightDistribution.Weights()
 	totalWeight := config.NodesTotalWeight
+	// every time something is scheduled, we add this much mana in total\
+	mana := float64(10)
 	for id := range s.accessMana {
-		s.accessMana[id] += float64(weights[id]) / float64(totalWeight) / schedulingRate
+		s.accessMana[id] += mana * schedulingRate * float64(weights[id]) / float64(totalWeight)
 	}
 }
 

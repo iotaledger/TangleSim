@@ -87,7 +87,7 @@ var (
 	unconfirmedMessageCounter         = make([]int64, config.NodesCount)
 	partiallyConfirmedMessages        = make(map[multiverse.MessageID]*multiverse.Message)
 	partiallyConfirmedMessageMetadata = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
-	bufferLengthMutex                 sync.RWMutex
+	bufferMutex                       sync.RWMutex
 	readyLength                       = make([]int, config.NodesCount)
 	nonReadyLength                    = make([]int, config.NodesCount)
 )
@@ -301,7 +301,7 @@ func dumpGlobalMetrics(dissemResultsWriter *csv.Writer, undissemResultsWriter *c
 		panic(err)
 	}
 
-	bufferLengthMutex.RLock()
+	bufferMutex.RLock()
 	readyRecord := make([]string, config.NodesCount+1)
 	for id := 0; id < config.NodesCount; id++ {
 		readyRecord[id] = strconv.FormatInt(int64(readyLength[id]), 10)
@@ -310,7 +310,7 @@ func dumpGlobalMetrics(dissemResultsWriter *csv.Writer, undissemResultsWriter *c
 	for id := 0; id < config.NodesCount; id++ {
 		nonReadyRecord[id] = strconv.FormatInt(int64(nonReadyLength[id]), 10)
 	}
-	bufferLengthMutex.RUnlock()
+	bufferMutex.RUnlock()
 	//log.Debug("Ready Lengths: ", readyRecord)
 	//log.Debug("Non Ready Lengths: ", nonReadyRecord)
 	readyRecord[config.NodesCount] = timeStr
@@ -399,10 +399,10 @@ func monitorGlobalMetrics(net *network.Network) {
 
 		mbPeer.Node.(multiverse.NodeInterface).Tangle().Scheduler.Events.MessageEnqueued.Attach(
 			events.NewClosure(func(readyLen int, nonReadyLen int) {
-				bufferLengthMutex.Lock()
+				bufferMutex.Lock()
 				readyLength[mbPeer.ID] = readyLen
 				nonReadyLength[mbPeer.ID] = nonReadyLen
-				bufferLengthMutex.Unlock()
+				bufferMutex.Unlock()
 			}))
 
 	}

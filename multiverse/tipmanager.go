@@ -56,7 +56,9 @@ func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
 }
 
 func (t *TipManager) Setup() {
-	t.tangle.OpinionManager.Events().OpinionFormed.Attach(events.NewClosure(t.AnalyzeMessage))
+	//t.tangle.OpinionManager.Events().OpinionFormed.Attach(events.NewClosure(t.AnalyzeMessage))
+	// Try "analysing" on scheduling instead of on opinion formation.
+	t.tangle.Scheduler.Events.MessageScheduled.Attach(events.NewClosure(t.AnalyzeMessage))
 }
 
 func (t *TipManager) AnalyzeMessage(messageID MessageID) {

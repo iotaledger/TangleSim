@@ -1,6 +1,7 @@
 package multiverse
 
 import (
+	"math"
 	"math/rand"
 
 	"github.com/iotaledger/multivers-simulation/config"
@@ -20,11 +21,22 @@ func BurnMana(tangle *Tangle) (burn float64) {
 	case NoBurn:
 		return 0.0
 	case Anxious:
-		return tangle.Scheduler.GetNodeAccessMana(tangle.Peer.ID)
+		burn = tangle.Scheduler.GetNodeAccessMana(tangle.Peer.ID)
+		tangle.Scheduler.DecreaseNodeAccessMana(tangle.Peer.ID, burn)
+		return
 	case Greedy:
-		return tangle.Scheduler.GetMaxManaBurn() + config.ExtraBurn
+		burn = tangle.Scheduler.GetMaxManaBurn() + config.ExtraBurn
+		manabalance := tangle.Scheduler.GetNodeAccessMana(tangle.Peer.ID)
+		burn = math.Min(burn, manabalance) // can't spend more than mana balance
+		tangle.Scheduler.DecreaseNodeAccessMana(tangle.Peer.ID, burn)
+		return
+
 	case RandomGreedy:
-		return tangle.Scheduler.GetMaxManaBurn() + config.ExtraBurn*rand.Float64()
+		burn = tangle.Scheduler.GetMaxManaBurn() + config.ExtraBurn*rand.Float64()
+		manabalance := tangle.Scheduler.GetNodeAccessMana(tangle.Peer.ID)
+		burn = math.Min(burn, manabalance) // can't spend more than mana balance
+		tangle.Scheduler.DecreaseNodeAccessMana(tangle.Peer.ID, burn)
+		return
 	default:
 		return 0.0
 	}

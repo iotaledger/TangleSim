@@ -53,9 +53,9 @@ var (
 	csvMutex sync.Mutex
 
 	// simulation variables
-	dumpingTicker  = time.NewTicker(time.Duration(config.SlowdownFactor*config.ConsensusMonitorTick) * time.Millisecond)
-	simulationWg   = sync.WaitGroup{}
-	shutdownSignal = make(chan types.Empty)
+	globalMetricsTicker = time.NewTicker(time.Duration(config.SlowdownFactor*config.ConsensusMonitorTick) * time.Millisecond)
+	simulationWg        = sync.WaitGroup{}
+	shutdownSignal      = make(chan types.Empty)
 
 	// global declarations
 	dsIssuanceTime           time.Time
@@ -71,18 +71,25 @@ var (
 
 	confirmedMessageCounter = make(map[network.PeerID]int64)
 
-	storedMessageMap              = make(map[multiverse.MessageID]int)
-	storedMessageMutex            sync.RWMutex
-	disseminatedMessageCounter    = make([]int64, config.NodesCount)
-	disseminatedMessageMutex      sync.RWMutex
-	disseminatedMessages          = make(map[multiverse.MessageID]*multiverse.Message)
-	disseminatedMessageMetadata   = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
-	confirmedMessageMutex         sync.RWMutex
-	confirmedMessageMap           = make(map[multiverse.MessageID]int)
-	fullyConfirmedMessageCounter  = make([]int64, config.NodesCount)
-	fullyConfirmedMessageMutex    sync.RWMutex
-	fullyConfirmedMessages        = make(map[multiverse.MessageID]*multiverse.Message)
-	fullyConfirmedMessageMetadata = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
+	storedMessageMap                  = make(map[multiverse.MessageID]int)
+	storedMessageMutex                sync.RWMutex
+	disseminatedMessageCounter        = make([]int64, config.NodesCount)
+	undisseminatedMessageCounter      = make([]int64, config.NodesCount)
+	disseminatedMessageMutex          sync.RWMutex
+	disseminatedMessages              = make(map[multiverse.MessageID]*multiverse.Message)
+	disseminatedMessageMetadata       = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
+	confirmedMessageMutex             sync.RWMutex
+	confirmedMessageMap               = make(map[multiverse.MessageID]int)
+	fullyConfirmedMessageCounter      = make([]int64, config.NodesCount)
+	fullyConfirmedMessages            = make(map[multiverse.MessageID]*multiverse.Message)
+	fullyConfirmedMessageMetadata     = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
+	partiallyConfirmedMessageCounter  = make([]int64, config.NodesCount)
+	unconfirmedMessageCounter         = make([]int64, config.NodesCount)
+	partiallyConfirmedMessages        = make(map[multiverse.MessageID]*multiverse.Message)
+	partiallyConfirmedMessageMetadata = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
+	bufferLengthMutex                 sync.RWMutex
+	readyLength                       = make([]int, config.NodesCount)
+	nonReadyLength                    = make([]int, config.NodesCount)
 )
 
 func main() {
@@ -111,9 +118,10 @@ func main() {
 	os.MkdirAll(path.Join(config.ResultDir, config.ScriptStartTimeStr), 0755)
 	// Dump the configuration of this simulation
 	dumpConfig(path.Join(config.ResultDir, config.ScriptStartTimeStr, "mb.config"))
+	// Dump the network information
+	dumpNetworkConfig(testNetwork)
+	// Start monitoring global metrics
 	monitorGlobalMetrics(testNetwork)
-	//resultsWriters := monitorNetworkState(testNetwork)
-	//defer flushWriters(resultsWriters)
 
 	// start a go routine for each node to start issuing messages
 	startIssuingMessages(testNetwork)
@@ -183,6 +191,8 @@ func issueMessages(peer *network.Peer, band float64) {
 		return
 	}
 	ticker := time.NewTicker(pace)
+	congestionTicker := time.NewTicker(time.Duration(config.SlowdownFactor) * config.SimulationDuration / time.Duration(config.CongestionPeriods))
+	var congested = false
 
 	for {
 		select {
@@ -196,7 +206,17 @@ func issueMessages(peer *network.Peer, band float64) {
 				}
 			}
 			sendMessage(peer)
+		case <-congestionTicker.C:
+			if congested {
+				band /= float64(config.CongestionFactor)
+				congested = false
+			} else {
+				band *= float64(config.CongestionFactor)
+				congested = true
+			}
+
 		}
+
 	}
 }
 
@@ -212,43 +232,104 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 
 func shutdownSimulation(net *network.Network) {
 	net.Shutdown()
-	dumpingTicker.Stop()
+	globalMetricsTicker.Stop()
 	dumpLatencyData()
 	simulationWg.Wait()
 	//dumpAllMessageMetaData(net.Peers[0].Node.(multiverse.NodeInterface).Tangle().Storage)
 }
 
-func dumpGlobalMetrics(dissemResultsWriter *csv.Writer, confirmationResultsWriter *csv.Writer) {
+func dumpGlobalMetrics(dissemResultsWriter *csv.Writer, undissemResultsWriter *csv.Writer, confirmationResultsWriter *csv.Writer, partialConfirmationResultsWriter *csv.Writer, unconfirmationResultsWriter *csv.Writer, readyLenResultsWriter *csv.Writer, nonReadyLenResultsWriter *csv.Writer) {
 	simulationWg.Add(1)
 	defer simulationWg.Done()
-	timeStr := strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10)
+	timeSinceStart := time.Since(simulationStartTime).Nanoseconds()
+	timeStr := strconv.FormatInt(timeSinceStart, 10)
+	log.Debug("Simulation Completion: ", int(100*float64(timeSinceStart)/float64(config.SimulationDuration)), "%")
 	disseminatedMessageMutex.RLock()
 	record := make([]string, config.NodesCount+1)
 	for id := 0; id < config.NodesCount; id++ {
 		record[id] = strconv.FormatInt(disseminatedMessageCounter[id], 10)
 	}
 	disseminatedMessageMutex.RUnlock()
-	log.Debug("Disseminated Messages: ", record)
+	//log.Debug("Disseminated Messages: ", record)
 	record[config.NodesCount] = timeStr
 	if err := dissemResultsWriter.Write(record); err != nil {
 		panic(err)
 	}
+	disseminatedMessageMutex.RLock()
+	record = make([]string, config.NodesCount+1)
+	for id := 0; id < config.NodesCount; id++ {
+		record[id] = strconv.FormatInt(undisseminatedMessageCounter[id], 10)
+	}
+	disseminatedMessageMutex.RUnlock()
+	//log.Debug("Disseminated Messages: ", record)
+	record[config.NodesCount] = timeStr
+	if err := undissemResultsWriter.Write(record); err != nil {
+		panic(err)
+	}
 
-	fullyConfirmedMessageMutex.RLock()
+	confirmedMessageMutex.RLock()
 	record = make([]string, config.NodesCount+1)
 	for id := 0; id < config.NodesCount; id++ {
 		record[id] = strconv.FormatInt(fullyConfirmedMessageCounter[id], 10)
 	}
-	fullyConfirmedMessageMutex.RUnlock()
-	log.Debug("Confirmed Messages: ", record)
+	confirmedMessageMutex.RUnlock()
+	//log.Debug("Confirmed Messages: ", record)
 	record[config.NodesCount] = timeStr
 	if err := confirmationResultsWriter.Write(record); err != nil {
 		panic(err)
 	}
+	confirmedMessageMutex.RLock()
+	record = make([]string, config.NodesCount+1)
+	for id := 0; id < config.NodesCount; id++ {
+		record[id] = strconv.FormatInt(partiallyConfirmedMessageCounter[id], 10)
+	}
+	confirmedMessageMutex.RUnlock()
+	//log.Debug("Partially Confirmed Messages: ", record)
+	record[config.NodesCount] = timeStr
+	if err := partialConfirmationResultsWriter.Write(record); err != nil {
+		panic(err)
+	}
+	confirmedMessageMutex.RLock()
+	record = make([]string, config.NodesCount+1)
+	for id := 0; id < config.NodesCount; id++ {
+		record[id] = strconv.FormatInt(unconfirmedMessageCounter[id], 10)
+	}
+	confirmedMessageMutex.RUnlock()
+	//log.Debug("Unconfirmed Messages: ", record)
+	record[config.NodesCount] = timeStr
+	if err := unconfirmationResultsWriter.Write(record); err != nil {
+		panic(err)
+	}
+
+	bufferLengthMutex.RLock()
+	readyRecord := make([]string, config.NodesCount+1)
+	for id := 0; id < config.NodesCount; id++ {
+		readyRecord[id] = strconv.FormatInt(int64(readyLength[id]), 10)
+	}
+	nonReadyRecord := make([]string, config.NodesCount+1)
+	for id := 0; id < config.NodesCount; id++ {
+		nonReadyRecord[id] = strconv.FormatInt(int64(nonReadyLength[id]), 10)
+	}
+	bufferLengthMutex.RUnlock()
+	//log.Debug("Ready Lengths: ", readyRecord)
+	//log.Debug("Non Ready Lengths: ", nonReadyRecord)
+	readyRecord[config.NodesCount] = timeStr
+	nonReadyRecord[config.NodesCount] = timeStr
+	if err := readyLenResultsWriter.Write(readyRecord); err != nil {
+		panic(err)
+	}
+	if err := nonReadyLenResultsWriter.Write(nonReadyRecord); err != nil {
+		panic(err)
+	}
+
 	// Flush the results writer to avoid truncation.
 	dissemResultsWriter.Flush()
+	undissemResultsWriter.Flush()
 	confirmationResultsWriter.Flush()
-
+	partialConfirmationResultsWriter.Flush()
+	unconfirmationResultsWriter.Flush()
+	readyLenResultsWriter.Flush()
+	nonReadyLenResultsWriter.Flush()
 }
 
 func monitorGlobalMetrics(net *network.Network) {
@@ -269,12 +350,20 @@ func monitorGlobalMetrics(net *network.Network) {
 					storedMessageMap[messageID] = numNodes + 1
 				} else {
 					storedMessageMap[messageID] = 1
+					confirmedMessageMutex.Lock()
+					unconfirmedMessageCounter[message.Issuer] += 1
+					confirmedMessageMutex.Unlock()
+					disseminatedMessageMutex.Lock()
+					undisseminatedMessageCounter[message.Issuer] += 1
+					disseminatedMessageMutex.Unlock()
 				}
 				// a message is disseminated if it has been stored by all nodes.
 				if storedMessageMap[messageID] == config.NodesCount {
 					disseminatedMessageMutex.Lock()
 					disseminatedMessageCounter[message.Issuer] += 1
+					undisseminatedMessageCounter[message.Issuer] -= 1
 					disseminatedMessages[messageID] = message
+					//log.Debug("Mana Burn value: ", message.ManaBurnValue)
 					disseminatedMessageMetadata[messageID] = messageMetadata
 					disseminatedMessageMutex.Unlock()
 				}
@@ -284,6 +373,7 @@ func monitorGlobalMetrics(net *network.Network) {
 		mbPeer.Node.(multiverse.NodeInterface).Tangle().ApprovalManager.Events.MessageConfirmed.Attach(
 			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64, messageIDCounter int64) {
 				confirmedMessageMutex.Lock()
+				defer confirmedMessageMutex.Unlock()
 				if numNodes, exists := confirmedMessageMap[message.ID]; exists {
 					if numNodes > config.NodesCount {
 						panic("message confirmed more than once per node")
@@ -291,16 +381,28 @@ func monitorGlobalMetrics(net *network.Network) {
 					confirmedMessageMap[message.ID] = numNodes + 1
 				} else {
 					confirmedMessageMap[message.ID] = 1
+					partiallyConfirmedMessageCounter[message.Issuer] += 1
+					unconfirmedMessageCounter[message.Issuer] -= 1
+					//partiallyConfirmedMessages[message.ID] = message
+					//partiallyConfirmedMessageMetadata[message.ID] = messageMetadata
 				}
 				// a message is disseminated if it has been confirmed by all nodes.
 				if confirmedMessageMap[message.ID] == config.NodesCount {
-					fullyConfirmedMessageMutex.Lock()
+					partiallyConfirmedMessageCounter[message.Issuer] -= 1
+					//delete(partiallyConfirmedMessages, message.ID)
+					//delete(partiallyConfirmedMessageMetadata, message.ID)
 					fullyConfirmedMessageCounter[message.Issuer] += 1
 					fullyConfirmedMessages[message.ID] = message
 					fullyConfirmedMessageMetadata[message.ID] = messageMetadata
-					fullyConfirmedMessageMutex.Unlock()
 				}
-				confirmedMessageMutex.Unlock()
+			}))
+
+		mbPeer.Node.(multiverse.NodeInterface).Tangle().Scheduler.Events.MessageEnqueued.Attach(
+			events.NewClosure(func(readyLen int, nonReadyLen int) {
+				bufferLengthMutex.Lock()
+				readyLength[mbPeer.ID] = readyLen
+				nonReadyLength[mbPeer.ID] = nonReadyLen
+				bufferLengthMutex.Unlock()
 			}))
 
 	}
@@ -312,7 +414,7 @@ func monitorGlobalMetrics(net *network.Network) {
 	}
 	header := []string{"ns since start"}
 	gmHeader = append(gmHeader, header...)
-	// Define the file name of the dissemination results
+	// dissemination results
 	file, err := os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "disseminatedMessages.csv"))
 	if err != nil {
 		panic(err)
@@ -321,8 +423,16 @@ func monitorGlobalMetrics(net *network.Network) {
 	if err := dissemResultsWriter.Write(gmHeader); err != nil {
 		panic(err)
 	}
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "undisseminatedMessages.csv"))
+	if err != nil {
+		panic(err)
+	}
+	undissemResultsWriter := csv.NewWriter(file)
+	if err := undissemResultsWriter.Write(gmHeader); err != nil {
+		panic(err)
+	}
 
-	// Define the file name of the confirmination results
+	// confirmination results
 	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "fullyConfirmedMessages.csv"))
 	if err != nil {
 		panic(err)
@@ -331,10 +441,44 @@ func monitorGlobalMetrics(net *network.Network) {
 	if err := confirmationResultsWriter.Write(gmHeader); err != nil {
 		panic(err)
 	}
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "partiallyConfirmedMessages.csv"))
+	if err != nil {
+		panic(err)
+	}
+	partialConfirmationResultsWriter := csv.NewWriter(file)
+	if err := partialConfirmationResultsWriter.Write(gmHeader); err != nil {
+		panic(err)
+	}
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "unconfirmedMessages.csv"))
+	if err != nil {
+		panic(err)
+	}
+	unconfirmationResultsWriter := csv.NewWriter(file)
+	if err := unconfirmationResultsWriter.Write(gmHeader); err != nil {
+		panic(err)
+	}
+
+	// buffer length results
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "readyLengths.csv"))
+	if err != nil {
+		panic(err)
+	}
+	readyLenResultsWriter := csv.NewWriter(file)
+	if err := readyLenResultsWriter.Write(gmHeader); err != nil {
+		panic(err)
+	}
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "nonReadyLengths.csv"))
+	if err != nil {
+		panic(err)
+	}
+	nonReadyLenResultsWriter := csv.NewWriter(file)
+	if err := nonReadyLenResultsWriter.Write(gmHeader); err != nil {
+		panic(err)
+	}
 
 	go func() {
-		for range dumpingTicker.C {
-			dumpGlobalMetrics(dissemResultsWriter, confirmationResultsWriter)
+		for range globalMetricsTicker.C {
+			dumpGlobalMetrics(dissemResultsWriter, undissemResultsWriter, confirmationResultsWriter, partialConfirmationResultsWriter, unconfirmationResultsWriter, readyLenResultsWriter, nonReadyLenResultsWriter)
 		}
 	}()
 }
@@ -482,18 +626,34 @@ func dumpConfig(filePath string) {
 	}
 }
 
-func dumpNetwork(net *network.Network, fileName string) {
-	nwHeader := []string{"Peer ID", "Neighbor ID", "Network Delay (ns)", "Packet Loss (%)", "Weight"}
-
-	file, err := os.Create(path.Join(config.ResultDir, fileName))
+func dumpNetworkConfig(net *network.Network) {
+	file, err := os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "networkConfig.csv"))
 	if err != nil {
 		panic(err)
 	}
-	writer := csv.NewWriter(file)
-	if err := writer.Write(nwHeader); err != nil {
+	ncHeader := []string{"Peer ID", "Neighbor ID", "Network Delay (ns)", "Packet Loss (%)"}
+	ncWriter := csv.NewWriter(file)
+	if err := ncWriter.Write(ncHeader); err != nil {
 		panic(err)
 	}
-
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "burnPolicies.csv"))
+	if err != nil {
+		panic(err)
+	}
+	bpHeader := []string{"Peer ID", "Burn Policy"}
+	bpWriter := csv.NewWriter(file)
+	if err := bpWriter.Write(bpHeader); err != nil {
+		panic(err)
+	}
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "weights.csv"))
+	if err != nil {
+		panic(err)
+	}
+	wHeader := []string{"Peer ID", "Weight"}
+	wWriter := csv.NewWriter(file)
+	if err := wWriter.Write(wHeader); err != nil {
+		panic(err)
+	}
 	for _, peer := range net.Peers {
 		for neighbor, connection := range peer.Neighbors {
 			record := []string{
@@ -501,12 +661,19 @@ func dumpNetwork(net *network.Network, fileName string) {
 				strconv.FormatInt(int64(neighbor), 10),
 				strconv.FormatInt(connection.NetworkDelay().Nanoseconds(), 10),
 				strconv.FormatInt(int64(connection.PacketLoss()*100), 10),
-				strconv.FormatInt(int64(net.WeightDistribution.Weight(peer.ID)), 10),
 			}
-			writeLine(writer, record)
+			writeLine(ncWriter, record)
 		}
+		writeLine(bpWriter, []string{
+			strconv.FormatInt(int64(peer.ID), 10),
+			strconv.FormatInt(int64(config.BurnPolicies[peer.ID]), 10),
+		})
+		writeLine(wWriter, []string{
+			strconv.FormatInt(int64(peer.ID), 10),
+			strconv.FormatInt(int64(net.WeightDistribution.Weight(peer.ID)), 10),
+		})
 		// Flush the writers, or the data will be truncated for high node count
-		writer.Flush()
+		flushWriters([]*csv.Writer{ncWriter, bpWriter, wWriter})
 	}
 }
 
@@ -561,7 +728,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	honestOnlyMostLikedColor = multiverse.UndefinedColor
 
 	// Dump the network information
-	dumpNetwork(testNetwork, fmt.Sprint("nw-", config.ScriptStartTimeStr, ".csv"))
+	dumpNetworkConfig(testNetwork)
 
 	// Dump the info about adversary nodes
 	adResultsWriter := createWriter(fmt.Sprintf("ad-%s.csv", config.ScriptStartTimeStr), adHeader, &resultsWriters)
@@ -748,7 +915,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	}
 
 	go func() {
-		for range dumpingTicker.C {
+		for range globalMetricsTicker.C {
 			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, tpAllResultsWriter, mmResultsWriter, honestNodesCount, adversaryNodesCount)
 		}
 	}()

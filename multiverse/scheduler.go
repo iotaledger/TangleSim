@@ -35,6 +35,7 @@ func NewScheduler(tangle *Tangle) (mq *Scheduler) {
 		Events: &SchedulerEvents{
 			MessageScheduled: events.NewEvent(messageIDEventCaller),
 			MessageDropped:   events.NewEvent(messageIDEventCaller),
+			MessageEnqueued:  events.NewEvent(schedulerEventCaller),
 		},
 	}
 }
@@ -51,6 +52,9 @@ func (s *Scheduler) Setup(tangle *Tangle) {
 	}))
 	s.Events.MessageDropped.Attach(events.NewClosure(func(messageID MessageID) {
 		s.tangle.Storage.MessageMetadata(messageID).SetDropTime(time.Now())
+	}))
+	s.tangle.ApprovalManager.Events.MessageConfirmed.Attach(events.NewClosure(func(message *Message, messageMetadata *MessageMetadata, weight uint64, messageIDCounter int64) {
+		s.updateChildrenReady(message.ID)
 	}))
 }
 
@@ -144,20 +148,20 @@ func (s *Scheduler) GetMaxManaBurn() float64 {
 	}
 }
 
-func (s *Scheduler) ScheduleMessage() (Message, float64, bool) {
+func (s *Scheduler) ScheduleMessage() (Message, bool) {
 	// Consume the accessMana and pop the Message
 	if s.IsEmpty() {
 		//log.Debugf("Scheduler is empty: Peer %d", s.tangle.Peer.ID)
-		return Message{}, 0.0, false
+		return Message{}, false
 	} else {
 		m := heap.Pop(s.readyQueue).(Message)
-		newAccessMana := s.DecreaseNodeAccessMana(m.Issuer, m.ManaBurnValue)
+		if m.Issuer != s.tangle.Peer.ID { // already deducted Mana for own blocks
+			s.DecreaseNodeAccessMana(m.Issuer, m.ManaBurnValue)
+		}
 		s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
 		s.updateChildrenReady(m.ID)
-		//log.Debugf("Peer %d Scheduled message %d: from issuer %d with access mana %f and message ManaBurnValue %f",
-		//s.tangle.Peer.ID, m.ID, m.Issuer, newAccessMana, m.ManaBurnValue)
 		s.Events.MessageScheduled.Trigger(m.ID)
-		return m, newAccessMana, true
+		return m, true
 	}
 }
 
@@ -174,6 +178,7 @@ func (s *Scheduler) EnqueueMessage(messageID MessageID) {
 		s.tangle.Storage.MessageMetadata(messageID).SetReady()
 		s.nonReadyMap[messageID] = s.tangle.Storage.Message(messageID)
 	}
+	s.Events.MessageEnqueued.Trigger(s.readyQueue.Len(), len(s.nonReadyMap))
 }
 
 func (h MessageHeap) Len() int { return len(h) }
@@ -203,4 +208,9 @@ func (h *MessageHeap) Pop() any {
 type SchedulerEvents struct {
 	MessageScheduled *events.Event
 	MessageDropped   *events.Event
+	MessageEnqueued  *events.Event
+}
+
+func schedulerEventCaller(handler interface{}, params ...interface{}) {
+	handler.(func(int, int))(params[0].(int), params[1].(int))
 }

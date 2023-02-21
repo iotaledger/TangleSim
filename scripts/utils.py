@@ -3,6 +3,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from networkx.drawing.nx_agraph import graphviz_layout
 import matplotlib
 import networkx as nx
@@ -11,8 +12,12 @@ import argparse
 import logging
 import os
 import csv
+import matplotlib.colors as mcolors
 
 
+colors = mcolors.TABLEAU_COLORS
+colornames = list(colors)
+burnPolicyNames = ["No Burn", "Anxious", "Greedy", "Random Greedy"]
 class ArgumentParserWithDefaults(argparse.ArgumentParser):
     """The argument parser to support RawTextHelpFormatter and show default values.
     """
@@ -119,13 +124,13 @@ def get_diameter(fn, ofn, plot=False, transparent=False):
     plt.close()
     return diameter
 
-def parse_per_node_rates(file):
+def parse_per_node_metrics(file):
     with open(file, newline='') as csvfile:
         reader = csv.reader(csvfile, delimiter=',', quotechar='|')
         header = next(reader)
         n_nodes = len(header)-1
         n_data = sum(1 for _ in reader)
-        messages = np.zeros((n_nodes, n_data))
+        counts = np.zeros((n_nodes, n_data))
         times = np.zeros(n_data)
         csvfile.seek(0)
         i=-1
@@ -133,18 +138,135 @@ def parse_per_node_rates(file):
             if i<0:
                 i += 1
                 continue
-            times[i] = int(row[-1])
-            messages[:,i] = [int(j) for j in row[:-1]]
+            times[i] = int(row[-1])*10**-9
+            counts[:,i] = [int(j) for j in row[:-1]]
             i += 1
-    return messages, times
+    return counts, times
+
+def parse_latencies(file, cd):
+    with open(file, newline='') as csvfile:
+        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        next(reader)
+        latencies = [[] for _ in range(cd['NODES_COUNT'])]
+        times = [[] for _ in range(cd['NODES_COUNT'])]
+        for row in reader:
+            latencies[int(row[0])].append(int(row[2])*10**-9) 
+            times[int(row[0])].append(int(row[1])*10**-9)
+    return latencies
+
+def parse_int_node_attributes(file, cd):
+    with open(file, newline='') as csvfile:
+        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        next(reader)
+        attributes = np.zeros(cd['NODES_COUNT'], dtype=int)
+        for row in reader:
+            attributes[int(row[0])] = int(row[1])
+    return attributes
+
+def plot_per_node_metric(data, times, cd, title, ylab):
+    fig, ax = plt.subplots(figsize=(8,4))
+    ax.grid(linestyle='--')
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel(ylab)
+    ax.title.set_text(title)
+    burnPolicies = cd['BURN_POLICIES']
+    weights = cd['WEIGHTS']
+    for NodeID in range(cd['NODES_COUNT']):
+        ax.plot(times, data[NodeID,:], color=colors[colornames[burnPolicies[NodeID]]], linewidth=4*weights[NodeID]/weights[0])
+    ax.set_xlim(0, times[-1])
+    ax.set_ylim(0)
+    bps = list(set(burnPolicies))
+    ModeLines = [Line2D([0],[0],color=colors[colornames[bp]], lw=4) for bp in bps]
+    fig.legend(ModeLines, [burnPolicyNames[i] for i in bps], loc="lower right")
+    plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+'.png', bbox_inches='tight')
+
 
 def plot_per_node_rates(messages, times, cd, title):
+    fig, ax = plt.subplots(2, 1, sharex=True, figsize=(8,8))
+    ax[0].grid(linestyle='--')
+    ax[0].set_xlabel("Time (s)")
+    ax[0].set_ylabel("Rate (Blocks/s)")
+    ax[1].grid(linestyle='--')
+    ax[1].set_xlabel("Time (s)")
+    ax[1].set_ylabel("Scaled Rate")
+    ax[0].title.set_text(title)
+    avg_window = 10
+    burnPolicies = cd['BURN_POLICIES']
+    weights = cd['WEIGHTS']
+    for NodeID in range(cd['NODES_COUNT']):
+        rate = (messages[NodeID,avg_window:]-messages[NodeID,:-avg_window])*1000/(avg_window*cd['MONITOR_INTERVAL'])
+        ax[0].plot(times[avg_window:], rate, color=colors[colornames[burnPolicies[NodeID]]], linewidth=4*weights[NodeID]/weights[0])
+        ax[1].plot(times[avg_window:], rate*sum(weights)/weights[NodeID], color=colors[colornames[burnPolicies[NodeID]]], linewidth=4*weights[NodeID]/weights[0])
+    ax[0].set_xlim(0,times[-1])
+    ax[1].set_xlim(0,times[-1])
+    ax[0].set_ylim(0)
+    ax[1].set_ylim(0)
+    bps = list(set(burnPolicies))
+    ModeLines = [Line2D([0],[0],color=colors[colornames[bp]], lw=4) for bp in bps]
+    fig.legend(ModeLines, [burnPolicyNames[i] for i in bps], loc="lower right")
+    plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+'.png', bbox_inches='tight')
+
+def plot_latency_cdf(latencies, cd, title):
     fig, ax = plt.subplots(figsize=(8,4))
+    ax.set_xlabel("Latency (s)")
+    ax.grid(linestyle='--')
+    ax.title.set_text(title)
+    maxval = max([max(latencies[NodeID]) for NodeID in range(len(latencies))])
+    bins = np.arange(0, maxval, maxval/100)
+    pdf = np.zeros(len(bins))
+    burnPolicies = cd['BURN_POLICIES']
+    weights = cd['WEIGHTS']
+    for NodeID in range(len(latencies)):
+        i=0
+        if latencies[NodeID]:
+            lats = sorted(latencies[NodeID])
+            for lat in lats:
+                while i<len(bins):
+                    if lat>bins[i]:
+                        i += 1
+                    else:
+                        break
+                pdf[i-1] += 1
+        pdf = pdf/sum(pdf)
+        cdf = np.cumsum(pdf)
+        ax.plot(bins, cdf, color=colors[colornames[burnPolicies[NodeID]]], linewidth=4*weights[NodeID]/weights[0])
+    
+    ax.set_xlim(0,bins[-1])
+    ax.set_ylim(0,1.1)
+    bps = list(set(burnPolicies))
+    ModeLines = [Line2D([0],[0],color=colors[colornames[bp]], lw=4) for bp in bps]
+    fig.legend(ModeLines, [burnPolicyNames[i] for i in bps], loc="lower right")
+    plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+'.png', bbox_inches='tight')
+
+def plot_total_rate(data, times, cd, title):
+    _, ax = plt.subplots(figsize=(8,4))
     ax.grid(linestyle='--')
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Rate (Blocks/s)")
     ax.title.set_text(title)
+    totals = np.sum(data, axis=0)
     avg_window = 10
-    for NodeID in range(cd['NODES_COUNT']):
-        ax.plot(times[avg_window:]/10**9, (messages[NodeID,avg_window:]-messages[NodeID,:-avg_window])*1000/(avg_window*cd['MONITOR_INTERVAL']))
+    rate = (totals[avg_window:]-totals[:-avg_window])*1000/(avg_window*cd['MONITOR_INTERVAL'])
+    ax.plot(times[avg_window:], rate, color='k')
+    ax.set_xlim(0, times[-1])
+    ax.set_ylim(0)
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+'.png', bbox_inches='tight')
+
+def plot_latency(latencies, times, cd, title):
+    fig, ax = plt.subplots(figsize=(8,4))
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Latency (ms)")
+    ax.grid(linestyle='--')
+    ax.title.set_text(title)
+    endtime = max([times[NodeID][-1] for NodeID in range(len(times))])
+    nbins = 100
+    bins = np.arange(0,endtime,endtime/nbins)
+    for NodeID in range(len(latencies)):
+        lats = np.zeros(nbins)
+        i = 0
+        for bin in bins:
+            if times[NodeID][i]<bin:
+                continue
+            # incomplete
+
+   

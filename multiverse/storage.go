@@ -88,6 +88,36 @@ func (s *Storage) storeChildReferences(messageID MessageID, childReferenceDB map
 	}
 }
 
+func (s *Storage) isReady(messageID MessageID) bool {
+	if !s.MessageMetadata(messageID).Solid() {
+		return false
+	}
+	message := s.Message(messageID)
+	for strongParentID := range message.StrongParents {
+		if strongParentID == Genesis {
+			continue
+		}
+		strongParentMetadata := s.MessageMetadata(strongParentID)
+		if strongParentMetadata == nil {
+			panic("Strong Parent Metadata is empty")
+		}
+		if !strongParentMetadata.Scheduled() && !strongParentMetadata.Confirmed() {
+			return false
+		}
+
+	}
+	for weakParentID := range message.WeakParents {
+		weakParentMetadata := s.MessageMetadata(weakParentID)
+		if weakParentID == Genesis {
+			continue
+		}
+		if !weakParentMetadata.Scheduled() && !weakParentMetadata.Confirmed() {
+			return false
+		}
+	}
+	return true
+}
+
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // region StorageEvents ////////////////////////////////////////////////////////////////////////////////////////////////

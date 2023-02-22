@@ -397,7 +397,7 @@ func monitorGlobalMetrics(net *network.Network) {
 				}
 			}))
 
-		mbPeer.Node.(multiverse.NodeInterface).Tangle().Scheduler.Events.MessageEnqueued.Attach(
+		mbPeer.Node.(multiverse.NodeInterface).Tangle().Scheduler.Events().MessageEnqueued.Attach(
 			events.NewClosure(func(readyLen int, nonReadyLen int) {
 				bufferMutex.Lock()
 				readyLength[mbPeer.ID] = readyLen

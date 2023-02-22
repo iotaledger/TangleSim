@@ -17,7 +17,7 @@ type Tangle struct {
 	TipManager         *TipManager
 	MessageFactory     *MessageFactory
 	Utils              *Utils
-	Scheduler          *Scheduler
+	Scheduler          Scheduler
 }
 
 func NewTangle() (tangle *Tangle) {
@@ -44,9 +44,9 @@ func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.Consensus
 	t.Requester.Setup()
 	t.Booker.Setup()
 	t.OpinionManager.Setup()
+	t.Scheduler.Setup()
 	t.TipManager.Setup()
 	t.ApprovalManager.Setup()
-	t.Scheduler.Setup(t)
 }
 
 func (t *Tangle) ProcessMessage(message *Message) {

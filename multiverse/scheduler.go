@@ -40,6 +40,9 @@ type Scheduler interface {
 	EnqueueMessage(MessageID)
 	ScheduleMessage()
 	Events() *SchedulerEvents
+	ReadyLen() int
+	NonReadyLen() int
+	GetNodeAccessMana(network.PeerID) float64
 }
 
 func NewScheduler(tangle *Tangle) (s Scheduler) {
@@ -104,6 +107,10 @@ type ICCAScheduler struct {
 }
 
 func (s *ICCAScheduler) Setup() {
+	// Setup the initial AccessMana when the peer ID is created
+	for id := 0; id < config.NodesCount; id++ {
+		s.accessMana[network.PeerID(id)] = 0.0
+	}
 	// initialise the issuer queues
 	s.initQueues()
 	s.events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
@@ -185,6 +192,19 @@ func (s *ICCAScheduler) Events() *SchedulerEvents {
 	return s.events
 }
 
+func (s *ICCAScheduler) ReadyLen() int {
+	return s.issuerQueues[s.tangle.Peer.ID].Len() // return length of own ready queue only
+}
+
+func (s *ICCAScheduler) NonReadyLen() int {
+	return len(s.nonReadyMap)
+}
+
+func (s *ICCAScheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) {
+	mana = s.accessMana[nodeID]
+	return mana
+}
+
 // region ManaBurn Scheduler ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type MBScheduler struct {
@@ -197,6 +217,10 @@ type MBScheduler struct {
 }
 
 func (s *MBScheduler) Setup() {
+	// Setup the initial AccessMana when the peer ID is created
+	for id := 0; id < config.NodesCount; id++ {
+		s.accessMana[network.PeerID(id)] = 0.0
+	}
 	s.events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
 		s.tangle.Peer.GossipNetworkMessage(s.tangle.Storage.Message(messageID))
 		//		log.Debugf("Peer %d Gossiped message %d",
@@ -216,16 +240,16 @@ func (s *MBScheduler) BurnValue() (burn float64, ok bool) {
 	case NoBurn:
 		return 0.0, true
 	case Anxious:
-		burn = s.getNodeAccessMana(peerID)
+		burn = s.GetNodeAccessMana(peerID)
 		ok = true
 		return
 	case Greedy:
 		burn = s.getMaxManaBurn() + config.ExtraBurn
-		ok = burn <= s.getNodeAccessMana(peerID)
+		ok = burn <= s.GetNodeAccessMana(peerID)
 		return
 	case RandomGreedy:
 		burn = s.getMaxManaBurn() + config.ExtraBurn*rand.Float64()
-		ok = burn <= s.getNodeAccessMana(peerID)
+		ok = burn <= s.GetNodeAccessMana(peerID)
 		return
 	default:
 		return 0.0, true
@@ -248,7 +272,15 @@ func (s *MBScheduler) DecreaseNodeAccessMana(nodeID network.PeerID, manaIncremen
 	return newAccessMana
 }
 
-func (s *MBScheduler) getNodeAccessMana(nodeID network.PeerID) (mana float64) {
+func (s *MBScheduler) ReadyLen() int {
+	return s.readyQueue.Len()
+}
+
+func (s *MBScheduler) NonReadyLen() int {
+	return len(s.nonReadyMap)
+}
+
+func (s *MBScheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) {
 	mana = s.accessMana[nodeID]
 	return mana
 }
@@ -281,10 +313,6 @@ func (s *MBScheduler) setReady(messageID MessageID) {
 
 func (s *MBScheduler) IsEmpty() bool {
 	return s.readyQueue.Len() == 0
-}
-
-func (s *MBScheduler) ReadyLen() int {
-	return s.readyQueue.Len()
 }
 
 func (s *MBScheduler) getMaxManaBurn() float64 {
@@ -321,7 +349,12 @@ func (s *MBScheduler) EnqueueMessage(messageID MessageID) {
 		s.tangle.Storage.MessageMetadata(messageID).SetReady()
 		s.nonReadyMap[messageID] = s.tangle.Storage.Message(messageID)
 	}
-	s.events.MessageEnqueued.Trigger(s.readyQueue.Len(), len(s.nonReadyMap))
+	newReadyLength := s.readyQueue.Len()
+	s.events.MessageEnqueued.Trigger(newReadyLength, len(s.nonReadyMap))
+	// buffer management
+	if newReadyLength > config.MaxBuffer {
+		heap.Remove(s.readyQueue, newReadyLength-1) // remove the lowes burn value item
+	}
 }
 
 // region Priority Queue ////////////////////////////////////////////////////////////////////////////////

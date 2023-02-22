@@ -17,7 +17,7 @@ import matplotlib.colors as mcolors
 
 colors = mcolors.TABLEAU_COLORS
 colornames = list(colors)
-burnPolicyNames = ["No Burn", "Anxious", "Greedy", "Random Greedy"]
+burnPolicyNames = ["Opportunistic", "Anxious", "Greedy", "Random Greedy"]
 class ArgumentParserWithDefaults(argparse.ArgumentParser):
     """The argument parser to support RawTextHelpFormatter and show default values.
     """
@@ -130,7 +130,7 @@ def parse_per_node_metrics(file):
         header = next(reader)
         n_nodes = len(header)-1
         n_data = sum(1 for _ in reader)
-        counts = np.zeros((n_nodes, n_data))
+        data = np.zeros((n_nodes, n_data))
         times = np.zeros(n_data)
         csvfile.seek(0)
         i=-1
@@ -139,9 +139,17 @@ def parse_per_node_metrics(file):
                 i += 1
                 continue
             times[i] = int(row[-1])*10**-9
-            counts[:,i] = [int(j) for j in row[:-1]]
+            data[:,i] = row[:-1]
             i += 1
-    return counts, times
+    return data, times
+
+def parse_metric_names(file):
+    with open(file, newline='') as csvfile:
+        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        names = []
+        for row in reader:
+            names.append(row[0])
+        return names
 
 def parse_latencies(file, cd):
     with open(file, newline='') as csvfile:
@@ -194,9 +202,9 @@ def plot_per_node_rates(messages, times, cd, title):
     burnPolicies = cd['BURN_POLICIES']
     weights = cd['WEIGHTS']
     for NodeID in range(cd['NODES_COUNT']):
-        rate = (messages[NodeID,avg_window:]-messages[NodeID,:-avg_window])*1000/(avg_window*cd['MONITOR_INTERVAL'])
-        ax[0].plot(times[avg_window:], rate, color=colors[colornames[burnPolicies[NodeID]]], linewidth=4*weights[NodeID]/weights[0])
-        ax[1].plot(times[avg_window:], rate*sum(weights)/weights[NodeID], color=colors[colornames[burnPolicies[NodeID]]], linewidth=4*weights[NodeID]/weights[0])
+        rate = (messages[NodeID,1:]-messages[NodeID,:-1])*1000/(cd['MONITOR_INTERVAL'])
+        ax[0].plot(times[avg_window:], np.convolve(np.ones(avg_window)/avg_window, rate, 'valid'), color=colors[colornames[burnPolicies[NodeID]]], linewidth=4*weights[NodeID]/weights[0])
+        ax[1].plot(times[avg_window:], np.convolve(np.ones(avg_window)/avg_window, rate, 'valid')*sum(weights)/weights[NodeID], color=colors[colornames[burnPolicies[NodeID]]], linewidth=4*weights[NodeID]/weights[0])
     ax[0].set_xlim(0,times[-1])
     ax[1].set_xlim(0,times[-1])
     ax[0].set_ylim(0)

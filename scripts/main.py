@@ -242,11 +242,16 @@ if __name__ == '__main__':
         # plot confirmation latencies
         latencies = parse_latencies(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/ConfirmationLatency.csv", config.cd)
         plot_latency_cdf(latencies, config.cd, "Confirmation Latency")
-        # plot buffer lengths
-        readyLengths, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/readyLengths.csv")
-        plot_per_node_metric(readyLengths, times, config.cd, "Ready Lengths", "Number of Blocks")
-        nonReadyLengths, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/nonReadyLengths.csv")
-        plot_per_node_metric(nonReadyLengths, times, config.cd, "Non Ready Lengths", "Number of Blocks")
+        # plot local metrics
+        localMetricNames = parse_metric_names(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/localMetrics.csv")
+        for name in localMetricNames:
+            data, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/" + name + ".csv")
+            plot_per_node_metric(data, times, config.cd, name, "")
+
+        #readyLengths, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/readyLengths.csv")
+        #plot_per_node_metric(readyLengths, times, config.cd, "Ready Lengths", "Number of Blocks")
+        #nonReadyLengths, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/nonReadyLengths.csv")
+        #plot_per_node_metric(nonReadyLengths, times, config.cd, "Non Ready Lengths", "Number of Blocks")
 
 
 

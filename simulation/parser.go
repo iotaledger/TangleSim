@@ -160,6 +160,9 @@ func ParseFlags() {
 }
 
 func parseBurnPolicies(burnPolicies string) {
+	if burnPolicies == "" {
+		return
+	}
 	policiesInt := parseStrToInt(burnPolicies)
 	for i, p := range policiesInt {
 		switch multiverse.BurnPolicyType(p) {

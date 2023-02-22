@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,25 +72,24 @@ var (
 
 	confirmedMessageCounter = make(map[network.PeerID]int64)
 
-	storedMessageMap                  = make(map[multiverse.MessageID]int)
-	storedMessageMutex                sync.RWMutex
-	disseminatedMessageCounter        = make([]int64, config.NodesCount)
-	undisseminatedMessageCounter      = make([]int64, config.NodesCount)
-	disseminatedMessageMutex          sync.RWMutex
-	disseminatedMessages              = make(map[multiverse.MessageID]*multiverse.Message)
-	disseminatedMessageMetadata       = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
-	confirmedMessageMutex             sync.RWMutex
-	confirmedMessageMap               = make(map[multiverse.MessageID]int)
-	fullyConfirmedMessageCounter      = make([]int64, config.NodesCount)
-	fullyConfirmedMessages            = make(map[multiverse.MessageID]*multiverse.Message)
-	fullyConfirmedMessageMetadata     = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
-	partiallyConfirmedMessageCounter  = make([]int64, config.NodesCount)
-	unconfirmedMessageCounter         = make([]int64, config.NodesCount)
-	partiallyConfirmedMessages        = make(map[multiverse.MessageID]*multiverse.Message)
-	partiallyConfirmedMessageMetadata = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
-	bufferMutex                       sync.RWMutex
-	readyLength                       = make([]int, config.NodesCount)
-	nonReadyLength                    = make([]int, config.NodesCount)
+	storedMessageMap                 = make(map[multiverse.MessageID]int)
+	storedMessageMutex               sync.RWMutex
+	disseminatedMessageCounter       = make([]int64, config.NodesCount)
+	undisseminatedMessageCounter     = make([]int64, config.NodesCount)
+	disseminatedMessageMutex         sync.RWMutex
+	disseminatedMessages             = make(map[multiverse.MessageID]*multiverse.Message)
+	disseminatedMessageMetadata      = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
+	confirmedMessageMutex            sync.RWMutex
+	confirmedMessageMap              = make(map[multiverse.MessageID]int)
+	fullyConfirmedMessageCounter     = make([]int64, config.NodesCount)
+	fullyConfirmedMessages           = make(map[multiverse.MessageID]*multiverse.Message)
+	fullyConfirmedMessageMetadata    = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
+	partiallyConfirmedMessageCounter = make([]int64, config.NodesCount)
+	unconfirmedMessageCounter        = make([]int64, config.NodesCount)
+
+	localMetrics        = make(map[string]map[network.PeerID]float64)
+	localResultsWriters = make(map[string]*csv.Writer)
+	localMetricsMutex   sync.RWMutex
 )
 
 func main() {
@@ -164,6 +164,7 @@ func processMessages(peer *network.Peer) {
 			// Trigger the scheduler to pop messages and gossip them
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.SchedulingRate))
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
+			monitorLocalMetrics(peer)
 		}
 	}
 }
@@ -191,9 +192,9 @@ func issueMessages(peer *network.Peer, band float64) {
 		return
 	}
 	ticker := time.NewTicker(pace)
-	congestionTicker := time.NewTicker(time.Duration(config.SlowdownFactor) * config.SimulationDuration / time.Duration(config.CongestionPeriods))
-	var congested = false
-
+	congestionTicker := time.NewTicker(time.Duration(config.SlowdownFactor) * config.SimulationDuration / time.Duration(len(config.CongestionPeriods)))
+	band *= config.CongestionPeriods[0]
+	i := 0
 	for {
 		select {
 		case <-peer.ShutdownIssuing:
@@ -207,14 +208,10 @@ func issueMessages(peer *network.Peer, band float64) {
 			}
 			sendMessage(peer)
 		case <-congestionTicker.C:
-			if congested {
-				band /= float64(config.CongestionFactor)
-				congested = false
-			} else {
-				band *= float64(config.CongestionFactor)
-				congested = true
+			if i < len(config.CongestionPeriods)-1 {
+				band *= config.CongestionPeriods[i+1] / config.CongestionPeriods[i]
+				i++
 			}
-
 		}
 
 	}
@@ -233,12 +230,65 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 func shutdownSimulation(net *network.Network) {
 	net.Shutdown()
 	globalMetricsTicker.Stop()
-	dumpLatencyData()
+	dumpFinalData()
 	simulationWg.Wait()
 	//dumpAllMessageMetaData(net.Peers[0].Node.(multiverse.NodeInterface).Tangle().Storage)
 }
 
-func dumpGlobalMetrics(dissemResultsWriter *csv.Writer, undissemResultsWriter *csv.Writer, confirmationResultsWriter *csv.Writer, partialConfirmationResultsWriter *csv.Writer, unconfirmationResultsWriter *csv.Writer, readyLenResultsWriter *csv.Writer, nonReadyLenResultsWriter *csv.Writer) {
+func monitorLocalMetrics(peer *network.Peer) {
+	if len(localMetrics) != 0 {
+		localMetricsMutex.Lock()
+		defer localMetricsMutex.Unlock()
+		localMetrics["Ready Lengths"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ReadyLen())
+		localMetrics["Non Ready Lengths"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.NonReadyLen())
+		localMetrics["Own Mana"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetNodeAccessMana(peer.ID))
+	} else {
+		localMetrics["Ready Lengths"] = make(map[network.PeerID]float64)
+		localMetrics["Non Ready Lengths"] = make(map[network.PeerID]float64)
+		localMetrics["Own Mana"] = make(map[network.PeerID]float64)
+	}
+}
+
+func dumpLocalMetrics() {
+	simulationWg.Add(1)
+	defer simulationWg.Done()
+	timeSinceStart := time.Since(simulationStartTime).Nanoseconds()
+	timeStr := strconv.FormatInt(timeSinceStart, 10)
+
+	localMetricsMutex.RLock()
+	defer localMetricsMutex.RUnlock()
+	for name := range localMetrics {
+		if _, exists := localResultsWriters[name]; !exists { // create the file and results writer if it doesn't already exist
+			lmHeader := make([]string, 0, config.NodesCount+1)
+			for i := 0; i < config.NodesCount; i++ {
+				header := []string{fmt.Sprintf("Node %d", i)}
+				lmHeader = append(lmHeader, header...)
+			}
+			header := []string{"ns since start"}
+			lmHeader = append(lmHeader, header...)
+
+			file, err := os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, strings.Join([]string{name, ".csv"}, "")))
+			if err != nil {
+				panic(err)
+			}
+			localResultsWriters[name] = csv.NewWriter(file)
+			if err := localResultsWriters[name].Write(lmHeader); err != nil {
+				panic(err)
+			}
+		}
+		record := make([]string, config.NodesCount+1)
+		for id := 0; id < config.NodesCount; id++ {
+			record[id] = strconv.FormatFloat(localMetrics[name][network.PeerID(id)], 'f', 6, 64)
+		}
+		record[config.NodesCount] = timeStr
+		if err := localResultsWriters[name].Write(record); err != nil {
+			panic(err)
+		}
+		localResultsWriters[name].Flush()
+	}
+}
+
+func dumpGlobalMetrics(dissemResultsWriter *csv.Writer, undissemResultsWriter *csv.Writer, confirmationResultsWriter *csv.Writer, partialConfirmationResultsWriter *csv.Writer, unconfirmationResultsWriter *csv.Writer) {
 	simulationWg.Add(1)
 	defer simulationWg.Done()
 	timeSinceStart := time.Since(simulationStartTime).Nanoseconds()
@@ -301,35 +351,12 @@ func dumpGlobalMetrics(dissemResultsWriter *csv.Writer, undissemResultsWriter *c
 		panic(err)
 	}
 
-	bufferMutex.RLock()
-	readyRecord := make([]string, config.NodesCount+1)
-	for id := 0; id < config.NodesCount; id++ {
-		readyRecord[id] = strconv.FormatInt(int64(readyLength[id]), 10)
-	}
-	nonReadyRecord := make([]string, config.NodesCount+1)
-	for id := 0; id < config.NodesCount; id++ {
-		nonReadyRecord[id] = strconv.FormatInt(int64(nonReadyLength[id]), 10)
-	}
-	bufferMutex.RUnlock()
-	//log.Debug("Ready Lengths: ", readyRecord)
-	//log.Debug("Non Ready Lengths: ", nonReadyRecord)
-	readyRecord[config.NodesCount] = timeStr
-	nonReadyRecord[config.NodesCount] = timeStr
-	if err := readyLenResultsWriter.Write(readyRecord); err != nil {
-		panic(err)
-	}
-	if err := nonReadyLenResultsWriter.Write(nonReadyRecord); err != nil {
-		panic(err)
-	}
-
 	// Flush the results writer to avoid truncation.
 	dissemResultsWriter.Flush()
 	undissemResultsWriter.Flush()
 	confirmationResultsWriter.Flush()
 	partialConfirmationResultsWriter.Flush()
 	unconfirmationResultsWriter.Flush()
-	readyLenResultsWriter.Flush()
-	nonReadyLenResultsWriter.Flush()
 }
 
 func monitorGlobalMetrics(net *network.Network) {
@@ -396,15 +423,6 @@ func monitorGlobalMetrics(net *network.Network) {
 					fullyConfirmedMessageMetadata[message.ID] = messageMetadata
 				}
 			}))
-
-		mbPeer.Node.(multiverse.NodeInterface).Tangle().Scheduler.Events().MessageEnqueued.Attach(
-			events.NewClosure(func(readyLen int, nonReadyLen int) {
-				bufferMutex.Lock()
-				readyLength[mbPeer.ID] = readyLen
-				nonReadyLength[mbPeer.ID] = nonReadyLen
-				bufferMutex.Unlock()
-			}))
-
 	}
 	// define header with time of dump and each node ID
 	gmHeader := make([]string, 0, config.NodesCount+1)
@@ -458,32 +476,15 @@ func monitorGlobalMetrics(net *network.Network) {
 		panic(err)
 	}
 
-	// buffer length results
-	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "readyLengths.csv"))
-	if err != nil {
-		panic(err)
-	}
-	readyLenResultsWriter := csv.NewWriter(file)
-	if err := readyLenResultsWriter.Write(gmHeader); err != nil {
-		panic(err)
-	}
-	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "nonReadyLengths.csv"))
-	if err != nil {
-		panic(err)
-	}
-	nonReadyLenResultsWriter := csv.NewWriter(file)
-	if err := nonReadyLenResultsWriter.Write(gmHeader); err != nil {
-		panic(err)
-	}
-
 	go func() {
 		for range globalMetricsTicker.C {
-			dumpGlobalMetrics(dissemResultsWriter, undissemResultsWriter, confirmationResultsWriter, partialConfirmationResultsWriter, unconfirmationResultsWriter, readyLenResultsWriter, nonReadyLenResultsWriter)
+			dumpLocalMetrics()
+			dumpGlobalMetrics(dissemResultsWriter, undissemResultsWriter, confirmationResultsWriter, partialConfirmationResultsWriter, unconfirmationResultsWriter)
 		}
 	}()
 }
 
-func dumpLatencyData() {
+func dumpFinalData() {
 	file, err := os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "DisseminationLatency.csv"))
 	if err != nil {
 		panic(err)
@@ -533,6 +534,17 @@ func dumpLatencyData() {
 		}
 		writer.Flush()
 	}
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "localMetrics.csv"))
+	if err != nil {
+		panic(err)
+	}
+	writer = csv.NewWriter(file)
+	for name := range localMetrics {
+		if err := writer.Write([]string{name}); err != nil {
+			panic(err)
+		}
+	}
+	writer.Flush()
 }
 
 func dumpFinalRecorder() {
@@ -573,13 +585,13 @@ func flushWriters(writers []*csv.Writer) {
 
 func dumpConfig(filePath string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, ParentsCount, SchedulingRate, IssuingRate, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                     float64
-		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode, BurnPolicyNames                                                                                                 string
-		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                           []int
-		AdversarySpeedup, AdversaryMana                                                                                                                                                                []float64
-		AdversaryInitColor, AccidentalMana                                                                                                                                                             []string
-		AdversaryPeeringAll                                                                                                                                                                            bool
+		NodesCount, NodesTotalWeight, ParentsCount, SchedulingRate, IssuingRate, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS, MaxBuffer int
+		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                                float64
+		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode, BurnPolicyNames                                                                                                            string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                                      []int
+		AdversarySpeedup, AdversaryMana                                                                                                                                                                           []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                                                        []string
+		AdversaryPeeringAll, ConfEligible                                                                                                                                                                         bool
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -615,6 +627,8 @@ func dumpConfig(filePath string) {
 		AdversaryPeeringAll:     config.AdversaryPeeringAll,
 		AdversarySpeedup:        config.AdversarySpeedup,
 		BurnPolicyNames:         config.BurnPolicyNames,
+		ConfEligible:            config.ConfEligible,
+		MaxBuffer:               config.MaxBuffer,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")

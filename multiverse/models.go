@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/types"
+	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
@@ -105,6 +106,10 @@ func (m *MessageMetadata) Scheduled() bool {
 
 func (m *MessageMetadata) Confirmed() bool {
 	return !m.confirmationTime.IsZero()
+}
+
+func (m *MessageMetadata) Eligible() bool {
+	return m.Scheduled() || (m.Confirmed() && config.ConfEligible)
 }
 
 func (m *MessageMetadata) SetSolid(solid bool) (modified bool) {

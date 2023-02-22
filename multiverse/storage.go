@@ -101,17 +101,16 @@ func (s *Storage) isReady(messageID MessageID) bool {
 		if strongParentMetadata == nil {
 			panic("Strong Parent Metadata is empty")
 		}
-		if !strongParentMetadata.Scheduled() && !strongParentMetadata.Confirmed() {
+		if !strongParentMetadata.Eligible() {
 			return false
 		}
-
 	}
 	for weakParentID := range message.WeakParents {
 		weakParentMetadata := s.MessageMetadata(weakParentID)
 		if weakParentID == Genesis {
 			continue
 		}
-		if !weakParentMetadata.Scheduled() && !weakParentMetadata.Confirmed() {
+		if !weakParentMetadata.Eligible() {
 			return false
 		}
 	}

@@ -3,6 +3,7 @@ package multiverse
 import (
 	"container/heap"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
@@ -20,6 +21,8 @@ type Scheduler struct {
 	readyQueue  *MessageHeap
 	nonReadyMap map[MessageID]*Message
 	accessMana  map[network.PeerID]float64
+
+	sync.RWMutex
 
 	Events *SchedulerEvents
 }
@@ -68,6 +71,8 @@ func (s *Scheduler) updateChildrenReady(messageID MessageID) {
 }
 
 func (s *Scheduler) setReady(messageID MessageID) {
+	s.Lock()
+	defer s.Unlock()
 	s.tangle.Storage.MessageMetadata(messageID).SetReady()
 	// move from non ready queue to ready queue if this child is already enqueued
 	if m, exists := s.nonReadyMap[messageID]; exists {
@@ -162,6 +167,8 @@ func (s *Scheduler) ScheduleMessage() (Message, float64, bool) {
 }
 
 func (s *Scheduler) EnqueueMessage(messageID MessageID) {
+	s.Lock()
+	defer s.Unlock()
 	s.tangle.Storage.MessageMetadata(messageID).SetEnqueueTime(time.Now())
 	// Check if the message is ready to decide which queue to append to
 	if s.isReady(messageID) {

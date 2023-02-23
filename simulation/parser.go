@@ -230,7 +230,6 @@ func parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, advers
 }
 
 func parseAccidentalConfig(accidentalMana *string) {
-	// todo update it after config changes as DS config is removed
 	if config.SimulationMode != "Accidental" {
 		config.AccidentalMana = []string{}
 		return

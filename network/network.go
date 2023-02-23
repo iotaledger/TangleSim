@@ -176,23 +176,20 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 	var totalWeight float64
 	var nodeWeights []uint64
 
-	// todo update it after config changes, as DS config is removed
-	if len(config.AdversaryTypes) > 0 {
-		switch config.SimulationMode {
-		case "Adversary":
-			nodesCount, totalWeight = network.AdversaryGroups.CalculateWeightTotalConfig()
-			nodeWeights = n.weightGenerator(nodesCount, totalWeight)
-			// update adversary groups and get new mana distribution with adversary nodes included
-			nodeWeights = network.AdversaryGroups.UpdateAdversaryNodes(nodeWeights)
-		case "Accidental":
-			nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
-		case "Blowball":
-			nodesCount, totalWeight = network.Attacker.CalculateWeightTotalConfig()
-			nodeWeights = n.weightGenerator(nodesCount, totalWeight)
-			nodeWeights = network.Attacker.UpdateAttackerWeight(nodeWeights)
-		}
-	} else {
-		nodeWeights = n.weightGenerator(config.NodesCount, totalWeight)
+	switch config.SimulationMode {
+	case "Adversary":
+		nodesCount, totalWeight = network.AdversaryGroups.CalculateWeightTotalConfig()
+		nodeWeights = n.weightGenerator(nodesCount, totalWeight)
+		// update adversary groups and get new mana distribution with adversary nodes included
+		nodeWeights = network.AdversaryGroups.UpdateAdversaryNodes(nodeWeights)
+	case "Accidental":
+		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+	case "Blowball":
+		nodesCount, totalWeight = network.Attacker.CalculateWeightTotalConfig()
+		nodeWeights = n.weightGenerator(nodesCount, totalWeight)
+		nodeWeights = network.Attacker.UpdateAttackerWeight(nodeWeights)
+	default:
+		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
 	}
 
 	return nodeWeights

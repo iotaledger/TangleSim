@@ -3,9 +3,11 @@ package config
 // simulator settings
 
 var (
-	ResultDir                       = "results"   // Path where all the result files will be saved
-	SimulationStopThreshold         = 1.0         // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
-	ConsensusMonitorTick            = 100         // Tick to monitor the consensus, in milliseconds.
+	ResultDir               = "results" // Path where all the result files will be saved
+	SimulationStopThreshold = 1.0       // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
+	ConsensusMonitorTick    = 100       // Tick to monitor the consensus, in milliseconds.
+
+	MonitoredPeers                  = []int{0}    // Nodes for which we collect more specific metrics, collected metrics depend on the simulator configuration.
 	MonitoredAWPeers                = [...]int{0} // Nodes for which we monitor the AW growth
 	MonitoredWitnessWeightPeer      = 0           // Peer for which we monitor Witness Weight
 	MonitoredWitnessWeightMessageID = 200         // A specified message ID to monitor the witness weights
@@ -34,7 +36,7 @@ var (
 	NodesTotalWeight              = 100_000_000 // Total number of weight for the whole network.
 	ZipfParameter                 = 0.9         // the 's' parameter for the Zipf distribution used to model weight distribution. s=0 all nodes are equal, s=2 network centralized.
 	ConfirmationThreshold         = 0.66        // Threshold for AW collection above which messages are considered confirmed.
-	ConfirmationThresholdAbsolute = true        // If true the threshold is alway counted from zero if false the weight collected is counted from the next peer weight.
+	ConfirmationThresholdAbsolute = true        // If true the threshold is always counted from zero if false the weight collected is counted from the next peer weight.
 	RelevantValidatorWeight       = 0           // The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages (disabled now)
 )
 
@@ -46,9 +48,6 @@ var (
 	WeakTipsRatio = 0.0    // The ratio of weak tips
 )
 
-// TODO: expose the configuration in Parser
-// Mana Burn Setup
-// 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
 var (
 	// BurnPolicies = ZeroValueArray(NodesCount)
 	BurnPolicies    = []int{}
@@ -58,12 +57,13 @@ var (
 
 // Adversary setup - enabled by setting SimulationTarget="DS"
 var (
-	// SimulationMode for the DS simulations one of:
-	// 'Accidental' - accidental double spends sent by max, min or random weight node from Zipf distrib,
+	// SimulationMode defines the type of adversary simulation, one of the following:
+	// 'None' - no adversary simulation,
+	// 'Accidental' - accidental double spends sent by max, min or random weight node from Zipf distribution,
 	// 'Adversary' - need to use adversary groups (parameters starting with 'Adversary...')
 	// 'Blowball' - enables adversary node that is able to perform a blowball attack.
-	SimulationMode   = "Blowball"
-	DoubleSpendDelay = 5 // Delay after which double spending transactions will be issued. In seconds.
+	SimulationMode   = "None" // "None", "Accidental", "Adversary", "Blowball"
+	DoubleSpendDelay = 5      // Delay after which double spending transactions will be issued. In seconds.
 
 	AccidentalMana = []string{"random", "random"} // Defines nodes which will be used: 'min', 'max', 'random' or valid nodeID
 

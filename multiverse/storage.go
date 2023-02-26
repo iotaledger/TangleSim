@@ -2,6 +2,7 @@ package multiverse
 
 import (
 	"math"
+	"sync"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
@@ -18,7 +19,7 @@ type Storage struct {
 	strongChildrenDB  map[MessageID]MessageIDs
 	weakChildrenDB    map[MessageID]MessageIDs
 
-	// mutex sync.RWMutex
+	sync.RWMutex
 }
 
 func NewStorage() (storage *Storage) {
@@ -35,12 +36,20 @@ func NewStorage() (storage *Storage) {
 }
 
 func (s *Storage) Store(message *Message) {
-	// s.mutex.Lock()
-	// s.mutex.Unlock()
-	if _, exists := s.messageDB[message.ID]; exists {
+	s.storeMessageAndMetadata(message)
+	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
+	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
+	s.Events.MessageStored.Trigger(message.ID)
+}
+
+func (s *Storage) storeMessageAndMetadata(message *Message) {
+	s.Lock()
+	defer s.Unlock()
+
+	_, exists := s.messageDB[message.ID]
+	if exists {
 		return
 	}
-
 	s.messageDB[message.ID] = message
 	s.messageMetadataDB[message.ID] = &MessageMetadata{
 		id:          message.ID,
@@ -48,36 +57,35 @@ func (s *Storage) Store(message *Message) {
 		arrivalTime: time.Now(),
 		ready:       false,
 	}
-	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
-	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
-	s.Events.MessageStored.Trigger(message.ID)
 }
 
 func (s *Storage) Message(messageID MessageID) (message *Message) {
-	// s.mutex.RLock()
-	// defer s.mutex.RUnlock()
+	s.RLock()
+	defer s.RUnlock()
 	return s.messageDB[messageID]
 }
 
 func (s *Storage) MessageMetadata(messageID MessageID) (messageMetadata *MessageMetadata) {
-	// s.mutex.RLock()
-	// defer s.mutex.RUnlock()
+	s.RLock()
+	defer s.RUnlock()
 	return s.messageMetadataDB[messageID]
 }
 
 func (s *Storage) StrongChildren(messageID MessageID) (strongChildren MessageIDs) {
-	// s.mutex.RLock()
-	// defer s.mutex.RUnlock()
+	s.RLock()
+	defer s.RUnlock()
 	return s.strongChildrenDB[messageID]
 }
 
 func (s *Storage) WeakChildren(messageID MessageID) (weakChildren MessageIDs) {
-	// s.mutex.RLock()
-	// defer s.mutex.RUnlock()
+	s.RLock()
+	defer s.RUnlock()
 	return s.weakChildrenDB[messageID]
 }
 
 func (s *Storage) storeChildReferences(messageID MessageID, childReferenceDB map[MessageID]MessageIDs, parents MessageIDs) {
+	s.RLock()
+	defer s.RUnlock()
 	for parent := range parents {
 		if _, exists := childReferenceDB[parent]; !exists {
 			childReferenceDB[parent] = NewMessageIDs()

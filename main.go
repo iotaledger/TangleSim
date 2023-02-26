@@ -28,8 +28,8 @@ import (
 )
 
 var (
-	log       = logger.New("Simulation")
-	Simulator *simulation.Simulator
+	log        = logger.New("Simulation")
+	MetricsMgr *simulation.MetricsManager
 	// csv
 	awHeader = []string{"Message ID", "Issuance Time (unix)", "Confirmation Time (ns)", "Weight", "# of Confirmed Messages",
 		"# of Issued Messages", "ns since start"}
@@ -98,8 +98,8 @@ func main() {
 		network.AdversarySpeedup(config.AdversarySpeedup),
 	)
 
-	Simulator = simulation.NewSimulator()
-	Simulator.Setup(testNetwork)
+	MetricsMgr = simulation.NewMetricsManager()
+	MetricsMgr.Setup(testNetwork)
 	resultsWriters := monitorNetworkState(testNetwork)
 	defer flushWriters(resultsWriters)
 
@@ -142,6 +142,7 @@ func processMessages(peer *network.Peer) {
 		case networkMessage := <-peer.Socket:
 			peer.Node.HandleNetworkMessage(networkMessage)
 		case <-ticker.C:
+
 			// Trigger the scheduler to pop messages and gossip them
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.SchedulingRate))
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
@@ -210,7 +211,7 @@ func startIssuingMessages(testNetwork *network.Network) {
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
 		log.Warn("Peer ID Weight: ", peer.ID, weightOfPeer, nodeTotalWeight)
-		Simulator.GlobalCounters.Add("relevantValidators", 1)
+		MetricsMgr.GlobalCounters.Add("relevantValidators", 1)
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
 		band := peer.AdversarySpeedup * weightOfPeer * float64(config.IssuingRate) / nodeTotalWeight
@@ -242,7 +243,7 @@ func issueMessages(peer *network.Peer, band float64) {
 }
 
 func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
-	Simulator.GlobalCounters.Add("tps", 1)
+	MetricsMgr.GlobalCounters.Add("tps", 1)
 
 	if len(optionalColor) >= 1 {
 		peer.Node.(multiverse.NodeInterface).IssuePayload(optionalColor[0])
@@ -273,8 +274,8 @@ func dumpFinalRecorder() {
 		record := []string{
 			strconv.FormatInt(int64(i), 10),
 			strconv.FormatBool(network.IsAdversary(int(i))),
-			strconv.FormatInt(Simulator.PeerCounters.Get("minConfirmedAccumulatedWeight", network.PeerID(i)), 10),
-			strconv.FormatInt(Simulator.PeerCounters.Get("unconfirmationCount", network.PeerID(i)), 10),
+			strconv.FormatInt(MetricsMgr.PeerCounters.Get("minConfirmedAccumulatedWeight", network.PeerID(i)), 10),
+			strconv.FormatInt(MetricsMgr.PeerCounters.Get("unconfirmationCount", network.PeerID(i)), 10),
 		}
 		writeLine(writer, record)
 
@@ -531,16 +532,16 @@ func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccRes
 	//if Max(Max(hB, hR), hG) >= int64(config.SimulationStopThreshold*float64(honestNodesCount)) {
 	//	shutdownSignal <- types.Void
 	//}
-	Simulator.GlobalCounters.Set("tps", 0)
+	MetricsMgr.GlobalCounters.Set("tps", 0)
 }
 
 func dumpResultDS(dsResultsWriter *csv.Writer, sinceIssuance string) {
 	// Dump the double spending results
 	record := []string{
-		strconv.FormatInt(Simulator.ColorCounters.Get("opinionsWeights", multiverse.UndefinedColor), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("opinionsWeights", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("opinionsWeights", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("opinionsWeights", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("opinionsWeights", multiverse.UndefinedColor), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("opinionsWeights", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("opinionsWeights", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("opinionsWeights", multiverse.Green), 10),
 		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 		sinceIssuance,
 	}
@@ -554,15 +555,15 @@ func dumpResultDS(dsResultsWriter *csv.Writer, sinceIssuance string) {
 func dumpResultsTP(tpResultsWriter *csv.Writer) {
 	// Dump the tip pool sizes
 	record := []string{
-		strconv.FormatInt(Simulator.ColorCounters.Get("tipPoolSizes", multiverse.UndefinedColor), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("tipPoolSizes", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("tipPoolSizes", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("tipPoolSizes", multiverse.Green), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("processedMessages", multiverse.UndefinedColor), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("processedMessages", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("processedMessages", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("processedMessages", multiverse.Green), 10),
-		strconv.FormatInt(Simulator.GlobalCounters.Get("issuedMessages"), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("tipPoolSizes", multiverse.UndefinedColor), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("tipPoolSizes", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("tipPoolSizes", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("tipPoolSizes", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("processedMessages", multiverse.UndefinedColor), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("processedMessages", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("processedMessages", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("processedMessages", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.GlobalCounters.Get("issuedMessages"), 10),
 		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 	}
 
@@ -579,7 +580,7 @@ func dumpResultsTPAll(tpAllResultsWriter *csv.Writer) {
 		tipCounterName := fmt.Sprint("tipPoolSizes-", peerID)
 		// processedCounterName := fmt.Sprint("processedMessages-", peerID)
 		// issuedCounterName := fmt.Sprint("issuedMessages-", peerID)
-		record[i+0] = strconv.FormatInt(Simulator.ColorCounters.Get(tipCounterName, multiverse.UndefinedColor), 10)
+		record[i+0] = strconv.FormatInt(MetricsMgr.ColorCounters.Get(tipCounterName, multiverse.UndefinedColor), 10)
 		// record[i+1] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Blue), 10)
 		// record[i+2] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Red), 10)
 		// record[i+3] = strconv.FormatInt(colorCounters.Get(tipCounterName, multiverse.Green), 10)
@@ -602,7 +603,7 @@ func dumpResultsTPAll(tpAllResultsWriter *csv.Writer) {
 func dumpResultsMM(mmResultsWriter *csv.Writer) {
 	// Dump the opinion and confirmation counters
 	record := []string{
-		strconv.FormatInt(Simulator.ColorCounters.Get("requestedMissingMessages", multiverse.UndefinedColor), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("requestedMissingMessages", multiverse.UndefinedColor), 10),
 		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 	}
 
@@ -615,42 +616,42 @@ func dumpResultsMM(mmResultsWriter *csv.Writer) {
 func dumpResultsCC(ccResultsWriter *csv.Writer, sinceIssuance string) {
 	// Dump the opinion and confirmation counters
 	record := []string{
-		strconv.FormatInt(Simulator.ColorCounters.Get("confirmedNodes", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("confirmedNodes", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("confirmedNodes", multiverse.Green), 10),
-		strconv.FormatInt(Simulator.AdversaryCounters.Get("confirmedNodes", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.AdversaryCounters.Get("confirmedNodes", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.AdversaryCounters.Get("confirmedNodes", multiverse.Green), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("confirmedAccumulatedWeight", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("confirmedAccumulatedWeight", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("confirmedAccumulatedWeight", multiverse.Green), 10),
-		strconv.FormatInt(Simulator.AdversaryCounters.Get("confirmedAccumulatedWeight", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.AdversaryCounters.Get("confirmedAccumulatedWeight", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.AdversaryCounters.Get("confirmedAccumulatedWeight", multiverse.Green), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("opinions", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("opinions", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("opinions", multiverse.Green), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("likeAccumulatedWeight", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("likeAccumulatedWeight", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("likeAccumulatedWeight", multiverse.Green), 10),
-		strconv.FormatInt(Simulator.AdversaryCounters.Get("likeAccumulatedWeight", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.AdversaryCounters.Get("likeAccumulatedWeight", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.AdversaryCounters.Get("likeAccumulatedWeight", multiverse.Green), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("colorUnconfirmed", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("colorUnconfirmed", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("colorUnconfirmed", multiverse.Green), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("unconfirmedAccumulatedWeight", multiverse.Blue), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("unconfirmedAccumulatedWeight", multiverse.Red), 10),
-		strconv.FormatInt(Simulator.ColorCounters.Get("unconfirmedAccumulatedWeight", multiverse.Green), 10),
-		strconv.FormatInt(Simulator.GlobalCounters.Get("flips"), 10),
-		strconv.FormatInt(Simulator.GlobalCounters.Get("honestFlips"), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("confirmedNodes", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("confirmedNodes", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("confirmedNodes", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.AdversaryCounters.Get("confirmedNodes", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.AdversaryCounters.Get("confirmedNodes", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.AdversaryCounters.Get("confirmedNodes", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("confirmedAccumulatedWeight", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("confirmedAccumulatedWeight", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("confirmedAccumulatedWeight", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.AdversaryCounters.Get("confirmedAccumulatedWeight", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.AdversaryCounters.Get("confirmedAccumulatedWeight", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.AdversaryCounters.Get("confirmedAccumulatedWeight", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("opinions", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("opinions", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("opinions", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("likeAccumulatedWeight", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("likeAccumulatedWeight", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("likeAccumulatedWeight", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.AdversaryCounters.Get("likeAccumulatedWeight", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.AdversaryCounters.Get("likeAccumulatedWeight", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.AdversaryCounters.Get("likeAccumulatedWeight", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("colorUnconfirmed", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("colorUnconfirmed", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("colorUnconfirmed", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("unconfirmedAccumulatedWeight", multiverse.Blue), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("unconfirmedAccumulatedWeight", multiverse.Red), 10),
+		strconv.FormatInt(MetricsMgr.ColorCounters.Get("unconfirmedAccumulatedWeight", multiverse.Green), 10),
+		strconv.FormatInt(MetricsMgr.GlobalCounters.Get("flips"), 10),
+		strconv.FormatInt(MetricsMgr.GlobalCounters.Get("honestFlips"), 10),
 		strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
 		sinceIssuance,
 	}
 
 	writeLine(ccResultsWriter, record)
 
-	// Flush the cc writer, or the data will be truncated sometimes if the buffer is full
+	// Flush the cc writer, or the data will sometimes be truncated if the buffer is full
 	ccResultsWriter.Flush()
 }
 

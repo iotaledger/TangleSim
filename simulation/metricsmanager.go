@@ -1,12 +1,20 @@
 package simulation
 
 import (
+	"encoding/csv"
+	"os"
+	"path"
+	"time"
+
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/multiverse"
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
-type Simulator struct {
+type MetricsManager struct {
+	writers       []*csv.Writer
+	dumpingTicker *time.Ticker
+
 	// general metrics
 	GlobalCounters *AtomicCounters[string, int64]
 	PeerCounters   *MapCounters[network.PeerID, int64]
@@ -25,8 +33,8 @@ type Simulator struct {
 	watchedPeerIDs      []network.PeerID // peers with collected more specific metrics
 }
 
-func NewSimulator() *Simulator {
-	return &Simulator{
+func NewMetricsManager() *MetricsManager {
+	return &MetricsManager{
 		GlobalCounters:    NewAtomicCounters[string, int64](),
 		PeerCounters:      NewCounters[network.PeerID, int64](),
 		ColorCounters:     NewCounters[multiverse.Color, int64](),
@@ -37,13 +45,13 @@ func NewSimulator() *Simulator {
 	}
 }
 
-func (s *Simulator) Setup(testNetwork *network.Network) {
+func (s *MetricsManager) Setup(testNetwork *network.Network) {
 	s.SetupInternalVariables(testNetwork)
 	s.SetupMetrics()
 	s.SetupMetricsCollection(testNetwork)
 }
 
-func (s *Simulator) SetupInternalVariables(n *network.Network) {
+func (s *MetricsManager) SetupInternalVariables(n *network.Network) {
 	s.RGBColors = []multiverse.Color{multiverse.Red, multiverse.Green, multiverse.Blue}
 	s.uRGBColors = []multiverse.Color{multiverse.UndefinedColor, multiverse.Red, multiverse.Green, multiverse.Blue}
 	s.adversaryNodesCount = len(network.AdversaryNodeIDToGroupIDMap) // todo can we define it with config info only?

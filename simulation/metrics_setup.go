@@ -10,7 +10,7 @@ import (
 )
 
 // SetupMetrics registers all metrics that are used in the simulation, add any new metric registration here.
-func (s *Simulator) SetupMetrics() {
+func (s *MetricsManager) SetupMetrics() {
 	// counters for double spending
 	s.ColorCounters.RegisterCounters("opinions", s.uRGBColors, int64(config.NodesCount), 0, 0, 0)
 	s.ColorCounters.RegisterCounters("confirmedNodes", s.uRGBColors)
@@ -50,7 +50,7 @@ func (s *Simulator) SetupMetrics() {
 
 }
 
-func (s *Simulator) SetupMetricsCollection(n *network.Network) {
+func (s *MetricsManager) SetupMetricsCollection(n *network.Network) {
 	for _, p := range n.Peers {
 		peerID := p.ID
 
@@ -91,7 +91,7 @@ func (s *Simulator) SetupMetricsCollection(n *network.Network) {
 	))
 }
 
-func (s *Simulator) opinionChangedCollectorFunc(oldOpinion multiverse.Color, newOpinion multiverse.Color, weight int64, peerID network.PeerID) {
+func (s *MetricsManager) opinionChangedCollectorFunc(oldOpinion multiverse.Color, newOpinion multiverse.Color, weight int64, peerID network.PeerID) {
 	s.ColorCounters.Add("opinions", -1, oldOpinion)
 	s.ColorCounters.Add("opinions", 1, newOpinion)
 
@@ -118,7 +118,7 @@ func (s *Simulator) opinionChangedCollectorFunc(oldOpinion multiverse.Color, new
 	//}
 }
 
-func (s *Simulator) colorConfirmedCollectorFunc(confirmedColor multiverse.Color, weight int64, peerID network.PeerID) {
+func (s *MetricsManager) colorConfirmedCollectorFunc(confirmedColor multiverse.Color, weight int64, peerID network.PeerID) {
 	s.ColorCounters.Add("confirmedNodes", 1, confirmedColor)
 	s.ColorCounters.Add("confirmedAccumulatedWeight", weight, confirmedColor)
 	if network.IsAdversary(int(peerID)) {
@@ -127,7 +127,7 @@ func (s *Simulator) colorConfirmedCollectorFunc(confirmedColor multiverse.Color,
 	}
 }
 
-func (s *Simulator) colorUnconfirmedCollectorFunc(unconfirmedColor multiverse.Color, unconfirmedSupport int64, weight int64, peerID network.PeerID) {
+func (s *MetricsManager) colorUnconfirmedCollectorFunc(unconfirmedColor multiverse.Color, unconfirmedSupport int64, weight int64, peerID network.PeerID) {
 	s.ColorCounters.Add("colorUnconfirmed", 1, unconfirmedColor)
 	s.ColorCounters.Add("confirmedNodes", -1, unconfirmedColor)
 
@@ -141,22 +141,22 @@ func (s *Simulator) colorUnconfirmedCollectorFunc(unconfirmedColor multiverse.Co
 	s.PeerCounters.Add("unconfirmationCount", 1, peerID)
 }
 
-func (s *Simulator) minConfirmedWeightUpdatedCollectorFunc(minConfirmedWeight int64, peerID network.PeerID) {
+func (s *MetricsManager) minConfirmedWeightUpdatedCollectorFunc(minConfirmedWeight int64, peerID network.PeerID) {
 	if s.PeerCounters.Get("minConfirmedAccumulatedWeight", peerID) > minConfirmedWeight {
 		s.PeerCounters.Set("minConfirmedAccumulatedWeight", minConfirmedWeight, peerID)
 	}
 }
 
-func (s *Simulator) approvalWeightUpdatedCollectorFunc(opinion multiverse.Color, deltaWeight int64) {
+func (s *MetricsManager) approvalWeightUpdatedCollectorFunc(opinion multiverse.Color, deltaWeight int64) {
 	s.ColorCounters.Add("opinionsWeights", deltaWeight, opinion)
 }
 
-func (s *Simulator) messageProcessedCollectFunc(opinion multiverse.Color, tipPoolSize int, processedMessages uint64, issuedMessages int64) {
+func (s *MetricsManager) messageProcessedCollectFunc(opinion multiverse.Color, tipPoolSize int, processedMessages uint64, issuedMessages int64) {
 	s.ColorCounters.Set("tipPoolSizes", int64(tipPoolSize), opinion)
 	s.ColorCounters.Set("processedMessages", int64(processedMessages), opinion)
 	s.GlobalCounters.Set("issuedMessages", issuedMessages)
 }
 
-func (s *Simulator) requestMissingMessageCollectFunc(messageID multiverse.MessageID) {
+func (s *MetricsManager) requestMissingMessageCollectFunc(messageID multiverse.MessageID) {
 	s.ColorCounters.Add("requestedMissingMessages", 1, multiverse.UndefinedColor)
 }

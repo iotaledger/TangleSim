@@ -159,7 +159,7 @@ func processMessages(peer *network.Peer) {
 		case <-peer.ShutdownProcessing:
 			return
 		case networkMessage := <-peer.Socket:
-			peer.Node.HandleNetworkMessage(networkMessage)
+			peer.Node.HandleNetworkMessage(networkMessage) // this includes payloads from the node itself so block are created here
 		case <-ticker.C:
 			// Trigger the scheduler to pop messages and gossip them
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.SchedulingRate))
@@ -242,10 +242,20 @@ func monitorLocalMetrics(peer *network.Peer) {
 		localMetrics["Ready Lengths"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ReadyLen())
 		localMetrics["Non Ready Lengths"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.NonReadyLen())
 		localMetrics["Own Mana"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetNodeAccessMana(peer.ID))
+		localMetrics["Tips"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().TipManager.TipSet(0).Size())
+		localMetrics["Price"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetMaxManaBurn())
+		if peer.ID == 0 {
+			for i := 0; i < config.NodesCount; i++ {
+				localMetrics["Mana at Node 0"][network.PeerID(i)] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetNodeAccessMana(network.PeerID(i)))
+			}
+		}
 	} else {
 		localMetrics["Ready Lengths"] = make(map[network.PeerID]float64)
 		localMetrics["Non Ready Lengths"] = make(map[network.PeerID]float64)
 		localMetrics["Own Mana"] = make(map[network.PeerID]float64)
+		localMetrics["Tips"] = make(map[network.PeerID]float64)
+		localMetrics["Price"] = make(map[network.PeerID]float64)
+		localMetrics["Mana at Node 0"] = make(map[network.PeerID]float64)
 	}
 }
 
@@ -587,7 +597,7 @@ func dumpConfig(filePath string) {
 	type Configuration struct {
 		NodesCount, NodesTotalWeight, ParentsCount, SchedulingRate, IssuingRate, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS, MaxBuffer int
 		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                                float64
-		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode, BurnPolicyNames                                                                                                            string
+		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode                                                                                                                             string
 		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                                      []int
 		AdversarySpeedup, AdversaryMana                                                                                                                                                                           []float64
 		AdversaryInitColor, AccidentalMana                                                                                                                                                                        []string
@@ -626,7 +636,6 @@ func dumpConfig(filePath string) {
 		AccidentalMana:          config.AccidentalMana,
 		AdversaryPeeringAll:     config.AdversaryPeeringAll,
 		AdversarySpeedup:        config.AdversarySpeedup,
-		BurnPolicyNames:         config.BurnPolicyNames,
 		ConfEligible:            config.ConfEligible,
 		MaxBuffer:               config.MaxBuffer,
 	}

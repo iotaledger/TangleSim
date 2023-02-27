@@ -5,12 +5,11 @@ package config
 var (
 	ResultDir               = "results" // Path where all the result files will be saved
 	SimulationStopThreshold = 1.0       // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
-	ConsensusMonitorTick    = 100       // Tick to monitor the consensus, in milliseconds.
+	MetricsMonitorTick      = 100       // Tick to monitor the consensus, in milliseconds.
 
-	MonitoredPeers                  = []int{0}    // Nodes for which we collect more specific metrics, collected metrics depend on the simulator configuration.
-	MonitoredAWPeers                = [...]int{0} // Nodes for which we monitor the AW growth
-	MonitoredWitnessWeightPeer      = 0           // Peer for which we monitor Witness Weight
-	MonitoredWitnessWeightMessageID = 200         // A specified message ID to monitor the witness weights
+	MonitoredPeers                  = []int{0} // Nodes for which we collect more specific metrics, collected metrics depend on the simulator configuration.
+	MonitoredWitnessWeightPeer      = 0        // Peer for which we monitor Witness Weight
+	MonitoredWitnessWeightMessageID = 200      // A specified message ID to monitor the witness weights
 )
 
 // Network setup

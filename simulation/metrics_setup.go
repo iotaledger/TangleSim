@@ -41,6 +41,7 @@ func (s *MetricsManager) SetupMetrics() {
 	s.PeerCounters.RegisterCounters("minConfirmedAccumulatedWeight", s.allPeerIDs, int64(config.NodesTotalWeight))
 	s.PeerCounters.RegisterCounters("unconfirmationCount", s.allPeerIDs, 0)
 	s.PeerCounters.RegisterCounters("issuedMessages", s.allPeerIDs, 0)
+	s.PeerCounters.RegisterCounters("confirmedMessageCount", s.watchedPeerIDs)
 
 	s.GlobalCounters.RegisterCounter("flips", 0)
 	s.GlobalCounters.RegisterCounter("honestFlips", 0)
@@ -50,8 +51,8 @@ func (s *MetricsManager) SetupMetrics() {
 
 }
 
-func (s *MetricsManager) SetupMetricsCollection(n *network.Network) {
-	for _, p := range n.Peers {
+func (s *MetricsManager) SetupMetricsCollection() {
+	for _, p := range s.network.Peers {
 		peerID := p.ID
 
 		p.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().OpinionChanged.Attach(events.NewClosure(func(oldOpinion multiverse.Color, newOpinion multiverse.Color, weight int64) {
@@ -77,7 +78,7 @@ func (s *MetricsManager) SetupMetricsCollection(n *network.Network) {
 	}
 
 	// Here we only monitor the opinion weight of node w/ the highest weight
-	highestWeightPeer := n.Peers[s.highestWeightPeerID]
+	highestWeightPeer := s.network.Peers[s.highestWeightPeerID]
 	highestWeightPeer.Node.(multiverse.NodeInterface).Tangle().OpinionManager.Events().ApprovalWeightUpdated.Attach(events.NewClosure(
 		s.approvalWeightUpdatedCollectorFunc,
 	))

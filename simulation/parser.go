@@ -1,8 +1,11 @@
 package simulation
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -40,7 +43,7 @@ func ParseFlags() {
 	slowdownFactorPtr :=
 		flag.Int("slowdownFactor", config.SlowdownFactor, "The factor to control the speed in the simulation")
 	consensusMonitorTickPtr :=
-		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
+		flag.Int("consensusMonitorTick", config.MetricsMonitorTick, "The tick to monitor the consensus, in milliseconds")
 	doubleSpendDelayPtr :=
 		flag.Int("doubleSpendDelay", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
 	relevantValidatorWeightPtr :=
@@ -98,7 +101,7 @@ func ParseFlags() {
 	config.TSA = *tsaPtr
 	config.IssuingRate = *issuingRatePtr
 	config.SlowdownFactor = *slowdownFactorPtr
-	config.ConsensusMonitorTick = *consensusMonitorTickPtr
+	config.MetricsMonitorTick = *consensusMonitorTickPtr
 	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
 	config.DoubleSpendDelay = *doubleSpendDelayPtr
 	config.PacketLoss = *packetLoss
@@ -127,7 +130,7 @@ func ParseFlags() {
 	log.Info("SchedulingRate:", config.SchedulingRate)
 	log.Info("IssuingRate: ", config.IssuingRate)
 	log.Info("SlowdownFactor: ", config.SlowdownFactor)
-	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
+	log.Info("MetricsMonitorTick: ", config.MetricsMonitorTick)
 	log.Info("RelevantValidatorWeight: ", config.RelevantValidatorWeight)
 	log.Info("DoubleSpendDelay: ", config.DoubleSpendDelay)
 	log.Info("PacketLoss: ", config.PacketLoss)
@@ -262,4 +265,64 @@ func parseStrToFloat64(strList string) []float64 {
 		parsed[i] = num
 	}
 	return parsed
+}
+
+func DumpConfig(fileName string) {
+	type Configuration struct {
+		NodesCount, NodesTotalWeight, ParentsCount, SchedulingRate, IssuingRate, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS int
+		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                     float64
+		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode, BurnPolicyNames                                                                                                 string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                           []int
+		AdversarySpeedup, AdversaryMana                                                                                                                                                                []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                                             []string
+		AdversaryPeeringAll                                                                                                                                                                            bool
+	}
+	data := Configuration{
+		NodesCount:              config.NodesCount,
+		NodesTotalWeight:        config.NodesTotalWeight,
+		ZipfParameter:           config.ZipfParameter,
+		ConfirmationThreshold:   fmt.Sprintf("%.2f-%v", config.ConfirmationThreshold, config.ConfirmationThresholdAbsolute),
+		ParentsCount:            config.ParentsCount,
+		WeakTipsRatio:           config.WeakTipsRatio,
+		TSA:                     config.TSA,
+		SchedulingRate:          config.SchedulingRate,
+		IssuingRate:             config.IssuingRate,
+		SlowdownFactor:          config.SlowdownFactor,
+		ConsensusMonitorTick:    config.MetricsMonitorTick,
+		RelevantValidatorWeight: config.RelevantValidatorWeight,
+		DoubleSpendDelay:        config.DoubleSpendDelay,
+		PacketLoss:              config.PacketLoss,
+		MinDelay:                config.MinDelay,
+		MaxDelay:                config.MaxDelay,
+		DeltaURTS:               config.DeltaURTS,
+		SimulationStopThreshold: config.SimulationStopThreshold,
+		ResultDir:               config.ResultDir,
+		IMIF:                    config.IMIF,
+		RandomnessWS:            config.RandomnessWS,
+		NeighbourCountWS:        config.NeighbourCountWS,
+		AdversaryTypes:          config.AdversaryTypes,
+		AdversaryDelays:         config.AdversaryDelays,
+		AdversaryMana:           config.AdversaryMana,
+		AdversaryNodeCounts:     config.AdversaryNodeCounts,
+		AdversaryInitColor:      config.AdversaryInitColors,
+		SimulationMode:          config.SimulationMode,
+		AccidentalMana:          config.AccidentalMana,
+		AdversaryPeeringAll:     config.AdversaryPeeringAll,
+		AdversarySpeedup:        config.AdversarySpeedup,
+		BurnPolicyNames:         config.BurnPolicyNames,
+	}
+
+	bytes, err := json.MarshalIndent(data, "", " ")
+	if err != nil {
+		log.Error(err)
+	}
+	if _, err = os.Stat(config.ResultDir); os.IsNotExist(err) {
+		err = os.Mkdir(config.ResultDir, 0700)
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	if os.WriteFile(path.Join(config.ResultDir, fileName), bytes, 0644) != nil {
+		log.Error(err)
+	}
 }

@@ -108,7 +108,7 @@ func (m *MessageMetadata) Confirmed() bool {
 	return !m.confirmationTime.IsZero()
 }
 
-func (m *MessageMetadata) Eligible() bool {
+func (m *MessageMetadata) Eligible() bool { // a message is ready if all parents are eligible = either scheduled or confirmed
 	return m.Scheduled() || (m.Confirmed() && config.ConfEligible)
 }
 

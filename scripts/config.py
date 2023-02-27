@@ -35,7 +35,7 @@ class Configuration:
         self.cd['VARIATIONS'] = 'MB'
 
         # The variations value list
-        self.cd['VARIATION_VALUES'] = ["0 2"] # list of policies, separated by spaces
+        self.cd['VARIATION_VALUES'] = ["0 2 2"] # list of policies, separated by spaces
 
         # The deceleration factor list
         self.cd['DECELERATION_FACTORS'] = [1]

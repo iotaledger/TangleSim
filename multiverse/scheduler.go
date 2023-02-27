@@ -3,8 +3,6 @@ package multiverse
 import (
 	"container/heap"
 	"container/ring"
-	"math/rand"
-	"time"
 
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
@@ -43,6 +41,7 @@ type Scheduler interface {
 	ReadyLen() int
 	NonReadyLen() int
 	GetNodeAccessMana(network.PeerID) float64
+	GetMaxManaBurn() float64
 }
 
 func NewScheduler(tangle *Tangle) (s Scheduler) {
@@ -80,287 +79,16 @@ func NewScheduler(tangle *Tangle) (s Scheduler) {
 	return
 }
 
-// region ICCA Scheduler ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func (s *ICCAScheduler) initQueues() {
-	for i := 0; i < config.NodesCount; i++ {
-		issuerQueue := &IssuerQueue{}
-		s.issuerQueues[network.PeerID(i)] = issuerQueue
-		s.issuerRing.Value = &DRRQueue{
-			issuerID: network.PeerID(i),
-			q:        issuerQueue,
-		}
-		s.issuerRing.Next()
-	}
-}
-
-// region ICCA Scheduler ////////////////////////////////////////////////////////////////////////////////////////////////////
-type ICCAScheduler struct {
-	tangle       *Tangle
-	nonReadyMap  map[MessageID]*Message
-	accessMana   map[network.PeerID]float64
-	deficits     map[network.PeerID]float64
-	issuerQueues map[network.PeerID]*IssuerQueue
-	issuerRing   *ring.Ring
-
-	events *SchedulerEvents
-}
-
-func (s *ICCAScheduler) Setup() {
-	// Setup the initial AccessMana when the peer ID is created
-	for id := 0; id < config.NodesCount; id++ {
-		s.accessMana[network.PeerID(id)] = 0.0
-	}
-	// initialise the issuer queues
-	s.initQueues()
-	s.events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
-		s.tangle.Peer.GossipNetworkMessage(s.tangle.Storage.Message(messageID))
-		//		log.Debugf("Peer %d Gossiped message %d",
-		//	s.tangle.Peer.ID, messageID)
-	}))
-	s.events.MessageDropped.Attach(events.NewClosure(func(messageID MessageID) {
-		s.tangle.Storage.MessageMetadata(messageID).SetDropTime(time.Now())
-	}))
-	s.tangle.ApprovalManager.Events.MessageConfirmed.Attach(events.NewClosure(func(message *Message, messageMetadata *MessageMetadata, weight uint64, messageIDCounter int64) {
-		s.updateChildrenReady(message.ID)
-	}))
-}
-
-func (s *ICCAScheduler) updateChildrenReady(messageID MessageID) {
-	for strongChildID := range s.tangle.Storage.StrongChildren(messageID) {
-		if s.tangle.Storage.isReady(strongChildID) {
-			s.setReady(strongChildID)
-		}
-	}
-	for weakChildID := range s.tangle.Storage.WeakChildren(messageID) {
-		if s.tangle.Storage.isReady(weakChildID) {
-			s.setReady(weakChildID)
-		}
-	}
-}
-
-func (s *ICCAScheduler) setReady(messageID MessageID) {
-	s.tangle.Storage.MessageMetadata(messageID).SetReady()
-	// move from non ready queue to ready queue if this child is already enqueued
-	if m, exists := s.nonReadyMap[messageID]; exists {
-		delete(s.nonReadyMap, messageID)
-		heap.Push(s.issuerQueues[m.Issuer], *m)
-	}
-}
-
-func (s *ICCAScheduler) IncrementAccessMana(schedulingRate float64) {
-	weights := s.tangle.WeightDistribution.Weights()
-	totalWeight := config.NodesTotalWeight
-	// every time something is scheduled, we add this much mana in total\
-	mana := float64(10)
-	for id := range s.accessMana {
-		s.accessMana[id] += mana * schedulingRate * float64(weights[id]) / float64(totalWeight)
-	}
-}
-
-func (s *ICCAScheduler) DecreaseNodeAccessMana(nodeID network.PeerID, manaIncrement float64) (newAccessMana float64) {
-	s.accessMana[nodeID] -= manaIncrement
-	newAccessMana = s.accessMana[nodeID]
-	return newAccessMana
-}
-
-func (s *ICCAScheduler) BurnValue() (float64, bool) {
-	return 0.0, true // always just burn 0 mana for ICCA for now.
-}
-
-func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
-	s.tangle.Storage.MessageMetadata(messageID).SetEnqueueTime(time.Now())
-	m := s.tangle.Storage.Message(messageID)
-	// Check if the message is ready to decide which queue to append to
-	if s.tangle.Storage.isReady(messageID) {
-		//log.Debugf("Ready Message Enqueued")
-		s.tangle.Storage.MessageMetadata(messageID).SetReady()
-		heap.Push(s.issuerQueues[m.Issuer], *m)
-	} else {
-		//log.Debug("Not Ready Message Enqueued")
-		s.tangle.Storage.MessageMetadata(messageID).SetReady()
-		s.nonReadyMap[messageID] = s.tangle.Storage.Message(messageID)
-	}
-	s.events.MessageEnqueued.Trigger(s.issuerQueues[m.Issuer].Len(), len(s.nonReadyMap))
-}
-
-func (s *ICCAScheduler) ScheduleMessage() {
-	// TODO: implement DRR scheduler
-}
-
-func (s *ICCAScheduler) Events() *SchedulerEvents {
-	return s.events
-}
-
-func (s *ICCAScheduler) ReadyLen() int {
-	return s.issuerQueues[s.tangle.Peer.ID].Len() // return length of own ready queue only
-}
-
-func (s *ICCAScheduler) NonReadyLen() int {
-	return len(s.nonReadyMap)
-}
-
-func (s *ICCAScheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) {
-	mana = s.accessMana[nodeID]
-	return mana
-}
-
-// region ManaBurn Scheduler ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-type MBScheduler struct {
-	tangle      *Tangle
-	readyQueue  *PriorityQueue
-	nonReadyMap map[MessageID]*Message
-	accessMana  map[network.PeerID]float64
-
-	events *SchedulerEvents
-}
-
-func (s *MBScheduler) Setup() {
-	// Setup the initial AccessMana when the peer ID is created
-	for id := 0; id < config.NodesCount; id++ {
-		s.accessMana[network.PeerID(id)] = 0.0
-	}
-	s.events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
-		s.tangle.Peer.GossipNetworkMessage(s.tangle.Storage.Message(messageID))
-		//		log.Debugf("Peer %d Gossiped message %d",
-		//	s.tangle.Peer.ID, messageID)
-	}))
-	s.events.MessageDropped.Attach(events.NewClosure(func(messageID MessageID) {
-		s.tangle.Storage.MessageMetadata(messageID).SetDropTime(time.Now())
-	}))
-	s.tangle.ApprovalManager.Events.MessageConfirmed.Attach(events.NewClosure(func(message *Message, messageMetadata *MessageMetadata, weight uint64, messageIDCounter int64) {
-		s.updateChildrenReady(message.ID)
-	}))
-}
-
-func (s *MBScheduler) BurnValue() (burn float64, ok bool) {
-	peerID := s.tangle.Peer.ID
-	switch policy := config.BurnPolicies[peerID]; BurnPolicyType(policy) {
-	case NoBurn:
-		return 0.0, true
-	case Anxious:
-		burn = s.GetNodeAccessMana(peerID)
-		ok = true
-		return
-	case Greedy:
-		burn = s.getMaxManaBurn() + config.ExtraBurn
-		ok = burn <= s.GetNodeAccessMana(peerID)
-		return
-	case RandomGreedy:
-		burn = s.getMaxManaBurn() + config.ExtraBurn*rand.Float64()
-		ok = burn <= s.GetNodeAccessMana(peerID)
-		return
-	default:
-		return 0.0, true
-	}
-}
-
-func (s *MBScheduler) IncrementAccessMana(schedulingRate float64) {
-	weights := s.tangle.WeightDistribution.Weights()
-	totalWeight := config.NodesTotalWeight
-	// every time something is scheduled, we add this much mana in total\
-	mana := float64(10)
-	for id := range s.accessMana {
-		s.accessMana[id] += mana * schedulingRate * float64(weights[id]) / float64(totalWeight)
-	}
-}
-
-func (s *MBScheduler) DecreaseNodeAccessMana(nodeID network.PeerID, manaIncrement float64) (newAccessMana float64) {
-	s.accessMana[nodeID] -= manaIncrement
-	newAccessMana = s.accessMana[nodeID]
-	return newAccessMana
-}
-
-func (s *MBScheduler) ReadyLen() int {
-	return s.readyQueue.Len()
-}
-
-func (s *MBScheduler) NonReadyLen() int {
-	return len(s.nonReadyMap)
-}
-
-func (s *MBScheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) {
-	mana = s.accessMana[nodeID]
-	return mana
-}
-
-func (s *MBScheduler) Events() *SchedulerEvents {
-	return s.events
-}
-
-func (s *MBScheduler) updateChildrenReady(messageID MessageID) {
-	for strongChildID := range s.tangle.Storage.StrongChildren(messageID) {
-		if s.tangle.Storage.isReady(strongChildID) {
-			s.setReady(strongChildID)
-		}
-	}
-	for weakChildID := range s.tangle.Storage.WeakChildren(messageID) {
-		if s.tangle.Storage.isReady(weakChildID) {
-			s.setReady(weakChildID)
-		}
-	}
-}
-
-func (s *MBScheduler) setReady(messageID MessageID) {
-	s.tangle.Storage.MessageMetadata(messageID).SetReady()
-	// move from non ready queue to ready queue if this child is already enqueued
-	if m, exists := s.nonReadyMap[messageID]; exists {
-		delete(s.nonReadyMap, messageID)
-		heap.Push(s.readyQueue, *m)
-	}
-}
-
-func (s *MBScheduler) IsEmpty() bool {
-	return s.readyQueue.Len() == 0
-}
-
-func (s *MBScheduler) getMaxManaBurn() float64 {
-	if s.readyQueue.Len() > 0 {
-		return (*s.readyQueue)[0].ManaBurnValue
-	} else {
-		return 0.0
-	}
-}
-
-func (s *MBScheduler) ScheduleMessage() {
-	// pop the Message from top of the priority queue and consume the accessMana
-	if !s.IsEmpty() {
-		m := heap.Pop(s.readyQueue).(Message)
-		if m.Issuer != s.tangle.Peer.ID { // already deducted Mana for own blocks
-			s.DecreaseNodeAccessMana(m.Issuer, m.ManaBurnValue)
-		}
-		s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
-		s.updateChildrenReady(m.ID)
-		s.events.MessageScheduled.Trigger(m.ID)
-	}
-}
-
-func (s *MBScheduler) EnqueueMessage(messageID MessageID) {
-	s.tangle.Storage.MessageMetadata(messageID).SetEnqueueTime(time.Now())
-	// Check if the message is ready to decide which queue to append to
-	if s.tangle.Storage.isReady(messageID) {
-		//log.Debugf("Ready Message Enqueued")
-		s.tangle.Storage.MessageMetadata(messageID).SetReady()
-		m := *s.tangle.Storage.Message(messageID)
-		heap.Push(s.readyQueue, m)
-	} else {
-		//log.Debug("Not Ready Message Enqueued")
-		s.tangle.Storage.MessageMetadata(messageID).SetReady()
-		s.nonReadyMap[messageID] = s.tangle.Storage.Message(messageID)
-	}
-	newReadyLength := s.readyQueue.Len()
-	s.events.MessageEnqueued.Trigger(newReadyLength, len(s.nonReadyMap))
-	// buffer management
-	if newReadyLength > config.MaxBuffer {
-		heap.Remove(s.readyQueue, newReadyLength-1) // remove the lowes burn value item
-	}
-}
-
 // region Priority Queue ////////////////////////////////////////////////////////////////////////////////
 func (h PriorityQueue) Len() int { return len(h) }
 func (h PriorityQueue) Less(i, j int) bool {
-	return h[i].ManaBurnValue > h[j].ManaBurnValue
+	if h[i].ManaBurnValue > h[j].ManaBurnValue {
+		return true
+	} else if h[i].ManaBurnValue == h[j].ManaBurnValue {
+		return float64(h[i].IssuanceTime.Nanosecond()) < float64(h[j].IssuanceTime.Nanosecond())
+	} else {
+		return false
+	}
 }
 func (h PriorityQueue) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
@@ -380,10 +108,19 @@ func (h *PriorityQueue) Pop() any {
 	return x
 }
 
+func (h PriorityQueue) tail() (tail int) {
+	for i := range h {
+		if !h.Less(i, tail) { // less means more mana burned/older issue time
+			tail = i
+		}
+	}
+	return
+}
+
 // region Issuer Queue ////////////////////////////////////////////////////////////////////////////////
 func (h IssuerQueue) Len() int { return len(h) }
 func (h IssuerQueue) Less(i, j int) bool {
-	return float64(h[i].IssuanceTime.Nanosecond()) > float64(h[j].IssuanceTime.Nanosecond())
+	return float64(h[i].IssuanceTime.Nanosecond()) < float64(h[j].IssuanceTime.Nanosecond())
 }
 func (h IssuerQueue) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]

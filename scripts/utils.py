@@ -208,7 +208,7 @@ def plot_per_node_rates(messages, times, cd, title):
     ax[0].set_xlim(0,times[-1])
     ax[1].set_xlim(0,times[-1])
     ax[0].set_ylim(0)
-    ax[1].set_ylim(0)
+    ax[1].set_ylim(0, 500)
     bps = list(set(burnPolicies))
     ModeLines = [Line2D([0],[0],color=colors[colornames[bp]], lw=4) for bp in bps]
     fig.legend(ModeLines, [burnPolicyNames[i] for i in bps], loc="lower right")
@@ -220,7 +220,8 @@ def plot_latency_cdf(latencies, cd, title):
     ax.grid(linestyle='--')
     ax.title.set_text(title)
     maxval = max([max(latencies[NodeID]) for NodeID in range(len(latencies))])
-    bins = np.arange(0, maxval, maxval/100)
+    nbins = 100
+    bins = np.arange(0, maxval+maxval/nbins, maxval/nbins)
     pdf = np.zeros(len(bins))
     burnPolicies = cd['BURN_POLICIES']
     weights = cd['WEIGHTS']
@@ -230,10 +231,9 @@ def plot_latency_cdf(latencies, cd, title):
             lats = sorted(latencies[NodeID])
             for lat in lats:
                 while i<len(bins):
-                    if lat>bins[i]:
+                    while lat>bins[i]:
                         i += 1
-                    else:
-                        break
+                    break
                 pdf[i-1] += 1
         pdf = pdf/sum(pdf)
         cdf = np.cumsum(pdf)

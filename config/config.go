@@ -13,7 +13,7 @@ var (
 	MonitoredWitnessWeightPeer      = 0                                    // Peer for which we monitor Witness Weight
 	MonitoredWitnessWeightMessageID = 200                                  // A specified message ID to monitor the witness weights
 	ScriptStartTimeStr              = time.Now().Format("20060102_150405") // A string indicating the start time of a simulation started by an external script
-	SimulationDuration              = time.Duration(0.1 * float64(time.Minute))
+	SimulationDuration              = time.Duration(4 * float64(time.Minute))
 )
 
 // Network setup
@@ -24,8 +24,8 @@ var (
 	SchedulingRate    = 100                           // Scheduler rate in units of messages per second.
 	IssuingRate       = SchedulingRate                // Total rate of issuing messages in units of messages per second.
 	CongestionPeriods = []float64{0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
-	ParentsCount      = 8                             // ParentsCount that a new message is selecting from the tip pool.
-	NeighbourCountWS  = 8                             // Number of neighbors node is connected to in WattsStrogatz network topology.
+	ParentsCount      = 2                             // ParentsCount that a new message is selecting from the tip pool.
+	NeighbourCountWS  = 4                             // Number of neighbors node is connected to in WattsStrogatz network topology.
 	RandomnessWS      = 1.0                           // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
 	IMIF              = "poisson"                     // IMIF Inter Message Issuing Function for time delay between activity messages: poisson or uniform.
 	PacketLoss        = 0.0                           // The packet loss in the network.
@@ -39,7 +39,7 @@ var (
 
 var (
 	NodesTotalWeight              = 100_000_000 // Total number of weight for the whole network.
-	ZipfParameter                 = 0.9         // the 's' parameter for the Zipf distribution used to model weight distribution. s=0 all nodes are equal, s=2 network centralized.
+	ZipfParameter                 = 0.5         // the 's' parameter for the Zipf distribution used to model weight distribution. s=0 all nodes are equal, s=2 network centralized.
 	ConfirmationThreshold         = 0.66        // Threshold for AW collection above which messages are considered confirmed.
 	ConfirmationThresholdAbsolute = true        // If true the threshold is alway counted from zero if false the weight collected is counted from the next peer weight.
 	RelevantValidatorWeight       = 0           // The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages (disabled now)
@@ -58,11 +58,10 @@ var (
 // 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
 var (
 	// BurnPolicies = ZeroValueArray(NodesCount)
-	BurnPolicies    = RandomArrayFromValues(0, []int{0, 2}, NodesCount)
-	BurnPolicyNames = "Opportunistic - Greedy"
-	ExtraBurn       = 1.0
-	MaxBuffer       = 400
-	ConfEligible    = true // if true, then confirmed is used for eligible check. else just scheduled
+	BurnPolicies = RandomArrayFromValues(0, []int{0, 1}, NodesCount)
+	ExtraBurn    = 1.0
+	MaxBuffer    = 200
+	ConfEligible = true // if true, then confirmed is used for eligible check. else just scheduled
 )
 
 // Adversary setup - enabled by setting SimulationTarget="DS"

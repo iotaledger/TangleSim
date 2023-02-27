@@ -73,7 +73,7 @@ func (s *Solidifier) parentsSolid(parentMessageIDs MessageIDs) (parentsSolid boo
 		parentMessageMetadata := s.tangle.Storage.MessageMetadata(parentMessageID)
 		if parentMessageMetadata == nil {
 			s.Events.MessageMissing.Trigger(parentMessageID)
-
+			log.Debug("Solidification request sent.")
 			parentsSolid = false
 			continue
 		}

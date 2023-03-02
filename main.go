@@ -4,7 +4,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/iotaledger/multivers-simulation/singlenodeattacks"
@@ -25,8 +24,6 @@ var (
 	MetricsMgr *simulation.MetricsManager
 
 	// simulation variables
-	dumpingTicker         = time.NewTicker(time.Duration(config.SlowdownFactor*config.MetricsMonitorTick) * time.Millisecond)
-	simulationWg          = sync.WaitGroup{}
 	maxSimulationDuration = time.Minute
 	shutdownSignal        = make(chan types.Empty)
 )
@@ -209,8 +206,7 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 }
 
 func shutdownSimulation() {
-	dumpingTicker.Stop()
-	simulationWg.Wait()
+	MetricsMgr.Shutdown()
 }
 
 // todo add to metrics manager on shutdown if needed
@@ -226,7 +222,7 @@ func flushWriters(writers []*csv.Writer) {
 
 func monitorNetworkState() (resultsWriters []*csv.Writer) {
 	// todo add most liked color counters to metrics manager
-	//mostLikedColor = multiverse.UndefinedColor
+	//mostLikedColor = multiverse.UndefinedColoric
 	//honestOnlyMostLikedColor = multiverse.UndefinedColor
 
 	return

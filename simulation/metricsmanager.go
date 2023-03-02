@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/iotaledger/hive.go/types"
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/multiverse"
 	"github.com/iotaledger/multivers-simulation/network"
@@ -41,7 +42,8 @@ type MetricsManager struct {
 	dumpingTicker     *time.Ticker
 	onShutdownDumpers []func()
 
-	shutdown chan struct{}
+	dumpOnEventUsed     bool
+	dumpOnEventShutdown chan types.Empty
 }
 
 func NewMetricsManager() *MetricsManager {
@@ -56,6 +58,8 @@ func NewMetricsManager() *MetricsManager {
 
 		writers:      make(map[string]*csv.Writer),
 		collectFuncs: make(map[string]func() csvRows),
+
+		dumpOnEventShutdown: make(chan types.Empty),
 	}
 }
 
@@ -95,8 +99,10 @@ func (s *MetricsManager) StartMetricsCollection() {
 
 func (s *MetricsManager) Shutdown() {
 	s.dumpOnShutdown()
-	s.dumpingTicker.Stop()
-	s.shutdown <- struct{}{}
+	if s.dumpingTicker != nil {
+		s.dumpingTicker.Stop()
+	}
+	s.dumpOnEventShutdown <- types.Void
 }
 
 func (s *MetricsManager) dumpOnShutdown() {

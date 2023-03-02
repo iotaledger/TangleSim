@@ -292,7 +292,7 @@ func (s *MetricsManager) DumpOnEvent(key string, header []string, setupEventFunc
 				if err := resultsWriter.Write(header); err != nil {
 					panic(err)
 				}
-			case <-s.shutdown:
+			case <-s.dumpOnEventShutdown:
 				return
 			}
 		}

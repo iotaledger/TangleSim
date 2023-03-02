@@ -13,7 +13,7 @@ import (
 
 // region Scheduler //////////////////////////////////////////////////////////////////////////////////////////////
 
-// Priority Queue for Message
+// MessageHeap is a priority Queue for Message
 type MessageHeap []Message
 
 type Scheduler struct {

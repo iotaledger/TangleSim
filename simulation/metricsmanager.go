@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/iotaledger/hive.go/core/generics/constraints"
 	"github.com/iotaledger/hive.go/types"
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/multiverse"
@@ -94,10 +95,23 @@ func (s *MetricsManager) StartMetricsCollection() {
 		for range s.dumpingTicker.C {
 			s.collectMetrics()
 		}
+		// todo move final condition reaching detection to some more accurate place
+		// determines whether consensus has been reached and simulation is over
+		r, g, b := getLikesPerRGB(s.ColorCounters, "confirmedNodes")
+		aR, aG, aB := getLikesPerRGB(s.AdversaryCounters, "confirmedNodes")
+		hR, hG, hB := r-aR, g-aG, b-aB
+		if max(max(hB, hR), hG) >= int64(config.SimulationStopThreshold*float64(s.honestNodesCount)) {
+			//shutdownSignal <- types.Void
+		}
+		s.GlobalCounters.Set("tps", 0)
+
 	}()
 }
 
 func (s *MetricsManager) Shutdown() {
+	for _, w := range s.writers {
+		w.Flush()
+	}
 	s.dumpOnShutdown()
 	if s.dumpingTicker != nil {
 		s.dumpingTicker.Stop()
@@ -147,4 +161,16 @@ func allNodesHeader() []string {
 
 func formatTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339)
+}
+
+func getLikesPerRGB(counter *MapCounters[multiverse.Color, int64], flag string) (int64, int64, int64) {
+	return counter.Get(flag, multiverse.Red), counter.Get(flag, multiverse.Green), counter.Get(flag, multiverse.Blue)
+}
+
+// max returns the largest of x or y.
+func max[T constraints.Numeric](x, y T) T {
+	if x < y {
+		return y
+	}
+	return x
 }

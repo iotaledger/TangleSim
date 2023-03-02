@@ -50,9 +50,11 @@ func main() {
 		network.AdversaryPeeringAll(config.AdversaryPeeringAll),
 		network.AdversarySpeedup(config.AdversarySpeedup),
 	)
-
 	MetricsMgr = simulation.NewMetricsManager()
 	MetricsMgr.Setup(testNetwork)
+
+	testNetwork.Start()
+	MetricsMgr.StartMetricsCollection()
 
 	resultsWriters := monitorNetworkState()
 	defer flushWriters(resultsWriters)
@@ -228,27 +230,6 @@ func monitorNetworkState() (resultsWriters []*csv.Writer) {
 	return
 }
 
-func dumpRecords(adversaryNodesCount int) {
-
-	// determines whether consensus has been reached and simulation is over
-
-	//r, g, b := getLikesPerRGB(colorCounters, "confirmedNodes")
-	//aR, aG, aB := getLikesPerRGB(adversaryCounters, "confirmedNodes")
-	//hR, hG, hB := r-aR, g-aG, b-aB
-	//if Max(Max(hB, hR), hG) >= int64(config.SimulationStopThreshold*float64(honestNodesCount)) {
-	//	shutdownSignal <- types.Void
-	//}
-	MetricsMgr.GlobalCounters.Set("tps", 0)
-}
-
-// Max returns the larger of x or y.
-func Max(x, y int64) int64 {
-	if x < y {
-		return y
-	}
-	return x
-}
-
 // ArgMax returns the max value of the array.
 func ArgMax(x []int64) int {
 	maxLocation := 0
@@ -260,10 +241,6 @@ func ArgMax(x []int64) int {
 		}
 	}
 	return maxLocation
-}
-
-func getLikesPerRGB(counter *simulation.ColorCounters, flag string) (int64, int64, int64) {
-	return counter.Get(flag, multiverse.Red), counter.Get(flag, multiverse.Green), counter.Get(flag, multiverse.Blue)
 }
 
 func mostLikedColorChanged(r, g, b int64, mostLikedColorVar *multiverse.Color) bool {

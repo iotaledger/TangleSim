@@ -183,13 +183,13 @@ func (s *MetricsManager) SetupWriters() {
 				awPeer.Node.(multiverse.NodeInterface).Tangle().ApprovalManager.Events.MessageConfirmed.Attach(
 					events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64, messageIDCounter int64) {
 						// increased here and not in metrics setup to rice between counter attached there and read here
-						s.PeerCounters.Add("confirmedMessageCounter", 1, awPeer.ID)
+						s.PeerCounters.Add("confirmedMessageCount", 1, awPeer.ID)
 						record := []string{
 							strconv.FormatInt(int64(message.ID), 10),
 							strconv.FormatInt(message.IssuanceTime.Unix(), 10),
 							strconv.FormatInt(int64(messageMetadata.ConfirmationTime().Sub(message.IssuanceTime)), 10),
 							strconv.FormatUint(weight, 10),
-							strconv.FormatInt(s.PeerCounters.Get("confirmedMessageCounter", awPeer.ID), 10),
+							strconv.FormatInt(s.PeerCounters.Get("confirmedMessageCount", awPeer.ID), 10),
 							strconv.FormatInt(messageIDCounter, 0),
 							strconv.FormatInt(time.Since(s.simulationStartTime).Nanoseconds(), 10),
 						}
@@ -236,9 +236,6 @@ func (s *MetricsManager) DumpOnTick(key string, header []string, collectFunc fun
 	resultsWriter := s.createWriter(key, header)
 	s.writers[key] = resultsWriter
 	s.collectFuncs[key] = collectFunc
-	if err := resultsWriter.Write(header); err != nil {
-		panic(err)
-	}
 }
 
 // DumpOnce dumps the results once.

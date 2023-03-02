@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/types"
+	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
@@ -37,6 +38,10 @@ type MessageMetadata struct {
 	enqueueTime      time.Time
 	scheduleTime     time.Time
 	dropTime         time.Time
+}
+
+func (m *MessageMetadata) ArrivalTime() time.Time {
+	return m.arrivalTime
 }
 
 func (m *MessageMetadata) WeightByte(index int) byte {
@@ -101,6 +106,10 @@ func (m *MessageMetadata) Scheduled() bool {
 
 func (m *MessageMetadata) Confirmed() bool {
 	return !m.confirmationTime.IsZero()
+}
+
+func (m *MessageMetadata) Eligible() bool { // a message is ready if all parents are eligible = either scheduled or confirmed
+	return m.Scheduled() || (m.Confirmed() && config.ConfEligible)
 }
 
 func (m *MessageMetadata) SetSolid(solid bool) (modified bool) {

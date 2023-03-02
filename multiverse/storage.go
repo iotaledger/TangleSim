@@ -2,7 +2,6 @@ package multiverse
 
 import (
 	"math"
-	"sync"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
@@ -18,14 +17,12 @@ type Storage struct {
 	messageMetadataDB map[MessageID]*MessageMetadata
 	strongChildrenDB  map[MessageID]MessageIDs
 	weakChildrenDB    map[MessageID]MessageIDs
-
-	sync.RWMutex
 }
 
 func NewStorage() (storage *Storage) {
 	return &Storage{
 		Events: &StorageEvents{
-			MessageStored: events.NewEvent(messageIDEventCaller),
+			MessageStored: events.NewEvent(messageEventCaller),
 		},
 
 		messageDB:         make(map[MessageID]*Message),
@@ -36,56 +33,40 @@ func NewStorage() (storage *Storage) {
 }
 
 func (s *Storage) Store(message *Message) {
-	s.storeMessageAndMetadata(message)
-	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
-	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
-	s.Events.MessageStored.Trigger(message.ID)
-}
-
-func (s *Storage) storeMessageAndMetadata(message *Message) {
-	s.Lock()
-	defer s.Unlock()
-
-	_, exists := s.messageDB[message.ID]
-	if exists {
+	if _, exists := s.messageDB[message.ID]; exists {
 		return
 	}
+
 	s.messageDB[message.ID] = message
-	s.messageMetadataDB[message.ID] = &MessageMetadata{
+	messageMetadata := &MessageMetadata{
 		id:          message.ID,
 		weightSlice: make([]byte, int(math.Ceil(float64(config.NodesCount)/8.0))),
 		arrivalTime: time.Now(),
 		ready:       false,
 	}
+	s.messageMetadataDB[message.ID] = messageMetadata
+	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
+	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
+	s.Events.MessageStored.Trigger(message.ID, message, messageMetadata)
 }
 
 func (s *Storage) Message(messageID MessageID) (message *Message) {
-	s.RLock()
-	defer s.RUnlock()
 	return s.messageDB[messageID]
 }
 
 func (s *Storage) MessageMetadata(messageID MessageID) (messageMetadata *MessageMetadata) {
-	s.RLock()
-	defer s.RUnlock()
 	return s.messageMetadataDB[messageID]
 }
 
 func (s *Storage) StrongChildren(messageID MessageID) (strongChildren MessageIDs) {
-	s.RLock()
-	defer s.RUnlock()
 	return s.strongChildrenDB[messageID]
 }
 
 func (s *Storage) WeakChildren(messageID MessageID) (weakChildren MessageIDs) {
-	s.RLock()
-	defer s.RUnlock()
 	return s.weakChildrenDB[messageID]
 }
 
 func (s *Storage) storeChildReferences(messageID MessageID, childReferenceDB map[MessageID]MessageIDs, parents MessageIDs) {
-	s.RLock()
-	defer s.RUnlock()
 	for parent := range parents {
 		if _, exists := childReferenceDB[parent]; !exists {
 			childReferenceDB[parent] = NewMessageIDs()
@@ -95,12 +76,45 @@ func (s *Storage) storeChildReferences(messageID MessageID, childReferenceDB map
 	}
 }
 
+func (s *Storage) isReady(messageID MessageID) bool {
+	if !s.MessageMetadata(messageID).Solid() {
+		return false
+	}
+	message := s.Message(messageID)
+	for strongParentID := range message.StrongParents {
+		if strongParentID == Genesis {
+			continue
+		}
+		strongParentMetadata := s.MessageMetadata(strongParentID)
+		if strongParentMetadata == nil {
+			panic("Strong Parent Metadata is empty")
+		}
+		if !strongParentMetadata.Eligible() {
+			return false
+		}
+	}
+	for weakParentID := range message.WeakParents {
+		weakParentMetadata := s.MessageMetadata(weakParentID)
+		if weakParentID == Genesis {
+			continue
+		}
+		if !weakParentMetadata.Eligible() {
+			return false
+		}
+	}
+	return true
+}
+
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // region StorageEvents ////////////////////////////////////////////////////////////////////////////////////////////////
 
 type StorageEvents struct {
 	MessageStored *events.Event
+}
+
+func messageEventCaller(handler interface{}, params ...interface{}) {
+	handler.(func(MessageID, *Message, *MessageMetadata))(params[0].(MessageID), params[1].(*Message), params[2].(*MessageMetadata))
 }
 
 func messageIDEventCaller(handler interface{}, params ...interface{}) {

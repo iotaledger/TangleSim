@@ -37,7 +37,9 @@ func NewRequester(tangle *Tangle) (requester *Requester) {
 
 func (r *Requester) Setup() {
 	r.tangle.Solidifier.Events.MessageMissing.Attach(events.NewClosure(r.StartRequest))
-	r.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(r.StopRequest))
+	r.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(func(messageID MessageID, message *Message, messageMetadata *MessageMetadata) {
+		r.StopRequest(messageID)
+	}))
 }
 
 func (r *Requester) StartRequest(messageID MessageID) {

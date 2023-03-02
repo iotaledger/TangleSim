@@ -20,18 +20,23 @@ func NewMessageFactory(tangle *Tangle, numberOfNodes uint64) (messageFactory *Me
 	}
 }
 
-func (m *MessageFactory) CreateMessage(payload Color) (message *Message) {
+func (m *MessageFactory) CreateMessage(payload Color) (*Message, bool) {
 	strongParents, weakParents := m.tangle.TipManager.Tips()
-
-	return &Message{
-		ID:             NewMessageID(),
-		StrongParents:  strongParents,
-		WeakParents:    weakParents,
-		SequenceNumber: m.SequenceNumber(),
-		Issuer:         m.tangle.Peer.ID,
-		Payload:        payload,
-		IssuanceTime:   time.Now(),
-		ManaBurnValue:  BurnMana(m.tangle),
+	if burn, ok := m.tangle.Scheduler.BurnValue(); ok {
+		m.tangle.Scheduler.DecreaseNodeAccessMana(m.tangle.Peer.ID, burn) // decrease the nodes own Mana when the message is created
+		message := &Message{
+			ID:             NewMessageID(),
+			StrongParents:  strongParents,
+			WeakParents:    weakParents,
+			SequenceNumber: m.SequenceNumber(),
+			Issuer:         m.tangle.Peer.ID,
+			Payload:        payload,
+			IssuanceTime:   time.Now(),
+			ManaBurnValue:  burn,
+		}
+		return message, ok
+	} else {
+		return nil, false
 	}
 }
 

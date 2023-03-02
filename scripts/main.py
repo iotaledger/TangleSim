@@ -91,6 +91,10 @@ def parse_arg():
     parser.add_argument("-as", "--ADVERSARY_STRATEGY", dest='ADVERSARY_STRATEGY',
                         help="Adversary types",
                         default=config.cd['ADVERSARY_STRATEGY'])
+    parser.add_argument("-nc", "--NODES_COUNT", dest='NODES_COUNT',
+                        help="Nodes count",
+                        default=config.cd['NODES_COUNT'])
+
 
     # Update the che configuration dictionary
     args = parser.parse_args()
@@ -197,68 +201,58 @@ if __name__ == '__main__':
                         f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -slowdownFactor={df[i]}')
             elif var == 'MB':
                 for i, v in enumerate(vv):
+                    t = config.cd['SCRIPT_START_TIME']
+                    nc = config.cd['NODES_COUNT']
+                    tick = config.cd['MONITOR_INTERVAL']
                     os.system(
-                        f'{exec} --simulationTarget={target}  -burnPolicies="{v}" -slowdownFactor={df[i]}')
+                        f'{exec} --simulationTarget={target}  -burnPolicies="{v}" -slowdownFactor={df[i]} -scriptStartTime={t} -nodesCount={nc} -consensusMonitorTick={tick}')
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)
 
-            move_results(sim_result_path, folder)
+            #move_results(sim_result_path, folder)
 
     # Plot the figures
     if config.cd['PLOT_FIGURES']:
-        plotter = FigurePlotter(config.cd)
+        # update the configuration dictionary
+        burnPolicies = parse_int_node_attributes(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/burnPolicies.csv", config.cd)
+        config.update('BURN_POLICIES', burnPolicies)
+        weights = parse_int_node_attributes(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/weights.csv", config.cd)
+        config.update('WEIGHTS', weights)
+        # plot dissemination rates
+        messages, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/disseminatedMessages.csv")
+        plot_per_node_rates(messages, times, config.cd, "Dissemination Rates")
+        plot_total_rate(messages, times, config.cd, "Total Dissemination Rate")
+        # plot confirmation rates
+        messages, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/fullyConfirmedMessages.csv")
+        plot_per_node_rates(messages, times, config.cd, "Confirmation Rates")
+        plot_total_rate(messages, times, config.cd, "Total Confirmation Rate")
+        # plot number of partially confirmed blocks
+        messages, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/partiallyConfirmedMessages.csv")
+        plot_per_node_metric(messages, times, config.cd, "Partially Confirmed Blocks", "Number of Blocks")
+        # plot number of unconfirmed blocks
+        messages, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/unconfirmedMessages.csv")
+        plot_per_node_metric(messages, times, config.cd, "Unconfirmed Blocks", "Number of Blocks")
+        # plot number of undisseminated blocks
+        messages, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/undisseminatedMessages.csv")
+        plot_per_node_metric(messages, times, config.cd, "Undisseminated Blocks", "Number of Blocks")
+        # plot dissemination latencies
+        latencies = parse_latencies(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/DisseminationLatency.csv", config.cd)
+        plot_latency_cdf(latencies, config.cd, "Dissemination Latency")
+        # plot confirmation latencies
+        latencies = parse_latencies(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/ConfirmationLatency.csv", config.cd)
+        plot_latency_cdf(latencies, config.cd, "Confirmation Latency")
+        # plot local metrics
+        localMetricNames = parse_metric_names(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/localMetrics.csv")
+        for name in localMetricNames:
+            data, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/" + name + ".csv")
+            plot_per_node_metric(data, times, config.cd, name, "")
 
-        # (The variation name in the configuration file, the confirmation time figure title,
-        #  the convergence time figure title, the flips title, the unconfirming count title,
-        #  the confirmation weight depth figure title)
-        (n, t_confirmation, t_convergence, t_flips,
-         t_unconfirming, t_depth) = c.FIGURE_NAMING_DICT[var]
+        #readyLengths, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/readyLengths.csv")
+        #plot_per_node_metric(readyLengths, times, config.cd, "Ready Lengths", "Number of Blocks")
+        #nonReadyLengths, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/nonReadyLengths.csv")
+        #plot_per_node_metric(nonReadyLengths, times, config.cd, "Non Ready Lengths", "Number of Blocks")
 
-        folder = base_folder
-        iter_suffix = ''
-        print("base_folder", base_folder)
-        for iter in range(repetition):
 
-            # if repetition != 1:
-            #     folder = base_folder + f'/iter_{iter}'
-            #     iter_suffix = f'_iter_{iter}'
-            # if target == 'CT':
-            #     if repetition != 1 and iter == 0:
-            #         plotter.number_of_requested_missing_messages_batch(
-            #             n, base_folder + '/*/mm*csv', f'CT_{n}_mm.pdf', t_confirmation, n)
-            # if target == 'DS':
-            #     if repetition != 1 and iter == 0:
-            #         # The distribution plots of multiple iterations are ran only one time.
-            #         plotter.convergence_time_distribution_plot(
-            #             n, base_folder, f'DS_{n}_cv.png', len(vv), repetition, title=t_convergence)
 
-            #         plotter.flips_distribution_plot(
-            #             n, base_folder, f'DS_{n}_fl.png', len(vv), repetition, title=t_flips)
-
-            #         plotter.unconfirmed_count_distribution_plot(
-            #             n, base_folder, f'DS_{n}_uc.png', len(vv), repetition, title=t_unconfirming)
-
-            #         plotter.confirmation_depth_distribution_plot(
-            #             n, base_folder, f'DP_{n}_cd.png', len(vv), repetition, title=t_depth)
-
-            #     plotter.confirmed_like_color_plot(
-            #         n, folder + '/cc*csv', f'DS_{n}_cc{iter_suffix}.png', len(vv))
-
-            # plotter.confirmation_time_plot(
-            #     n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.png', t_confirmation, c.VAR_DICT[n])
-
-            plotter.confirmation_time_violinplot(
-                n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, n)
-
-            # plotter.number_of_requested_missing_messages(
-            #     n, folder + '/mm*csv', f'CT_{n}_mm{iter_suffix}.pdf', t_confirmation, n)
-
-            # plotter.throughput_plot(n, folder + '/tp*csv',
-            #                         f'CT_{n}_tp{iter_suffix}.png', len(vv))
-
-            # plotter.throughput_all_plot(n, folder + '/all-tp*csv',
-            #                             f'CT_{n}_all_tp{iter_suffix}.pdf', len(vv))
-
-            # plotter.witness_weight_plot(
-            #     n, folder, f'CT_{n}_ww{iter_suffix}.pdf', c.VAR_DICT[n], repetition)
+        

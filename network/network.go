@@ -50,12 +50,6 @@ func (n *Network) RandomPeers(count int) (randomPeers []*Peer) {
 	return
 }
 
-func (n *Network) Start() {
-	for _, peer := range n.Peers {
-		peer.Start()
-	}
-}
-
 func (n *Network) Shutdown() {
 	for _, peer := range n.Peers {
 		peer.Shutdown()
@@ -130,7 +124,10 @@ func (c *Configuration) CreatePeers(network *Network) {
 			log.Debugf("Created %s ... [DONE]", peer)
 
 			network.WeightDistribution.SetWeight(peer.ID, nodeWeights[i])
+		}
+		for _, peer := range network.Peers {
 			peer.SetupNode(network.WeightDistribution)
+			log.Debugf("Setup %s ... [DONE]", peer)
 		}
 	}
 }

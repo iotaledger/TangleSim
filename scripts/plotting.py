@@ -25,13 +25,15 @@ class FigurePlotter:
         """Initialize the parser and the constant/configuration values.
         """
         self.parser = FileParser(cd)
-        self.figure_output_path = cd['FIGURE_OUTPUT_PATH']
+        self.figure_output_path = cd['RESULTS_PATH'] + "/" + cd["SCRIPT_START_TIME"] + "/figures"
         self.transparent = cd['TRANSPARENT']
         self.clr_list = c.CLR_LIST
         self.sty_list = c.STY_LIST
         self.ds_clr_list = c.DS_CLR_LIST
         self.ds_sty_list = c.DS_STY_LIST
         self.var_dict = c.VAR_DICT
+        self.NodesCount = cd['NODES_COUNT']
+
 
     def _distribution_boxplot(self, var, base_folder, ofn, fc, iters, title, target):
         """The basic function of generating the distribution boxplot figures.

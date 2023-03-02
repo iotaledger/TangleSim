@@ -24,6 +24,7 @@ var (
 	MetricsMgr *simulation.MetricsManager
 
 	// simulation variables
+	globalMetricsTicker = time.NewTicker(time.Duration(config.SlowdownFactor*config.ConsensusMonitorTick) * time.Millisecond)
 	maxSimulationDuration = time.Minute
 	shutdownSignal        = make(chan types.Empty)
 )
@@ -91,17 +92,22 @@ func startProcessingMessages(n *network.Network) {
 }
 
 func processMessages(peer *network.Peer) {
+	simulationWg.Add(1)
+	defer simulationWg.Done()
 	pace := time.Duration((float64(time.Second) * float64(config.SlowdownFactor)) / float64(config.SchedulingRate))
 	ticker := time.NewTicker(pace)
 	for {
 		select {
+		case <-peer.ShutdownProcessing:
+			return
 		case networkMessage := <-peer.Socket:
-			peer.Node.HandleNetworkMessage(networkMessage)
+			peer.Node.HandleNetworkMessage(networkMessage) // this includes payloads from the node itself so block are created here
 		case <-ticker.C:
 
 			// Trigger the scheduler to pop messages and gossip them
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.SchedulingRate))
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
+			monitorLocalMetrics(peer)
 		}
 	}
 }
@@ -177,28 +183,42 @@ func startIssuingMessages(testNetwork *network.Network) {
 }
 
 func issueMessages(peer *network.Peer, band float64) {
+	simulationWg.Add(1)
+	defer simulationWg.Done()
 	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor) / band)
 
-	log.Debug("Starting security worker for Peer ID: ", peer.ID, " Pace: ", pace)
 	if pace == time.Duration(0) {
 		log.Warn("Peer ID: ", peer.ID, " has 0 pace!")
 		return
 	}
 	ticker := time.NewTicker(pace)
-
-	for range ticker.C {
-		if config.IMIF == "poisson" {
-			pace = time.Duration(float64(time.Second) * float64(config.SlowdownFactor) * rand.ExpFloat64() / band)
-			if pace > 0 {
-				ticker.Reset(pace)
+	congestionTicker := time.NewTicker(time.Duration(config.SlowdownFactor) * config.SimulationDuration / time.Duration(len(config.CongestionPeriods)))
+	band *= config.CongestionPeriods[0]
+	i := 0
+	for {
+		select {
+		case <-peer.ShutdownIssuing:
+			return
+		case <-ticker.C:
+			if config.IMIF == "poisson" {
+				pace = time.Duration(float64(time.Second) * float64(config.SlowdownFactor) * rand.ExpFloat64() / band)
+				if pace > 0 {
+					ticker.Reset(pace)
+				}
+			}
+			sendMessage(peer)
+		case <-congestionTicker.C:
+			if i < len(config.CongestionPeriods)-1 {
+				band *= config.CongestionPeriods[i+1] / config.CongestionPeriods[i]
+				i++
 			}
 		}
-		sendMessage(peer)
+
 	}
 }
 
 func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
-	MetricsMgr.GlobalCounters.Add("tps", 1)
+	//MetricsMgr.GlobalCounters.Add("tps", 1)
 
 	if len(optionalColor) >= 1 {
 		peer.Node.(multiverse.NodeInterface).IssuePayload(optionalColor[0])

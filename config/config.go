@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 // simulator settings
 
 var (
@@ -10,21 +12,24 @@ var (
 	MonitoredPeers                  = []int{0} // Nodes for which we collect more specific metrics, collected metrics depend on the simulator configuration.
 	MonitoredWitnessWeightPeer      = 0        // Peer for which we monitor Witness Weight
 	MonitoredWitnessWeightMessageID = 200      // A specified message ID to monitor the witness weights
+	ScriptStartTimeStr              = time.Now().Format("20060102_150405") // A string indicating the start time of a simulation started by an external script
+	SimulationDuration              = time.Duration(1 * float64(time.Minute))
 )
 
 // Network setup
 
 var (
-	NodesCount       = 20        // NodesCount is the total number of nodes simulated in the network.
-	SchedulingRate   = 100       // Scheduler rate in units of messages per second.
-	IssuingRate      = 90        // Total rate of issuing messages in units of messages per second.
-	ParentsCount     = 8         // ParentsCount that a new message is selecting from the tip pool.
-	NeighbourCountWS = 8         // Number of neighbors node is connected to in WattsStrogatz network topology.
-	RandomnessWS     = 1.0       // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
-	IMIF             = "poisson" // IMIF Inter Message Issuing Function for time delay between activity messages: poisson or uniform.
-	PacketLoss       = 0.0       // The packet loss in the network.
-	MinDelay         = 100       // The minimum network delay in ms.
-	MaxDelay         = 100       // The maximum network delay in ms.
+	NodesCount        = 20                            // NodesCount is the total number of nodes simulated in the network.
+	SchedulingRate    = 100                           // Scheduler rate in units of messages per second.
+	IssuingRate       = SchedulingRate                // Total rate of issuing messages in units of messages per second.
+	CongestionPeriods = []float64{0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
+	ParentsCount      = 2                             // ParentsCount that a new message is selecting from the tip pool.
+	NeighbourCountWS  = 4                             // Number of neighbors node is connected to in WattsStrogatz network topology.
+	RandomnessWS      = 1.0                           // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
+	IMIF              = "poisson"                     // IMIF Inter Message Issuing Function for time delay between activity messages: poisson or uniform.
+	PacketLoss        = 0.0                           // The packet loss in the network.
+	MinDelay          = 100                           // The minimum network delay in ms.
+	MaxDelay          = 100                           // The maximum network delay in ms.
 
 	SlowdownFactor = 1 // The factor to control the speed in the simulation.
 )
@@ -47,11 +52,17 @@ var (
 	WeakTipsRatio = 0.0    // The ratio of weak tips
 )
 
+// TODO: expose the configuration in Parser
+// Mana Burn Setup
+// 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
 var (
 	// BurnPolicies = ZeroValueArray(NodesCount)
-	BurnPolicies    = []int{}
-	BurnPolicyNames = ""
-	ExtraBurn       = 1.0
+	SchedulerType = "ICCA" // ManaBurn or ICCA
+	BurnPolicies  = RandomArrayFromValues(0, []int{0, 1}, NodesCount)
+	ExtraBurn     = 1.0
+	MaxBuffer     = 200
+	ConfEligible  = true // if true, then confirmed is used for eligible check. else just scheduled
+	MaxDeficit    = 10.0 // maximum deficit for any id
 )
 
 // Adversary setup - enabled by setting SimulationTarget="DS"

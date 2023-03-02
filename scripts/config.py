@@ -1,5 +1,6 @@
 import numpy as np
 from pathlib import Path
+from datetime import datetime
 
 """The configuration for the simulation script.
 """
@@ -19,8 +20,12 @@ class Configuration:
         # The data paths
         self.cd['MULTIVERSE_PATH'] = str(Path().absolute().parent)
         self.cd['RESULTS_PATH'] = self.cd['MULTIVERSE_PATH'] + "/results"
+        self.cd['SCRIPT_START_TIME'] = datetime.strftime(datetime.now(), "%Y%m%d_%H%M%S")
         self.cd['FIGURE_OUTPUT_PATH'] = (
             self.cd['MULTIVERSE_PATH'] + '/scripts/figures')
+
+        self.cd['NODES_COUNT'] = 20
+        self.cd['MONITOR_INTERVAL'] = 100 # monitoring interval in milliseconds
 
         # The output folder suffix (e.g., ct for confirmation time and ds for double spending)
         self.cd['SIMULATION_TARGET'] = 'CT'
@@ -30,7 +35,7 @@ class Configuration:
         self.cd['VARIATIONS'] = 'MB'
 
         # The variations value list
-        self.cd['VARIATION_VALUES'] = ["0"]
+        self.cd['VARIATION_VALUES'] = ["0 2 2"] # list of policies, separated by spaces
 
         # The deceleration factor list
         self.cd['DECELERATION_FACTORS'] = [1]

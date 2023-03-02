@@ -58,7 +58,9 @@ func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
 }
 
 func (t *TipManager) Setup() {
-	t.tangle.OpinionManager.Events().OpinionFormed.Attach(events.NewClosure(t.AnalyzeMessage))
+	//t.tangle.OpinionManager.Events().OpinionFormed.Attach(events.NewClosure(t.AnalyzeMessage))
+	// Try "analysing" on scheduling instead of on opinion formation.
+	t.tangle.Scheduler.Events().MessageScheduled.Attach(events.NewClosure(t.AnalyzeMessage))
 }
 
 func (t *TipManager) AnalyzeMessage(messageID MessageID) {
@@ -70,10 +72,12 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	currentTipPoolSize := tipSet.strongTips.Size()
 
 	addedAsStrongTip := make(map[Color]bool)
-	for color, tipSet := range t.TipSets(inheritedColor) {
-		addedAsStrongTip[color] = true
-		tipSet.AddStrongTip(message)
-		t.msgProcessedCounter[color] += 1
+	if time.Since(message.IssuanceTime).Seconds() < config.DeltaURTS {
+		for color, tipSet := range t.TipSets(inheritedColor) {
+			addedAsStrongTip[color] = true
+			tipSet.AddStrongTip(message)
+			t.msgProcessedCounter[color] += 1
+		}
 	}
 
 	// Color, tips pool count, processed messages issued messages
@@ -263,6 +267,10 @@ func (t *TipSet) AddStrongTip(message *Message) {
 	for weakParent := range message.WeakParents {
 		t.weakTips.Delete(weakParent)
 	}
+}
+
+func (t *TipSet) Size() int {
+	return t.strongTips.Size()
 }
 
 func (t *TipSet) AddWeakTip(message *Message) {

@@ -22,7 +22,7 @@ func NewSolidifier(tangle *Tangle) *Solidifier {
 }
 
 func (s *Solidifier) Setup() {
-	s.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(func(messageID MessageID) {
+	s.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(func(messageID MessageID, message *Message, messageMetadata *MessageMetadata) {
 		s.Solidify(messageID)
 	}))
 }
@@ -73,7 +73,7 @@ func (s *Solidifier) parentsSolid(parentMessageIDs MessageIDs) (parentsSolid boo
 		parentMessageMetadata := s.tangle.Storage.MessageMetadata(parentMessageID)
 		if parentMessageMetadata == nil {
 			s.Events.MessageMissing.Trigger(parentMessageID)
-
+			log.Debug("Solidification request sent.")
 			parentsSolid = false
 			continue
 		}

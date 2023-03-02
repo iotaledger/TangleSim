@@ -42,6 +42,8 @@ type Scheduler interface {
 	NonReadyLen() int
 	GetNodeAccessMana(network.PeerID) float64
 	GetMaxManaBurn() float64
+	IssuerQueueLen(network.PeerID) int
+	Deficit(network.PeerID) float64
 }
 
 func NewScheduler(tangle *Tangle) (s Scheduler) {
@@ -65,8 +67,9 @@ func NewScheduler(tangle *Tangle) (s Scheduler) {
 			nonReadyMap:  make(map[MessageID]*Message),
 			accessMana:   make(map[network.PeerID]float64, config.NodesCount),
 			deficits:     make(map[network.PeerID]float64, config.NodesCount),
+			quanta:       make(map[network.PeerID]float64, config.NodesCount),
 			issuerQueues: make(map[network.PeerID]*IssuerQueue, config.NodesCount),
-			issuerRing:   ring.New(config.NodesCount),
+			roundRobin:   ring.New(config.NodesCount),
 			events: &SchedulerEvents{
 				MessageScheduled: events.NewEvent(messageIDEventCaller),
 				MessageDropped:   events.NewEvent(messageIDEventCaller),

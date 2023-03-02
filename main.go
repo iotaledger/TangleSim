@@ -247,6 +247,8 @@ func monitorLocalMetrics(peer *network.Peer) {
 		if peer.ID == 0 {
 			for i := 0; i < config.NodesCount; i++ {
 				localMetrics["Mana at Node 0"][network.PeerID(i)] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetNodeAccessMana(network.PeerID(i)))
+				localMetrics["Issuer Queue Lengths at Node 0"][network.PeerID(i)] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IssuerQueueLen(network.PeerID(i)))
+				localMetrics["Deficits at Node 0"][network.PeerID(i)] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.Deficit(network.PeerID(i)))
 			}
 		}
 	} else {
@@ -256,6 +258,8 @@ func monitorLocalMetrics(peer *network.Peer) {
 		localMetrics["Tips"] = make(map[network.PeerID]float64)
 		localMetrics["Price"] = make(map[network.PeerID]float64)
 		localMetrics["Mana at Node 0"] = make(map[network.PeerID]float64)
+		localMetrics["Issuer Queue Lengths at Node 0"] = make(map[network.PeerID]float64)
+		localMetrics["Deficits at Node 0"] = make(map[network.PeerID]float64)
 	}
 }
 
@@ -508,6 +512,7 @@ func dumpFinalData() {
 	if err := writer.Write(header); err != nil {
 		panic(err)
 	}
+	writer.Flush()
 	record := make([]string, len(header))
 	for messageID := range disseminatedMessages {
 		message := disseminatedMessages[messageID]
@@ -533,6 +538,7 @@ func dumpFinalData() {
 	if err := writer.Write(header); err != nil {
 		panic(err)
 	}
+	writer.Flush()
 	for messageID := range fullyConfirmedMessages {
 		message := fullyConfirmedMessages[messageID]
 		messageMetadata := fullyConfirmedMessageMetadata[messageID]

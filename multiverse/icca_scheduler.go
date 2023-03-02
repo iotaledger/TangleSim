@@ -3,6 +3,7 @@ package multiverse
 import (
 	"container/heap"
 	"container/ring"
+	"math"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
@@ -15,12 +16,16 @@ import (
 func (s *ICCAScheduler) initQueues() {
 	for i := 0; i < config.NodesCount; i++ {
 		issuerQueue := &IssuerQueue{}
+		heap.Init(issuerQueue)
 		s.issuerQueues[network.PeerID(i)] = issuerQueue
-		s.issuerRing.Value = &DRRQueue{
+		s.roundRobin.Value = &DRRQueue{
 			issuerID: network.PeerID(i),
 			q:        issuerQueue,
 		}
-		s.issuerRing.Next()
+		s.roundRobin = s.roundRobin.Next()
+	}
+	if s.roundRobin.Value.(*DRRQueue).issuerID != 0 {
+		panic("Incomplete ring")
 	}
 }
 
@@ -30,16 +35,20 @@ type ICCAScheduler struct {
 	nonReadyMap  map[MessageID]*Message
 	accessMana   map[network.PeerID]float64
 	deficits     map[network.PeerID]float64
+	quanta       map[network.PeerID]float64
 	issuerQueues map[network.PeerID]*IssuerQueue
-	issuerRing   *ring.Ring
+	roundRobin   *ring.Ring
 
 	events *SchedulerEvents
 }
 
 func (s *ICCAScheduler) Setup() {
-	// Setup the initial AccessMana when the peer ID is created
+	// Setup the initial AccessMana, deficits and quanta when the peer ID is created
 	for id := 0; id < config.NodesCount; id++ {
 		s.accessMana[network.PeerID(id)] = 0.0
+		s.deficits[network.PeerID(id)] = 0.0
+		idWeight := s.tangle.WeightDistribution.Weight(network.PeerID(id))
+		s.quanta[network.PeerID(id)] = float64(idWeight) / float64(config.NodesTotalWeight)
 	}
 	// initialise the issuer queues
 	s.initQueues()
@@ -118,7 +127,53 @@ func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
 }
 
 func (s *ICCAScheduler) ScheduleMessage() {
-	// TODO: implement DRR scheduler
+	rounds, selectedIssuerID := s.selectIssuer()
+	if selectedIssuerID == network.PeerID(-1) {
+		return
+	}
+	for id := 0; id < config.NodesCount; id++ {
+		// increment all deficits by the number of rounds needed.
+		s.deficits[network.PeerID(id)] = math.Min(
+			s.deficits[network.PeerID(id)]+rounds*s.quanta[network.PeerID(id)],
+			config.MaxDeficit,
+		)
+	}
+	for id := s.roundRobin.Value.(*DRRQueue).issuerID; id != selectedIssuerID; id = s.roundRobin.Value.(*DRRQueue).issuerID {
+		// increment all the issuers before the selected issuer by one more round.
+		s.deficits[id] = math.Min(
+			s.deficits[id]+s.quanta[id],
+			config.MaxDeficit,
+		)
+		s.roundRobin = s.roundRobin.Next()
+	}
+	// now the ring is pointing to the selected issuer and deficits are updated.
+	// pop the message from the chosen issuer's queue
+	m := s.roundRobin.Value.(*DRRQueue).q.Pop().(Message)
+	// decrement its deficit
+	s.deficits[s.roundRobin.Value.(*DRRQueue).issuerID]-- // assumes work==1
+	// schedule the message
+	s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
+	s.updateChildrenReady(m.ID)
+	s.events.MessageScheduled.Trigger(m.ID)
+}
+
+func (s *ICCAScheduler) selectIssuer() (rounds float64, issuerID network.PeerID) {
+	rounds = math.MaxFloat64
+	issuerID = network.PeerID(-1)
+	for i := 0; i < config.NodesCount; i++ {
+		if s.roundRobin.Value.(*DRRQueue).q.Len() == 0 {
+			s.roundRobin = s.roundRobin.Next()
+			continue
+		}
+		id := s.roundRobin.Value.(*DRRQueue).issuerID
+		r := (math.Max(1-s.deficits[network.PeerID(id)], 0) / s.quanta[network.PeerID(id)])
+		if r < rounds {
+			rounds = r
+			issuerID = id
+		}
+		s.roundRobin = s.roundRobin.Next()
+	}
+	return
 }
 
 func (s *ICCAScheduler) Events() *SchedulerEvents {
@@ -140,4 +195,12 @@ func (s *ICCAScheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) 
 
 func (s *ICCAScheduler) GetMaxManaBurn() (mana float64) {
 	return 0.0
+}
+
+func (s *ICCAScheduler) IssuerQueueLen(issuer network.PeerID) int {
+	return s.issuerQueues[issuer].Len()
+}
+
+func (s *ICCAScheduler) Deficit(issuer network.PeerID) float64 {
+	return s.deficits[issuer]
 }

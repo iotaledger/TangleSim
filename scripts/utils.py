@@ -219,13 +219,18 @@ def plot_latency_cdf(latencies, cd, title):
     ax.set_xlabel("Latency (s)")
     ax.grid(linestyle='--')
     ax.title.set_text(title)
-    maxval = max([max(latencies[NodeID]) for NodeID in range(len(latencies))])
+    maxlats = [max(latencies[NodeID]) for NodeID in range(len(latencies)) if latencies[NodeID]]
+    if not maxlats:
+        return
+    maxval = max(maxlats)
     nbins = 100
     bins = np.arange(0, maxval+maxval/nbins, maxval/nbins)
     pdf = np.zeros(len(bins))
     burnPolicies = cd['BURN_POLICIES']
     weights = cd['WEIGHTS']
     for NodeID in range(len(latencies)):
+        if not latencies[NodeID]:
+            continue
         i=0
         if latencies[NodeID]:
             lats = sorted(latencies[NodeID])

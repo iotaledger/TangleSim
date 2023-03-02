@@ -44,9 +44,9 @@ func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.Consensus
 	t.Requester.Setup()
 	t.Booker.Setup()
 	t.OpinionManager.Setup()
-	t.Scheduler.Setup()
 	t.TipManager.Setup()
 	t.ApprovalManager.Setup()
+	t.Scheduler.Setup()
 }
 
 func (t *Tangle) ProcessMessage(message *Message) {

@@ -168,3 +168,11 @@ func (s *MBScheduler) BufferManagement() {
 		heap.Remove(s.readyQueue, tail) // remove the lowest burn value/ issuance time
 	}
 }
+
+func (s *MBScheduler) IssuerQueueLen(issuer network.PeerID) int {
+	return 0
+}
+
+func (s *MBScheduler) Deficit(issuer network.PeerID) float64 {
+	return 0.0
+}

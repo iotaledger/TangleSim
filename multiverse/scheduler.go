@@ -77,12 +77,19 @@ func NewScheduler(tangle *Tangle) (s Scheduler) {
 			},
 		}
 	} else {
-		panic("Invalid Scheduler type")
+		s = &NoScheduler{
+			tangle: tangle,
+
+			events: &SchedulerEvents{
+				MessageScheduled: events.NewEvent(messageIDEventCaller),
+			},
+		}
 	}
 	return
 }
 
 // region Priority Queue ////////////////////////////////////////////////////////////////////////////////
+
 func (h PriorityQueue) Len() int { return len(h) }
 func (h PriorityQueue) Less(i, j int) bool {
 	if h[i].ManaBurnValue > h[j].ManaBurnValue {
@@ -121,6 +128,7 @@ func (h PriorityQueue) tail() (tail int) {
 }
 
 // region Issuer Queue ////////////////////////////////////////////////////////////////////////////////
+
 func (h IssuerQueue) Len() int { return len(h) }
 func (h IssuerQueue) Less(i, j int) bool {
 	return float64(h[i].IssuanceTime.Nanosecond()) < float64(h[j].IssuanceTime.Nanosecond())

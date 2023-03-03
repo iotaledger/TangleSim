@@ -2,6 +2,7 @@ package multiverse
 
 import (
 	"math"
+	"sync"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
@@ -17,6 +18,8 @@ type Storage struct {
 	messageMetadataDB map[MessageID]*MessageMetadata
 	strongChildrenDB  map[MessageID]MessageIDs
 	weakChildrenDB    map[MessageID]MessageIDs
+
+	sync.RWMutex
 }
 
 func NewStorage() (storage *Storage) {
@@ -33,8 +36,17 @@ func NewStorage() (storage *Storage) {
 }
 
 func (s *Storage) Store(message *Message) {
+	messageMetadata := s.storeMessage(message)
+	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
+	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
+	s.Events.MessageStored.Trigger(message.ID, message, messageMetadata)
+}
+
+func (s *Storage) storeMessage(message *Message) *MessageMetadata {
+	s.Lock()
+	defer s.Unlock()
 	if _, exists := s.messageDB[message.ID]; exists {
-		return
+		return nil
 	}
 
 	s.messageDB[message.ID] = message
@@ -45,28 +57,36 @@ func (s *Storage) Store(message *Message) {
 		ready:       false,
 	}
 	s.messageMetadataDB[message.ID] = messageMetadata
-	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
-	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
-	s.Events.MessageStored.Trigger(message.ID, message, messageMetadata)
+	return messageMetadata
 }
 
 func (s *Storage) Message(messageID MessageID) (message *Message) {
+	s.RLock()
+	defer s.RUnlock()
 	return s.messageDB[messageID]
 }
 
 func (s *Storage) MessageMetadata(messageID MessageID) (messageMetadata *MessageMetadata) {
+	s.RLock()
+	defer s.RUnlock()
 	return s.messageMetadataDB[messageID]
 }
 
 func (s *Storage) StrongChildren(messageID MessageID) (strongChildren MessageIDs) {
+	s.RLock()
+	defer s.RUnlock()
 	return s.strongChildrenDB[messageID]
 }
 
 func (s *Storage) WeakChildren(messageID MessageID) (weakChildren MessageIDs) {
+	s.RLock()
+	defer s.RUnlock()
 	return s.weakChildrenDB[messageID]
 }
 
 func (s *Storage) storeChildReferences(messageID MessageID, childReferenceDB map[MessageID]MessageIDs, parents MessageIDs) {
+	s.Lock()
+	defer s.Unlock()
 	for parent := range parents {
 		if _, exists := childReferenceDB[parent]; !exists {
 			childReferenceDB[parent] = NewMessageIDs()

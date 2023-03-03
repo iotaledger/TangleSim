@@ -93,6 +93,7 @@ func (s *MetricsManager) StartMetricsCollection() {
 	s.dumpingTicker = time.NewTicker(time.Duration(config.SlowdownFactor*config.MetricsMonitorTick) * time.Millisecond)
 	go func() {
 		for range s.dumpingTicker.C {
+			fmt.Println("collecting metrics tps ", s.GlobalCounters.Get("tps"), "messages issued ", s.GlobalCounters.Get("issuedMessages"))
 			s.collectMetrics()
 		}
 		// todo move final condition reaching detection to some more accurate place

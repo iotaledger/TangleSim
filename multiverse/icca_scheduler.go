@@ -30,6 +30,7 @@ func (s *ICCAScheduler) initQueues() {
 }
 
 // region ICCA Scheduler ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 type ICCAScheduler struct {
 	tangle       *Tangle
 	nonReadyMap  map[MessageID]*Message
@@ -43,7 +44,7 @@ type ICCAScheduler struct {
 }
 
 func (s *ICCAScheduler) Setup() {
-	// Setup the initial AccessMana, deficits and quanta when the peer ID is created
+	// setup the initial AccessMana, deficits and quanta when the peer ID is created
 	for id := 0; id < config.NodesCount; id++ {
 		s.accessMana[network.PeerID(id)] = 0.0
 		s.deficits[network.PeerID(id)] = 0.0
@@ -83,7 +84,7 @@ func (s *ICCAScheduler) updateChildrenReady(messageID MessageID) {
 
 func (s *ICCAScheduler) setReady(messageID MessageID) {
 	s.tangle.Storage.MessageMetadata(messageID).SetReady()
-	// move from non ready queue to ready queue if this child is already enqueued
+	// move from non-ready queue to ready queue if this child is already enqueued
 	if m, exists := s.nonReadyMap[messageID]; exists {
 		delete(s.nonReadyMap, messageID)
 		heap.Push(s.issuerQueues[m.Issuer], *m)

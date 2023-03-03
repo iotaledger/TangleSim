@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/iotaledger/multivers-simulation/singlenodeattacks"
@@ -20,13 +21,11 @@ import (
 )
 
 var (
-	log        = logger.New("Simulation")
-	MetricsMgr *simulation.MetricsManager
-
+	log          = logger.New("Simulation")
+	MetricsMgr   *simulation.MetricsManager
+	simulationWg = sync.WaitGroup{}
 	// simulation variables
-	globalMetricsTicker = time.NewTicker(time.Duration(config.SlowdownFactor*config.ConsensusMonitorTick) * time.Millisecond)
-	maxSimulationDuration = time.Minute
-	shutdownSignal        = make(chan types.Empty)
+	shutdownSignal = make(chan types.Empty)
 )
 
 func main() {
@@ -54,11 +53,8 @@ func main() {
 	MetricsMgr = simulation.NewMetricsManager()
 	MetricsMgr.Setup(testNetwork)
 
-	testNetwork.Start()
+	monitorNetworkState()
 	MetricsMgr.StartMetricsCollection()
-
-	resultsWriters := monitorNetworkState()
-	defer flushWriters(resultsWriters)
 
 	// start a go routine for each node to start issuing messages
 	startIssuingMessages(testNetwork)
@@ -73,7 +69,7 @@ func main() {
 	case <-shutdownSignal:
 		shutdownSimulation()
 		log.Info("Shutting down simulation (consensus reached) ... [DONE]")
-	case <-time.After(time.Duration(config.SlowdownFactor) * maxSimulationDuration):
+	case <-time.After(time.Duration(config.SlowdownFactor) * config.SimulationDuration):
 		shutdownSimulation()
 		log.Info("Shutting down simulation (simulation timed out) ... [DONE]")
 	}
@@ -107,7 +103,6 @@ func processMessages(peer *network.Peer) {
 			// Trigger the scheduler to pop messages and gossip them
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.SchedulingRate))
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
-			monitorLocalMetrics(peer)
 		}
 	}
 }
@@ -228,7 +223,9 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 }
 
 func shutdownSimulation() {
+	simulationWg.Wait()
 	MetricsMgr.Shutdown()
+
 }
 
 // todo add to metrics manager on shutdown if needed

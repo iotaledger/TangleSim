@@ -190,7 +190,7 @@ func (s *MetricsManager) SetupWriters() {
 							strconv.FormatInt(int64(messageMetadata.ConfirmationTime().Sub(message.IssuanceTime)), 10),
 							strconv.FormatUint(weight, 10),
 							strconv.FormatInt(s.PeerCounters.Get("confirmedMessageCount", awPeer.ID), 10),
-							strconv.FormatInt(messageIDCounter, 0),
+							strconv.FormatInt(messageIDCounter, 10),
 							strconv.FormatInt(time.Since(s.simulationStartTime).Nanoseconds(), 10),
 						}
 						// writing to the file

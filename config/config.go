@@ -9,9 +9,9 @@ var (
 	SimulationStopThreshold = 1.0       // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
 	MetricsMonitorTick      = 100       // Tick to monitor the consensus, in milliseconds.
 
-	MonitoredPeers                  = []int{0} // Nodes for which we collect more specific metrics, collected metrics depend on the simulator configuration.
-	MonitoredWitnessWeightPeer      = 0        // Peer for which we monitor Witness Weight
-	MonitoredWitnessWeightMessageID = 200      // A specified message ID to monitor the witness weights
+	MonitoredPeers                  = []int{0}                             // Nodes for which we collect more specific metrics, collected metrics depend on the simulator configuration.
+	MonitoredWitnessWeightPeer      = 0                                    // Peer for which we monitor Witness Weight
+	MonitoredWitnessWeightMessageID = 200                                  // A specified message ID to monitor the witness weights
 	ScriptStartTimeStr              = time.Now().Format("20060102_150405") // A string indicating the start time of a simulation started by an external script
 	SimulationDuration              = time.Duration(1 * float64(time.Minute))
 )
@@ -57,7 +57,7 @@ var (
 // 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
 var (
 	// BurnPolicies = ZeroValueArray(NodesCount)
-	SchedulerType = "ICCA" // ManaBurn or ICCA
+	SchedulerType = "None" // ManaBurn or ICCA or None
 	BurnPolicies  = RandomArrayFromValues(0, []int{0, 1}, NodesCount)
 	ExtraBurn     = 1.0
 	MaxBuffer     = 200

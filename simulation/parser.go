@@ -15,7 +15,7 @@ import (
 
 var log = logger.New("Simulation")
 
-// Parse the flags and update the configuration
+// ParseFlags the flags and update the configuration
 func ParseFlags() {
 
 	// Define the configuration flags
@@ -257,13 +257,13 @@ func parseStrToFloat64(strList string) []float64 {
 
 func DumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, ParentsCount, SchedulingRate, IssuingRate, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS int
-		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                     float64
-		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode, BurnPolicyNames                                                                                                 string
-		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                           []int
-		AdversarySpeedup, AdversaryMana                                                                                                                                                                []float64
-		AdversaryInitColor, AccidentalMana                                                                                                                                                             []string
-		AdversaryPeeringAll                                                                                                                                                                            bool
+		NodesCount, NodesTotalWeight, ParentsCount, SchedulingRate, IssuingRate, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS, MaxBuffer int
+		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                                float64
+		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode, BurnPolicyNames                                                                                                            string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                                      []int
+		AdversarySpeedup, AdversaryMana                                                                                                                                                                           []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                                                        []string
+		AdversaryPeeringAll, ConfEligible                                                                                                                                                                         bool
 	}
 	data := Configuration{
 		NodesCount:              config.NodesCount,
@@ -297,7 +297,8 @@ func DumpConfig(fileName string) {
 		AccidentalMana:          config.AccidentalMana,
 		AdversaryPeeringAll:     config.AdversaryPeeringAll,
 		AdversarySpeedup:        config.AdversarySpeedup,
-		BurnPolicyNames:         config.BurnPolicyNames,
+		ConfEligible:            config.ConfEligible,
+		MaxBuffer:               config.MaxBuffer,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")

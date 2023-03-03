@@ -4,7 +4,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/iotaledger/multivers-simulation/singlenodeattacks"
@@ -21,9 +20,8 @@ import (
 )
 
 var (
-	log          = logger.New("Simulation")
-	MetricsMgr   *simulation.MetricsManager
-	simulationWg = sync.WaitGroup{}
+	log        = logger.New("Simulation")
+	MetricsMgr *simulation.MetricsManager
 	// simulation variables
 	shutdownSignal = make(chan types.Empty)
 )
@@ -67,10 +65,11 @@ func main() {
 
 	select {
 	case <-shutdownSignal:
-		shutdownSimulation()
+		shutdownSimulation(testNetwork)
 		log.Info("Shutting down simulation (consensus reached) ... [DONE]")
 	case <-time.After(time.Duration(config.SlowdownFactor) * config.SimulationDuration):
-		shutdownSimulation()
+		fmt.Println(">>>>>>>>>>>>>.Simulation timed out")
+		shutdownSimulation(testNetwork)
 		log.Info("Shutting down simulation (simulation timed out) ... [DONE]")
 	}
 }
@@ -88,8 +87,6 @@ func startProcessingMessages(n *network.Network) {
 }
 
 func processMessages(peer *network.Peer) {
-	simulationWg.Add(1)
-	defer simulationWg.Done()
 	pace := time.Duration((float64(time.Second) * float64(config.SlowdownFactor)) / float64(config.SchedulingRate))
 	ticker := time.NewTicker(pace)
 	for {
@@ -178,8 +175,6 @@ func startIssuingMessages(testNetwork *network.Network) {
 }
 
 func issueMessages(peer *network.Peer, band float64) {
-	simulationWg.Add(1)
-	defer simulationWg.Done()
 	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor) / band)
 
 	if pace == time.Duration(0) {
@@ -222,10 +217,9 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 	peer.Node.(multiverse.NodeInterface).IssuePayload(multiverse.UndefinedColor)
 }
 
-func shutdownSimulation() {
-	simulationWg.Wait()
+func shutdownSimulation(n *network.Network) {
+	n.Shutdown()
 	MetricsMgr.Shutdown()
-
 }
 
 // todo add to metrics manager on shutdown if needed

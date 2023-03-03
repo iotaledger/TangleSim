@@ -13,7 +13,7 @@ var (
 	MonitoredWitnessWeightPeer      = 0                                    // Peer for which we monitor Witness Weight
 	MonitoredWitnessWeightMessageID = 200                                  // A specified message ID to monitor the witness weights
 	ScriptStartTimeStr              = time.Now().Format("20060102_150405") // A string indicating the start time of a simulation started by an external script
-	SimulationDuration              = time.Duration(1 * float64(time.Minute))
+	SimulationDuration              = 1 * time.Minute
 )
 
 // Network setup

@@ -24,7 +24,7 @@ type MBScheduler struct {
 func (s *MBScheduler) Setup() {
 	// Setup the initial AccessMana when the peer ID is created
 	for id := 0; id < config.NodesCount; id++ {
-		s.accessMana[network.PeerID(id)] = 0.0
+		s.accessMana[network.PeerID(id)] = 100000
 	}
 	s.events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
 		s.tangle.Peer.GossipNetworkMessage(s.tangle.Storage.Message(messageID))

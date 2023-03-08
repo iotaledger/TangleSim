@@ -38,6 +38,7 @@ type ICCAScheduler struct {
 	quanta       map[network.PeerID]float64
 	issuerQueues map[network.PeerID]*IssuerQueue
 	roundRobin   *ring.Ring
+	readyLen     int
 
 	events *SchedulerEvents
 }
@@ -87,6 +88,7 @@ func (s *ICCAScheduler) setReady(messageID MessageID) {
 	if m, exists := s.nonReadyMap[messageID]; exists {
 		delete(s.nonReadyMap, messageID)
 		heap.Push(s.issuerQueues[m.Issuer], *m)
+		s.readyLen += 1
 	}
 }
 
@@ -106,8 +108,10 @@ func (s *ICCAScheduler) DecreaseNodeAccessMana(nodeID network.PeerID, manaIncrem
 	return newAccessMana
 }
 
-func (s *ICCAScheduler) BurnValue() (float64, bool) {
-	return 0.0, true // always just burn 0 mana for ICCA for now.
+func (s *ICCAScheduler) BurnValue(issuanceTime time.Time) (float64, bool) {
+	slotIndex := SlotIndex(float64(issuanceTime.Sub(s.tangle.Storage.genesisTime)) / float64(config.SlotTime))
+	RMC := s.tangle.Storage.RMC(slotIndex)
+	return RMC, s.GetNodeAccessMana(s.tangle.Peer.ID) >= RMC
 }
 
 func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
@@ -118,12 +122,30 @@ func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
 		//log.Debugf("Ready Message Enqueued")
 		s.tangle.Storage.MessageMetadata(messageID).SetReady()
 		heap.Push(s.issuerQueues[m.Issuer], *m)
+		s.readyLen += 1
 	} else {
 		//log.Debug("Not Ready Message Enqueued")
 		s.tangle.Storage.MessageMetadata(messageID).SetReady()
 		s.nonReadyMap[messageID] = s.tangle.Storage.Message(messageID)
 	}
 	s.events.MessageEnqueued.Trigger(s.issuerQueues[m.Issuer].Len(), len(s.nonReadyMap))
+	s.BufferManagement()
+}
+
+func (s *ICCAScheduler) BufferManagement() {
+	for s.readyLen > config.MaxBuffer {
+		issuerID := 0
+		maxScaledLen := 0.0
+		for id := 0; id < config.NodesCount; id++ {
+			scaledLen := float64(s.issuerQueues[network.PeerID(id)].Len()) / s.quanta[network.PeerID(id)]
+			if scaledLen >= maxScaledLen {
+				maxScaledLen = scaledLen
+				issuerID = id
+			}
+		}
+		heap.Pop(s.issuerQueues[network.PeerID(issuerID)]) // drop head
+		s.readyLen -= 1
+	}
 }
 
 func (s *ICCAScheduler) ScheduleMessage() {
@@ -149,6 +171,7 @@ func (s *ICCAScheduler) ScheduleMessage() {
 	// now the ring is pointing to the selected issuer and deficits are updated.
 	// pop the message from the chosen issuer's queue
 	m := s.roundRobin.Value.(*DRRQueue).q.Pop().(Message)
+	s.readyLen -= 1
 	// decrement its deficit
 	s.deficits[s.roundRobin.Value.(*DRRQueue).issuerID]-- // assumes work==1
 	// schedule the message
@@ -181,7 +204,7 @@ func (s *ICCAScheduler) Events() *SchedulerEvents {
 }
 
 func (s *ICCAScheduler) ReadyLen() int {
-	return s.issuerQueues[s.tangle.Peer.ID].Len() // return length of own ready queue only
+	return s.readyLen
 }
 
 func (s *ICCAScheduler) NonReadyLen() int {
@@ -193,8 +216,14 @@ func (s *ICCAScheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) 
 	return mana
 }
 
-func (s *ICCAScheduler) GetMaxManaBurn() (mana float64) {
-	return 0.0
+func (s *ICCAScheduler) GetMaxManaBurn() (maxManaBurn float64) {
+	for id := 0; id < config.NodesCount; id++ {
+		q := s.issuerQueues[network.PeerID(id)]
+		if q.Len() > 0 {
+			maxManaBurn = math.Max(maxManaBurn, (*q)[0].ManaBurnValue)
+		}
+	}
+	return
 }
 
 func (s *ICCAScheduler) IssuerQueueLen(issuer network.PeerID) int {

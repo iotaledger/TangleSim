@@ -56,13 +56,19 @@ var (
 // Mana Burn Setup
 // 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
 var (
-	// BurnPolicies = ZeroValueArray(NodesCount)
-	SchedulerType = "ICCA" // ManaBurn or ICCA
-	BurnPolicies  = RandomArrayFromValues(0, []int{0, 1}, NodesCount)
-	ExtraBurn     = 1.0
-	MaxBuffer     = 200
-	ConfEligible  = true // if true, then confirmed is used for eligible check. else just scheduled
-	MaxDeficit    = 10.0 // maximum deficit for any id
+	SchedulerType     = "ICCA+" // ManaBurn or ICCA+
+	BurnPolicies      = RandomArrayFromValues(0, []int{0, 1}, NodesCount)
+	ExtraBurn         = 1.0
+	MaxBuffer         = 200
+	ConfEligible      = true // if true, then confirmed is used for eligible check. else just scheduled
+	MaxDeficit        = 10.0 // maximum deficit for any id
+	SlotTime          = time.Duration(1 * float64(time.Second))
+	RMCSlots          = 10                                                 // number of slot in the past from which to calculate RMC
+	InitialRMC        = 1.0                                                // inital value of RMC
+	LowerRMCThreshold = 0.7 * float64(SchedulingRate) * SlotTime.Seconds() // T1 for RMC
+	UpperRMCThreshold = 0.9 * float64(SchedulingRate) * SlotTime.Seconds() // T2 for RMC
+	AlphaRMC          = 0.8
+	BetaRMC           = 1.2
 )
 
 // Adversary setup - enabled by setting SimulationTarget="DS"

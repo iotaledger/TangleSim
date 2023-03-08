@@ -42,7 +42,7 @@ func (s *MBScheduler) Setup() {
 	}))
 }
 
-func (s *MBScheduler) BurnValue() (burn float64, ok bool) {
+func (s *MBScheduler) BurnValue(issuanceTime time.Time) (burn float64, ok bool) {
 	peerID := s.tangle.Peer.ID
 	switch policy := config.BurnPolicies[peerID]; BurnPolicyType(policy) {
 	case NoBurn:

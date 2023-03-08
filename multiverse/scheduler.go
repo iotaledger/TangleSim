@@ -3,6 +3,7 @@ package multiverse
 import (
 	"container/heap"
 	"container/ring"
+	"time"
 
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
@@ -34,7 +35,7 @@ type Scheduler interface {
 	Setup()
 	IncrementAccessMana(float64)
 	DecreaseNodeAccessMana(network.PeerID, float64) float64
-	BurnValue() (float64, bool)
+	BurnValue(time.Time) (float64, bool)
 	EnqueueMessage(MessageID)
 	ScheduleMessage()
 	Events() *SchedulerEvents
@@ -61,7 +62,7 @@ func NewScheduler(tangle *Tangle) (s Scheduler) {
 				MessageEnqueued:  events.NewEvent(schedulerEventCaller),
 			},
 		}
-	} else if config.SchedulerType == "ICCA" {
+	} else if config.SchedulerType == "ICCA+" {
 		s = &ICCAScheduler{
 			tangle:       tangle,
 			nonReadyMap:  make(map[MessageID]*Message),

@@ -103,6 +103,9 @@ func main() {
 		network.TheSameOpinion: network.NodeClosure(adversary.NewSameOpinionNode),
 		network.NoGossip:       network.NodeClosure(adversary.NewNoGossipNode),
 	}
+
+	// The simulation start time
+	simulationStartTime = time.Now()
 	testNetwork := network.New(
 		network.Nodes(config.NodesCount, nodeFactories, network.ZIPFDistribution(
 			config.ZipfParameter)),
@@ -112,6 +115,7 @@ func main() {
 		network.Topology(network.WattsStrogatz(config.NeighbourCountWS, config.RandomnessWS)),
 		network.AdversaryPeeringAll(config.AdversaryPeeringAll),
 		network.AdversarySpeedup(config.AdversarySpeedup),
+		network.GenesisTime(simulationStartTime),
 	)
 	// The simulation start time
 	simulationStartTime = time.Now()
@@ -244,6 +248,8 @@ func monitorLocalMetrics(peer *network.Peer) {
 		localMetrics["Own Mana"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetNodeAccessMana(peer.ID))
 		localMetrics["Tips"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().TipManager.TipSet(0).Size())
 		localMetrics["Price"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetMaxManaBurn())
+		currentSlotIndex := peer.Node.(multiverse.NodeInterface).Tangle().Storage.SlotIndex(time.Now())
+		localMetrics["RMC"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Storage.RMC(currentSlotIndex))
 		if peer.ID == 0 {
 			for i := 0; i < config.NodesCount; i++ {
 				localMetrics["Mana at Node 0"][network.PeerID(i)] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetNodeAccessMana(network.PeerID(i)))
@@ -257,6 +263,7 @@ func monitorLocalMetrics(peer *network.Peer) {
 		localMetrics["Own Mana"] = make(map[network.PeerID]float64)
 		localMetrics["Tips"] = make(map[network.PeerID]float64)
 		localMetrics["Price"] = make(map[network.PeerID]float64)
+		localMetrics["RMC"] = make(map[network.PeerID]float64)
 		localMetrics["Mana at Node 0"] = make(map[network.PeerID]float64)
 		localMetrics["Issuer Queue Lengths at Node 0"] = make(map[network.PeerID]float64)
 		localMetrics["Deficits at Node 0"] = make(map[network.PeerID]float64)
@@ -424,14 +431,10 @@ func monitorGlobalMetrics(net *network.Network) {
 					confirmedMessageMap[message.ID] = 1
 					partiallyConfirmedMessageCounter[message.Issuer] += 1
 					unconfirmedMessageCounter[message.Issuer] -= 1
-					//partiallyConfirmedMessages[message.ID] = message
-					//partiallyConfirmedMessageMetadata[message.ID] = messageMetadata
 				}
 				// a message is disseminated if it has been confirmed by all nodes.
 				if confirmedMessageMap[message.ID] == config.NodesCount {
 					partiallyConfirmedMessageCounter[message.Issuer] -= 1
-					//delete(partiallyConfirmedMessages, message.ID)
-					//delete(partiallyConfirmedMessageMetadata, message.ID)
 					fullyConfirmedMessageCounter[message.Issuer] += 1
 					fullyConfirmedMessages[message.ID] = message
 					fullyConfirmedMessageMetadata[message.ID] = messageMetadata

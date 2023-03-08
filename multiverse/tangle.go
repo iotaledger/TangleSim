@@ -1,6 +1,8 @@
 package multiverse
 
 import (
+	"time"
+
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/network"
 )
@@ -8,6 +10,7 @@ import (
 type Tangle struct {
 	Peer               *network.Peer
 	WeightDistribution *network.ConsensusWeightDistribution
+	GenesisTime        time.Time
 	Storage            *Storage
 	Solidifier         *Solidifier
 	ApprovalManager    *ApprovalManager
@@ -36,10 +39,11 @@ func NewTangle() (tangle *Tangle) {
 	return
 }
 
-func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution) {
+func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution, genesisTime time.Time) {
 	t.Peer = peer
 	t.WeightDistribution = weightDistribution
 
+	t.Storage.Setup(genesisTime)
 	t.Solidifier.Setup()
 	t.Requester.Setup()
 	t.Booker.Setup()

@@ -1,6 +1,8 @@
 package multiverse
 
 import (
+	"time"
+
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/logger"
 	"github.com/iotaledger/multivers-simulation/network"
@@ -35,11 +37,11 @@ func (n *Node) Tangle() *Tangle {
 	return n.tangle
 }
 
-func (n *Node) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution) {
+func (n *Node) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution, genesisTime time.Time) {
 	defer log.Debugf("%s: Setting up Multiverse ... [DONE]", peer)
 
 	n.peer = peer
-	n.tangle.Setup(peer, weightDistribution)
+	n.tangle.Setup(peer, weightDistribution, genesisTime)
 	n.tangle.Requester.Events.Request.Attach(events.NewClosure(func(messageID MessageID) {
 		n.peer.GossipNetworkMessage(&MessageRequest{MessageID: messageID, Issuer: n.peer.ID})
 	}))

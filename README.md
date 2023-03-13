@@ -1,4 +1,4 @@
-# Multiverse Simulation
+# TangleSim: An Agent-based, Modular Simulator for DAG-based Distributed Ledger Technologies
 
 The biggest breakthrough of Bitcoin was the introduction of a new voting scheme on top of a blockchain - a data structure which was invented by Stuart Haber and W. Scott Stornetta in 1991. The blocks that are issued by block producers do not just contain the transactions that are added to the ledger but also contain a reference to the previous block. Through this reference, the blocks form a chain where every block implicitly approves all of the previous blocks and represent a vote by the issuer on what he perceives to be the longest chain. The chain that received the most votes (blocks) wins.
 

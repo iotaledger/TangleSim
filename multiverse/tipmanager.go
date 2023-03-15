@@ -2,9 +2,11 @@ package multiverse
 
 import (
 	"fmt"
-	"github.com/iotaledger/hive.go/datastructure/walker"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/iotaledger/hive.go/datastructure/walker"
 
 	"github.com/iotaledger/hive.go/datastructure/randommap"
 	"github.com/iotaledger/hive.go/events"
@@ -21,9 +23,11 @@ var (
 type TipManager struct {
 	Events *TipManagerEvents
 
-	tangle              *Tangle
-	tsa                 TipSelector
-	tipSets             map[Color]*TipSet
+	tangle  *Tangle
+	tsa     TipSelector
+	tipSets map[Color]*TipSet
+
+	msgProcessedMutex   sync.RWMutex
 	msgProcessedCounter map[Color]uint64
 }
 
@@ -76,13 +80,14 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 		for color, tipSet := range t.TipSets(inheritedColor) {
 			addedAsStrongTip[color] = true
 			tipSet.AddStrongTip(message)
-			t.msgProcessedCounter[color] += 1
+
+			t.AddMsgProcessedCounter(color, 1)
 		}
 	}
 
 	// Color, tips pool count, processed messages issued messages
 	t.Events.MessageProcessed.Trigger(inheritedColor, currentTipPoolSize,
-		t.msgProcessedCounter[inheritedColor], messageIDCounter)
+		t.GetMsgProcessedCounter(inheritedColor), messageIDCounter)
 
 	// Remove the weak tip codes
 	// for color, tipSet := range t.TipSets(inheritedColor) {
@@ -229,6 +234,20 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// weakTips.Trim(OptimalWeakParentsCount)
 
 	return
+}
+
+func (t *TipManager) AddMsgProcessedCounter(color Color, amount uint64) {
+	t.msgProcessedMutex.Lock()
+	defer t.msgProcessedMutex.Unlock()
+
+	t.msgProcessedCounter[color] += amount
+}
+
+func (t *TipManager) GetMsgProcessedCounter(color Color) uint64 {
+	t.msgProcessedMutex.RLock()
+	defer t.msgProcessedMutex.RUnlock()
+
+	return t.msgProcessedCounter[color]
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

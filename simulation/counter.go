@@ -116,8 +116,8 @@ func (ac *AtomicCounters[T, V]) Get(counterKey T) V {
 }
 
 func (ac *AtomicCounters[T, V]) Add(counterKey T, value V) {
-	ac.countersMutex.RLock()
-	defer ac.countersMutex.RUnlock()
+	ac.countersMutex.Lock()
+	defer ac.countersMutex.Unlock()
 	counter, ok := ac.counters[counterKey]
 	if !ok {
 		panic(fmt.Sprintf("Trying add to not initiated counter, key: %s", counterKey))

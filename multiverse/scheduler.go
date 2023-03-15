@@ -17,11 +17,6 @@ type PriorityQueue []Message
 
 type IssuerQueue []Message
 
-type DRRQueue struct {
-	issuerID network.PeerID
-	q        *IssuerQueue
-}
-
 type BurnPolicyType int
 
 const (
@@ -45,6 +40,7 @@ type Scheduler interface {
 	GetMaxManaBurn() float64
 	IssuerQueueLen(network.PeerID) int
 	Deficit(network.PeerID) float64
+	RateSetter() bool
 }
 
 func NewScheduler(tangle *Tangle) (s Scheduler) {

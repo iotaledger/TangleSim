@@ -210,7 +210,11 @@ func issueMessages(peer *network.Peer, band float64) {
 					ticker.Reset(pace)
 				}
 			}
-			sendMessage(peer)
+
+			if peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.RateSetter() {
+				sendMessage(peer)
+			}
+
 		case <-congestionTicker.C:
 			if i < len(config.CongestionPeriods)-1 {
 				band *= config.CongestionPeriods[i+1] / config.CongestionPeriods[i]
@@ -659,7 +663,24 @@ func dumpConfig(filePath string) {
 }
 
 func dumpNetworkConfig(net *network.Network) {
-	file, err := os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "networkConfig.csv"))
+	file, err := os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "config.csv"))
+	if err != nil {
+		panic(err)
+	}
+	cHeader := []string{
+		"SchedulerType",
+	}
+	cValues := []string{
+		config.SchedulerType,
+	}
+	cWriter := csv.NewWriter(file)
+	if err := cWriter.Write(cHeader); err != nil {
+		panic(err)
+	}
+	if err := cWriter.Write(cValues); err != nil {
+		panic(err)
+	}
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "networkConfig.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -705,7 +726,7 @@ func dumpNetworkConfig(net *network.Network) {
 			strconv.FormatInt(int64(net.WeightDistribution.Weight(peer.ID)), 10),
 		})
 		// Flush the writers, or the data will be truncated for high node count
-		flushWriters([]*csv.Writer{ncWriter, bpWriter, wWriter})
+		flushWriters([]*csv.Writer{cWriter, ncWriter, bpWriter, wWriter})
 	}
 }
 

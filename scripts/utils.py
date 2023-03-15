@@ -17,7 +17,7 @@ import matplotlib.colors as mcolors
 
 colors = mcolors.TABLEAU_COLORS
 colornames = list(colors)
-burnPolicyNames = ["Opportunistic", "Anxious", "Greedy", "Random Greedy"]
+burnPolicyNames = {"ManaBurn": ["Opportunistic", "Anxious", "Greedy", "Random Greedy"], "ICCA+": ["Spammer", " ", "Best Effort"]}
 class ArgumentParserWithDefaults(argparse.ArgumentParser):
     """The argument parser to support RawTextHelpFormatter and show default values.
     """
@@ -171,6 +171,17 @@ def parse_int_node_attributes(file, cd):
             attributes[int(row[0])] = int(row[1])
     return attributes
 
+def parse_config(file):
+    with open(file, newline='') as csvfile:
+        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        configparams = dict()
+        row1 = next(reader)
+        row2 = next(reader)
+        for i in range(len(row1)):
+            configparams[row1[i]] = row2[i]
+    return configparams
+
+
 def plot_per_node_metric(data, times, cd, title, ylab):
     fig, ax = plt.subplots(figsize=(8,4))
     ax.grid(linestyle='--')
@@ -185,7 +196,7 @@ def plot_per_node_metric(data, times, cd, title, ylab):
     ax.set_ylim(0)
     bps = list(set(burnPolicies))
     ModeLines = [Line2D([0],[0],color=colors[colornames[bp]], lw=4) for bp in bps]
-    fig.legend(ModeLines, [burnPolicyNames[i] for i in bps], loc="lower right")
+    fig.legend(ModeLines, [burnPolicyNames[cd["SchedulerType"]][i] for i in bps], loc="lower right")
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+'.png', bbox_inches='tight')
 
 
@@ -211,7 +222,7 @@ def plot_per_node_rates(messages, times, cd, title):
     ax[1].set_ylim(0, 500)
     bps = list(set(burnPolicies))
     ModeLines = [Line2D([0],[0],color=colors[colornames[bp]], lw=4) for bp in bps]
-    fig.legend(ModeLines, [burnPolicyNames[i] for i in bps], loc="lower right")
+    fig.legend(ModeLines, [burnPolicyNames[cd["SchedulerType"]][i] for i in bps], loc="lower right")
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+'.png', bbox_inches='tight')
 
 def plot_latency_cdf(latencies, cd, title):
@@ -248,7 +259,7 @@ def plot_latency_cdf(latencies, cd, title):
     ax.set_ylim(0,1.1)
     bps = list(set(burnPolicies))
     ModeLines = [Line2D([0],[0],color=colors[colornames[bp]], lw=4) for bp in bps]
-    fig.legend(ModeLines, [burnPolicyNames[i] for i in bps], loc="lower right")
+    fig.legend(ModeLines, [burnPolicyNames[cd["SchedulerType"]][i] for i in bps], loc="lower right")
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+'.png', bbox_inches='tight')
 
 def plot_total_rate(data, times, cd, title):

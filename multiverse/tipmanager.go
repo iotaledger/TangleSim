@@ -70,12 +70,10 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	currentTipPoolSize := tipSet.strongTips.Size()
 
 	addedAsStrongTip := make(map[Color]bool)
-	if time.Since(message.IssuanceTime).Seconds() < config.DeltaURTS {
-		for color, tipSet := range t.TipSets(inheritedColor) {
-			addedAsStrongTip[color] = true
-			tipSet.AddStrongTip(message)
-			t.msgProcessedCounter[color] += 1
-		}
+	for color, tipSet := range t.TipSets(inheritedColor) {
+		addedAsStrongTip[color] = true
+		tipSet.AddStrongTip(message)
+		t.msgProcessedCounter[color] += 1
 	}
 
 	// Color, tips pool count, processed messages issued messages

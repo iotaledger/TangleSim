@@ -176,3 +176,7 @@ func (s *MBScheduler) IssuerQueueLen(issuer network.PeerID) int {
 func (s *MBScheduler) Deficit(issuer network.PeerID) float64 {
 	return 0.0
 }
+
+func (s *MBScheduler) RateSetter() bool {
+	return true
+}

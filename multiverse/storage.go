@@ -19,6 +19,7 @@ type Storage struct {
 	strongChildrenDB  map[MessageID]MessageIDs
 	weakChildrenDB    map[MessageID]MessageIDs
 	slotDB            map[SlotIndex]MessageIDs
+	acceptedSlotDB    map[SlotIndex]MessageIDs
 	rmc               map[SlotIndex]float64
 	genesisTime       time.Time
 
@@ -36,6 +37,7 @@ func NewStorage() (storage *Storage) {
 		strongChildrenDB:  make(map[MessageID]MessageIDs),
 		weakChildrenDB:    make(map[MessageID]MessageIDs),
 		slotDB:            make(map[SlotIndex]MessageIDs),
+		acceptedSlotDB:    make(map[SlotIndex]MessageIDs),
 		rmc:               make(map[SlotIndex]float64),
 	}
 }
@@ -50,7 +52,6 @@ func (s *Storage) Store(message *Message) {
 	}
 	slotIndex := s.SlotIndex(message.IssuanceTime)
 	s.slotMutex.Lock()
-	defer s.slotMutex.Unlock()
 	if _, exists := s.slotDB[slotIndex]; !exists {
 		s.slotDB[slotIndex] = NewMessageIDs()
 	}
@@ -58,12 +59,11 @@ func (s *Storage) Store(message *Message) {
 		s.NewRMC(slotIndex)
 	}
 	if message.ManaBurnValue < s.rmc[slotIndex] { // RMC will always be zero if not in ICCA+
-		log.Debug("Message dropped due Mana burn < RMC")
+		log.Debug("Message dropped due to Mana burn < RMC")
 		return // don't store this message if it burns less than RMC
 	}
 	// store to slot storage
 	s.slotDB[slotIndex].Add(message.ID)
-
 	// store message and metadata
 	s.messageDB[message.ID] = message
 	messageMetadata := &MessageMetadata{
@@ -72,10 +72,15 @@ func (s *Storage) Store(message *Message) {
 		arrivalTime: time.Now(),
 		ready:       false,
 	}
+	// check if this should be orphaned
+	if s.InCommitableSlot(message) {
+		messageMetadata.SetOrphanTime(time.Now())
+	}
 	s.messageMetadataDB[message.ID] = messageMetadata
 	// store child references
 	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
 	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
+	s.slotMutex.Unlock()
 	s.Events.MessageStored.Trigger(message.ID, message, messageMetadata)
 }
 
@@ -143,6 +148,10 @@ func (s *Storage) Slot(index SlotIndex) MessageIDs {
 	return s.slotDB[index]
 }
 
+func (s *Storage) AcceptedSlot(index SlotIndex) MessageIDs {
+	return s.acceptedSlotDB[index]
+}
+
 func (s *Storage) RMC(slotIndex SlotIndex) float64 {
 	s.slotMutex.Lock()
 	defer s.slotMutex.Unlock()
@@ -164,13 +173,28 @@ func (s *Storage) NewRMC(currentSlotIndex SlotIndex) {
 	}
 	s.rmc[currentSlotIndex] = s.rmc[currentSlotIndex-SlotIndex(1)] // keep RMC the same by default
 	if currentSlotIndex >= SlotIndex(config.RMCSlots) {
-		n := len(s.Slot(currentSlotIndex - SlotIndex(config.RMCSlots))) // number of messages k slots in the past
+		n := len(s.AcceptedSlot(currentSlotIndex - SlotIndex(config.RMCSlots))) // number of messages k slots in the past
 		if n < int(config.LowerRMCThreshold) {
-			s.rmc[currentSlotIndex] = s.rmc[currentSlotIndex] * config.AlphaRMC
+			s.rmc[currentSlotIndex] = math.Max(config.RMCmin, s.rmc[currentSlotIndex]*config.AlphaRMC)
 		} else if n > int(config.UpperRMCThreshold) {
-			s.rmc[currentSlotIndex] = s.rmc[currentSlotIndex] * config.BetaRMC
+			s.rmc[currentSlotIndex] = math.Min(config.RMCmax, s.rmc[currentSlotIndex]*config.BetaRMC)
 		}
 	}
+}
+
+func (s *Storage) InCommitableSlot(message *Message) bool {
+	return s.SlotIndex(message.IssuanceTime) <= s.SlotIndex(time.Now().Add(-config.MinCommittableAge))
+}
+
+func (s *Storage) AddToAcceptedSlot(message *Message) {
+	s.slotMutex.Lock()
+	defer s.slotMutex.Unlock()
+	slotIndex := s.SlotIndex(message.IssuanceTime)
+	if _, exists := s.acceptedSlotDB[slotIndex]; !exists {
+		s.acceptedSlotDB[slotIndex] = NewMessageIDs()
+	}
+	// store to accepted slot storage
+	s.acceptedSlotDB[slotIndex].Add(message.ID)
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

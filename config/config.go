@@ -22,7 +22,7 @@ var (
 	NodesCount        = 20                            // NodesCount is the total number of nodes simulated in the network.
 	SchedulingRate    = 100                           // Scheduler rate in units of messages per second.
 	IssuingRate       = SchedulingRate                // Total rate of issuing messages in units of messages per second.
-	CongestionPeriods = []float64{0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
+	CongestionPeriods = []float64{0.5, 2.5, 2.5, 0.5} // congested/uncongested periods
 	ParentsCount      = 2                             // ParentsCount that a new message is selecting from the tip pool.
 	NeighbourCountWS  = 4                             // Number of neighbors node is connected to in WattsStrogatz network topology.
 	RandomnessWS      = 1.0                           // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
@@ -47,28 +47,30 @@ var (
 // Tip Selection Algorithm setup
 
 var (
-	TSA           = "URTS" // Currently only one supported TSA is URTS
-	DeltaURTS     = 5.0    // in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199
-	WeakTipsRatio = 0.0    // The ratio of weak tips
+	TSA           = "RURTS" // Currently only one supported TSA is URTS
+	DeltaURTS     = 5.0     // in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199
+	WeakTipsRatio = 0.0     // The ratio of weak tips
 )
 
-// TODO: expose the configuration in Parser
 // Mana Burn Setup
 // 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
 var (
-	SchedulerType     = "ICCA+" // ManaBurn or ICCA+
+	SchedulerType     = "ManaBurn" // ManaBurn or ICCA+
 	BurnPolicies      = RandomArrayFromValues(0, []int{0, 1}, NodesCount)
 	ExtraBurn         = 1.0
 	MaxBuffer         = 200
 	ConfEligible      = true // if true, then confirmed is used for eligible check. else just scheduled
-	MaxDeficit        = 10.0 // maximum deficit for any id
+	MaxDeficit        = 2.0  // maximum deficit for any id
 	SlotTime          = time.Duration(1 * float64(time.Second))
-	RMCSlots          = 10                                                 // number of slot in the past from which to calculate RMC
+	MinCommittableAge = time.Duration(60 * float64(time.Second))
+	RMCSlots          = int(float64(MinCommittableAge) / float64(SlotTime))
 	InitialRMC        = 1.0                                                // inital value of RMC
 	LowerRMCThreshold = 0.7 * float64(SchedulingRate) * SlotTime.Seconds() // T1 for RMC
 	UpperRMCThreshold = 0.9 * float64(SchedulingRate) * SlotTime.Seconds() // T2 for RMC
 	AlphaRMC          = 0.8
 	BetaRMC           = 1.2
+	RMCmin            = 0.25
+	RMCmax            = 2.0
 )
 
 // Adversary setup - enabled by setting SimulationTarget="DS"

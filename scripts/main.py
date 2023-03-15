@@ -215,6 +215,9 @@ if __name__ == '__main__':
     # Plot the figures
     if config.cd['PLOT_FIGURES']:
         # update the configuration dictionary
+        newconfigs = parse_config(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/config.csv")
+        for k in newconfigs:
+            config.update(k, newconfigs[k])
         burnPolicies = parse_int_node_attributes(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/burnPolicies.csv", config.cd)
         config.update('BURN_POLICIES', burnPolicies)
         weights = parse_int_node_attributes(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/weights.csv", config.cd)

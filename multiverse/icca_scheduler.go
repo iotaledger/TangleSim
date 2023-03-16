@@ -15,7 +15,7 @@ import (
 
 func (s *ICCAScheduler) initQueues() {
 	for i := 0; i < config.NodesCount; i++ {
-		issuerQueue := &IssuerQueue{}
+		issuerQueue := NewIssuerQueue()
 		heap.Init(issuerQueue)
 		s.issuerQueues[network.PeerID(i)] = issuerQueue
 		s.roundRobin.Value = &DRRQueue{

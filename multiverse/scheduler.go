@@ -3,6 +3,7 @@ package multiverse
 import (
 	"container/heap"
 	"container/ring"
+	"sync"
 
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
@@ -14,7 +15,11 @@ import (
 // Priority Queue for Message
 type PriorityQueue []Message
 
-type IssuerQueue []Message
+type IssuerQueue struct {
+	msg []Message
+
+	sync.RWMutex
+}
 
 type DRRQueue struct {
 	issuerID network.PeerID
@@ -128,26 +133,43 @@ func (h PriorityQueue) tail() (tail int) {
 }
 
 // region Issuer Queue ////////////////////////////////////////////////////////////////////////////////
-
-func (h IssuerQueue) Len() int { return len(h) }
-func (h IssuerQueue) Less(i, j int) bool {
-	return float64(h[i].IssuanceTime.Nanosecond()) < float64(h[j].IssuanceTime.Nanosecond())
+func NewIssuerQueue() *IssuerQueue {
+	return &IssuerQueue{
+		msg: make([]Message, 0),
+	}
 }
-func (h IssuerQueue) Swap(i, j int) {
-	h[i], h[j] = h[j], h[i]
+
+func (h *IssuerQueue) Len() int {
+	h.RLock()
+	defer h.RUnlock()
+	return len(h.msg)
+}
+func (h *IssuerQueue) Less(i, j int) bool {
+	h.RLock()
+	defer h.RUnlock()
+	return float64(h.msg[i].IssuanceTime.Nanosecond()) < float64(h.msg[j].IssuanceTime.Nanosecond())
+}
+func (h *IssuerQueue) Swap(i, j int) {
+	h.Lock()
+	defer h.Unlock()
+	h.msg[i], h.msg[j] = h.msg[j], h.msg[i]
 }
 
 func (h *IssuerQueue) Push(m any) {
+	h.Lock()
+	defer h.Unlock()
 	// Push and Pop use pointer receivers because they modify the slice's length,
 	// not just its contents.
-	*h = append(*h, m.(Message))
+	h.msg = append(h.msg, m.(Message))
 }
 
 func (h *IssuerQueue) Pop() any {
-	old := *h
+	h.Lock()
+	defer h.Unlock()
+	old := h.msg
 	n := len(old)
 	x := old[n-1]
-	*h = old[0 : n-1]
+	h.msg = old[0 : n-1]
 	return x
 }
 

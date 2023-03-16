@@ -89,7 +89,7 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 
 	// Color, tips pool count, processed messages issued messages
 	t.Events.MessageProcessed.Trigger(inheritedColor, currentTipPoolSize,
-		t.GetMsgProcessedCounter(inheritedColor), messageIDCounter)
+		t.GetMsgProcessedCounter(inheritedColor), messageIDCounter.Load())
 
 	// Remove the weak tip codes
 	// for color, tipSet := range t.TipSets(inheritedColor) {

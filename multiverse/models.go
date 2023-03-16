@@ -160,11 +160,11 @@ type MessageID int64
 var (
 	Genesis MessageID
 
-	messageIDCounter int64
+	messageIDCounter atomic.Int64
 )
 
 func NewMessageID() MessageID {
-	return MessageID(atomic.AddInt64(&messageIDCounter, 1))
+	return MessageID(messageIDCounter.Add(1))
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

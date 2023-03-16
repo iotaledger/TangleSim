@@ -58,7 +58,7 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 			if float64(messageMetadata.Weight()) >= config.ConfirmationThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) &&
 				!messageMetadata.Confirmed() {
 				messageMetadata.SetConfirmationTime(time.Now())
-				a.Events.MessageConfirmed.Trigger(message, messageMetadata, messageMetadata.Weight(), messageIDCounter)
+				a.Events.MessageConfirmed.Trigger(message, messageMetadata, messageMetadata.Weight(), messageIDCounter.Load())
 			}
 
 			for strongParentID := range message.StrongParents {

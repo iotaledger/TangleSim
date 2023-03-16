@@ -23,9 +23,11 @@ var (
 type TipManager struct {
 	Events *TipManagerEvents
 
-	tangle  *Tangle
-	tsa     TipSelector
-	tipSets map[Color]*TipSet
+	tangle *Tangle
+	tsa    TipSelector
+
+	tipSetsMutex sync.Mutex
+	tipSets      map[Color]*TipSet
 
 	msgProcessedMutex   sync.RWMutex
 	msgProcessedCounter map[Color]uint64
@@ -98,12 +100,15 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 }
 
 func (t *TipManager) TipSets(color Color) map[Color]*TipSet {
-	if _, exists := t.tipSets[color]; !exists {
-		t.tipSets[color] = NewTipSet(t.tipSets[UndefinedColor])
-	}
-
 	if color == UndefinedColor {
 		return t.tipSets
+	}
+
+	t.tipSetsMutex.Lock()
+	defer t.tipSetsMutex.Unlock()
+
+	if _, exists := t.tipSets[color]; !exists {
+		t.tipSets[color] = NewTipSet(t.tipSets[UndefinedColor])
 	}
 
 	return map[Color]*TipSet{
@@ -112,6 +117,9 @@ func (t *TipManager) TipSets(color Color) map[Color]*TipSet {
 }
 
 func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
+	t.tipSetsMutex.Lock()
+	defer t.tipSetsMutex.Unlock()
+
 	tipSet, exists := t.tipSets[color]
 	if !exists {
 		tipSet = NewTipSet(t.tipSets[UndefinedColor])

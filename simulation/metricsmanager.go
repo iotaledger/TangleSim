@@ -43,6 +43,8 @@ type MetricsManager struct {
 	dumpingTicker     *time.Ticker
 	onShutdownDumpers []func()
 
+	shutdown chan types.Empty
+
 	dumpOnEventUsed     bool
 	dumpOnEventShutdown chan types.Empty
 }
@@ -60,6 +62,7 @@ func NewMetricsManager() *MetricsManager {
 		writers:      make(map[string]*csv.Writer),
 		collectFuncs: make(map[string]func() csvRows),
 
+		shutdown:            make(chan types.Empty),
 		dumpOnEventShutdown: make(chan types.Empty),
 	}
 }
@@ -92,27 +95,35 @@ func (s *MetricsManager) SetupInternalVariables() {
 func (s *MetricsManager) StartMetricsCollection() {
 	s.dumpingTicker = time.NewTicker(time.Duration(config.SlowdownFactor*config.MetricsMonitorTick) * time.Millisecond)
 	go func() {
-		for range s.dumpingTicker.C {
-			fmt.Println("collecting metrics tps ", s.GlobalCounters.Get("tps"), "messages issued ", s.GlobalCounters.Get("issuedMessages"))
-			s.collectMetrics()
+		for {
+			select {
+			case <-s.dumpingTicker.C:
+				fmt.Println("collecting metrics tps ", s.GlobalCounters.Get("tps"), "messages issued ", s.GlobalCounters.Get("issuedMessages"))
+				s.collectMetrics()
+			case <-s.shutdown:
+				for _, w := range s.writers {
+					w.Flush()
+				}
+
+				// todo move final condition reaching detection to some more accurate place
+				// determines whether consensus has been reached and simulation is over
+				r, g, b := getLikesPerRGB(s.ColorCounters, "confirmedNodes")
+				aR, aG, aB := getLikesPerRGB(s.AdversaryCounters, "confirmedNodes")
+				hR, hG, hB := r-aR, g-aG, b-aB
+				if max(max(hB, hR), hG) >= int64(config.SimulationStopThreshold*float64(s.honestNodesCount)) {
+					//shutdownSignal <- types.Void
+				}
+				s.GlobalCounters.Set("tps", 0)
+				return
+			}
 		}
-		// todo move final condition reaching detection to some more accurate place
-		// determines whether consensus has been reached and simulation is over
-		r, g, b := getLikesPerRGB(s.ColorCounters, "confirmedNodes")
-		aR, aG, aB := getLikesPerRGB(s.AdversaryCounters, "confirmedNodes")
-		hR, hG, hB := r-aR, g-aG, b-aB
-		if max(max(hB, hR), hG) >= int64(config.SimulationStopThreshold*float64(s.honestNodesCount)) {
-			//shutdownSignal <- types.Void
-		}
-		s.GlobalCounters.Set("tps", 0)
 
 	}()
 }
 
 func (s *MetricsManager) Shutdown() {
-	for _, w := range s.writers {
-		w.Flush()
-	}
+	s.shutdown <- types.Void
+
 	s.dumpOnShutdown()
 	if s.dumpingTicker != nil {
 		s.dumpingTicker.Stop()

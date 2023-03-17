@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"container/ring"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
@@ -32,8 +33,11 @@ func (s *ICCAScheduler) initQueues() {
 // region ICCA Scheduler ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type ICCAScheduler struct {
-	tangle       *Tangle
-	nonReadyMap  map[MessageID]*Message
+	tangle *Tangle
+
+	nonReadyMapMutex sync.RWMutex
+	nonReadyMap      map[MessageID]*Message
+
 	accessMana   map[network.PeerID]float64
 	deficits     map[network.PeerID]float64
 	quanta       map[network.PeerID]float64
@@ -85,6 +89,9 @@ func (s *ICCAScheduler) updateChildrenReady(messageID MessageID) {
 func (s *ICCAScheduler) setReady(messageID MessageID) {
 	s.tangle.Storage.MessageMetadata(messageID).SetReady()
 	// move from non-ready queue to ready queue if this child is already enqueued
+
+	s.nonReadyMapMutex.Lock()
+	defer s.nonReadyMapMutex.Unlock()
 	if m, exists := s.nonReadyMap[messageID]; exists {
 		delete(s.nonReadyMap, messageID)
 		heap.Push(s.issuerQueues[m.Issuer], *m)
@@ -122,9 +129,12 @@ func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
 	} else {
 		//log.Debug("Not Ready Message Enqueued")
 		s.tangle.Storage.MessageMetadata(messageID).SetReady()
+		s.nonReadyMapMutex.Lock()
 		s.nonReadyMap[messageID] = s.tangle.Storage.Message(messageID)
+		s.nonReadyMapMutex.Unlock()
 	}
-	s.events.MessageEnqueued.Trigger(s.issuerQueues[m.Issuer].Len(), len(s.nonReadyMap))
+
+	s.events.MessageEnqueued.Trigger(s.issuerQueues[m.Issuer].Len(), s.NonReadyLen())
 }
 
 func (s *ICCAScheduler) ScheduleMessage() {
@@ -186,6 +196,8 @@ func (s *ICCAScheduler) ReadyLen() int {
 }
 
 func (s *ICCAScheduler) NonReadyLen() int {
+	s.nonReadyMapMutex.RLock()
+	defer s.nonReadyMapMutex.RUnlock()
 	return len(s.nonReadyMap)
 }
 

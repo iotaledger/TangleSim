@@ -20,10 +20,10 @@ type IssuerQueue []Message
 type BurnPolicyType int
 
 const (
-	NoBurn       BurnPolicyType = 0
-	Anxious      BurnPolicyType = 1
-	Greedy       BurnPolicyType = 2
-	RandomGreedy BurnPolicyType = 3
+	NoBurn   BurnPolicyType = 0
+	Anxious  BurnPolicyType = 1
+	Greedy1  BurnPolicyType = 2
+	Greedy10 BurnPolicyType = 3
 )
 
 type Scheduler interface {

@@ -69,11 +69,13 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	// Calculate the current tip pool size before calling AddStrongTip
 	currentTipPoolSize := tipSet.strongTips.Size()
 
-	addedAsStrongTip := make(map[Color]bool)
-	for color, tipSet := range t.TipSets(inheritedColor) {
-		addedAsStrongTip[color] = true
-		tipSet.AddStrongTip(message)
-		t.msgProcessedCounter[color] += 1
+	if time.Since(message.IssuanceTime).Seconds() < config.DeltaURTS || config.TSA != "RURTS" {
+		addedAsStrongTip := make(map[Color]bool)
+		for color, tipSet := range t.TipSets(inheritedColor) {
+			addedAsStrongTip[color] = true
+			tipSet.AddStrongTip(message)
+			t.msgProcessedCounter[color] += 1
+		}
 	}
 
 	// Color, tips pool count, processed messages issued messages

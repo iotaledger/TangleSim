@@ -17,7 +17,7 @@ import matplotlib.colors as mcolors
 
 colors = mcolors.TABLEAU_COLORS
 colornames = list(colors)
-burnPolicyNames = {"ManaBurn": ["Opportunistic", "Anxious", "Greedy", "Random Greedy"], "ICCA+": ["Spammer", " ", "Best Effort"]}
+burnPolicyNames = {"ManaBurn": ["No Burn", "Anxious", "Greedy (+1)", "Greedy (+10)"], "ICCA+": ["Spammer", " ", "Best Effort"]}
 class ArgumentParserWithDefaults(argparse.ArgumentParser):
     """The argument parser to support RawTextHelpFormatter and show default values.
     """
@@ -209,7 +209,7 @@ def plot_per_node_rates(messages, times, cd, title):
     ax[1].set_xlabel("Time (s)")
     ax[1].set_ylabel("Scaled Rate")
     ax[0].title.set_text(title)
-    avg_window = 10
+    avg_window = 50
     burnPolicies = cd['BURN_POLICIES']
     weights = cd['WEIGHTS']
     for NodeID in range(cd['NODES_COUNT']):
@@ -234,7 +234,7 @@ def plot_latency_cdf(latencies, cd, title):
     if not maxlats:
         return
     maxval = max(maxlats)
-    nbins = 100
+    nbins = 1000
     bins = np.arange(0, maxval+maxval/nbins, maxval/nbins)
     pdf = np.zeros(len(bins))
     burnPolicies = cd['BURN_POLICIES']
@@ -262,7 +262,7 @@ def plot_latency_cdf(latencies, cd, title):
     fig.legend(ModeLines, [burnPolicyNames[cd["SchedulerType"]][i] for i in bps], loc="lower right")
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+'.png', bbox_inches='tight')
 
-def plot_total_rate(data, times, cd, title):
+def plot_total_rate(data, times, cd, title, ylim=None):
     _, ax = plt.subplots(figsize=(8,4))
     ax.grid(linestyle='--')
     ax.set_xlabel("Time (s)")
@@ -273,8 +273,11 @@ def plot_total_rate(data, times, cd, title):
     rate = (totals[avg_window:]-totals[:-avg_window])*1000/(avg_window*cd['MONITOR_INTERVAL'])
     ax.plot(times[avg_window:], rate, color='k')
     ax.set_xlim(0, times[-1])
-    ax.set_ylim(0)
-    plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+'.png', bbox_inches='tight')
+    if ylim is not None:
+        ax.set_ylim(0,ylim)
+        plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+str(ylim)+'.png', bbox_inches='tight')
+    else:
+        plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME']+'/'+title+'.png', bbox_inches='tight')
 
 def plot_latency(latencies, times, cd, title):
     fig, ax = plt.subplots(figsize=(8,4))

@@ -2,7 +2,6 @@ package multiverse
 
 import (
 	"container/heap"
-	"math/rand"
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
@@ -24,7 +23,7 @@ type MBScheduler struct {
 func (s *MBScheduler) Setup() {
 	// Setup the initial AccessMana when the peer ID is created
 	for id := 0; id < config.NodesCount; id++ {
-		s.accessMana[network.PeerID(id)] = 100000
+		s.accessMana[network.PeerID(id)] = config.InitialMana
 	}
 	s.events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
 		s.tangle.Peer.GossipNetworkMessage(s.tangle.Storage.Message(messageID))
@@ -39,6 +38,7 @@ func (s *MBScheduler) Setup() {
 		if config.ConfEligible {
 			s.updateChildrenReady(message.ID)
 		}
+		s.tangle.Storage.AddToAcceptedSlot(message)
 	}))
 }
 
@@ -51,12 +51,12 @@ func (s *MBScheduler) BurnValue(issuanceTime time.Time) (burn float64, ok bool) 
 		burn = s.GetNodeAccessMana(peerID)
 		ok = true
 		return
-	case Greedy:
-		burn = s.GetMaxManaBurn() + config.ExtraBurn
+	case Greedy1:
+		burn = s.GetMaxManaBurn() + 1.0
 		ok = burn <= s.GetNodeAccessMana(peerID)
 		return
-	case RandomGreedy:
-		burn = s.GetMaxManaBurn() + config.ExtraBurn*rand.Float64()
+	case Greedy10:
+		burn = s.GetMaxManaBurn() + 10.0
 		ok = burn <= s.GetNodeAccessMana(peerID)
 		return
 	default:

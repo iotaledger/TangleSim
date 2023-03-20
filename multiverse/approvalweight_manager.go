@@ -59,7 +59,7 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 				!messageMetadata.Confirmed() && !messageMetadata.Orphaned() {
 				// check if this should be orphaned
 				now := time.Now()
-				if a.tangle.Storage.InCommitableSlot(message) {
+				if a.tangle.Storage.TooOld(message) {
 					messageMetadata.SetOrphanTime(now)
 				} else {
 					messageMetadata.SetConfirmationTime(now)

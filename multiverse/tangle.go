@@ -54,5 +54,7 @@ func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.Consensus
 }
 
 func (t *Tangle) ProcessMessage(message *Message) {
-	t.Storage.Store(message)
+	if messageMetadata, stored := t.Storage.Store(message); stored {
+		t.Storage.Events.MessageStored.Trigger(message.ID, message, messageMetadata)
+	}
 }

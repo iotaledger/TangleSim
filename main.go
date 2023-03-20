@@ -254,6 +254,7 @@ func monitorLocalMetrics(peer *network.Peer) {
 		localMetrics["Price"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetMaxManaBurn())
 		currentSlotIndex := peer.Node.(multiverse.NodeInterface).Tangle().Storage.SlotIndex(time.Now())
 		localMetrics["RMC"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Storage.RMC(currentSlotIndex))
+		localMetrics["Time since ATT"][peer.ID] = float64(time.Since(peer.Node.(multiverse.NodeInterface).Tangle().Storage.ATT).Seconds())
 		if peer.ID == 0 {
 			for i := 0; i < config.NodesCount; i++ {
 				localMetrics["Mana at Node 0"][network.PeerID(i)] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetNodeAccessMana(network.PeerID(i)))
@@ -271,6 +272,7 @@ func monitorLocalMetrics(peer *network.Peer) {
 		localMetrics["Mana at Node 0"] = make(map[network.PeerID]float64)
 		localMetrics["Issuer Queue Lengths at Node 0"] = make(map[network.PeerID]float64)
 		localMetrics["Deficits at Node 0"] = make(map[network.PeerID]float64)
+		localMetrics["Time since ATT"] = make(map[network.PeerID]float64)
 	}
 }
 

@@ -1,6 +1,6 @@
 """The simulation script to run multiverse-simulation in batch.
 """
-import sys
+import sys, shutil
 import textwrap
 
 import constant as c
@@ -216,6 +216,8 @@ if __name__ == '__main__':
     if config.cd['PLOT_FIGURES']:
         # update the configuration dictionary
         newconfigs = parse_config(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/config.csv")
+        # copy the config.go file
+        shutil.copyfile(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '.', 'config','config.go')), os.path.join(result_path, config.cd['SCRIPT_START_TIME'], 'go_config.txt'))
         for k in newconfigs:
             config.update(k, newconfigs[k])
         burnPolicies = parse_int_node_attributes(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/burnPolicies.csv", config.cd)
@@ -230,6 +232,7 @@ if __name__ == '__main__':
         messages, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/fullyConfirmedMessages.csv")
         plot_per_node_rates(messages, times, config.cd, "Confirmation Rates")
         plot_total_rate(messages, times, config.cd, "Total Confirmation Rate")
+        plot_total_rate(messages, times, config.cd, "Total Confirmation Rate", 200)
         # plot number of partially confirmed blocks
         messages, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/partiallyConfirmedMessages.csv")
         plot_per_node_metric(messages, times, config.cd, "Partially Confirmed Blocks", "Number of Blocks")

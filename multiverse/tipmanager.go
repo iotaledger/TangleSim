@@ -383,6 +383,8 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 			// If the time difference is greater than DeltaURTS, delete it from tips
 			if currentTime.Sub(tip.(*Message).IssuanceTime).Seconds() > config.DeltaURTS {
 				tips.Delete(tip)
+			} else if fishingConditionFailed(tip) {
+				tips.Delete(tip)
 			} else {
 				// Append the valid tip to tipsToReturn and decrease the amountLeft
 				tipsToReturn = append(tipsToReturn, tip)
@@ -398,6 +400,15 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 
 	return tipsToReturn
 
+}
+
+// TODO: implement fishing condition
+func fishingConditionFailed(tip interface{}) bool {
+	// Traversing the parents of the tip
+	// If the tip contains the block with `issuance time < Minimum Supported Time`
+	//   return true
+	// else return false
+	return false
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

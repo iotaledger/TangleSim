@@ -212,6 +212,8 @@ func issueMessages(peer *network.Peer, band float64) {
 				}
 			}
 
+			// TODO: for attackers, they don't use the rate setter but will issue as many as blocks to fill up the network traffic
+			//       and they will use higher-frequency ticker to issue more blocks
 			if peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.RateSetter() {
 				sendMessage(peer)
 			}

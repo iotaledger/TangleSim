@@ -142,73 +142,74 @@ if __name__ == '__main__':
 
     # Generate the folders if they don't exist
     os.makedirs(result_path, exist_ok=True)
-    os.makedirs(config.cd['FIGURE_OUTPUT_PATH'], exist_ok=True)
+    # os.makedirs(config.cd['FIGURE_OUTPUT_PATH'], exist_ok=True)
 
-    # # Run the simulation
-    # if config.cd['RUN_SIM']:
-    #     folder = base_folder
-    #     os.makedirs(folder, exist_ok=True)
-    #     for iter in range(repetition):
-    #         if repetition != 1:
-    #             folder = base_folder + f'/iter_{iter}'
-    #             os.makedirs(folder, exist_ok=True)
+    # Run the simulation
+    if config.cd['RUN_SIM']:
+        folder = base_folder
+        os.makedirs(folder, exist_ok=True)
+        for iter in range(repetition):
+            if repetition != 1:
+                folder = base_folder + f'/iter_{iter}'
+                os.makedirs(folder, exist_ok=True)
 
-    #         if var in c.SIMULATION_VAR_DICT:
-    #             # Simulation var
-    #             vn = c.SIMULATION_VAR_DICT[var]
-    #             # TPS = [100, 4000]
-    #             for i, v in enumerate(vv):
-    #                 if vn == 'zipfParameter' or vn == 'payloadLoss':
-    #                     v = float(v)
-    #                 else:
-    #                     v = int(v)
-    #                 os.system(
-    #                     f'{exec} --simulationTarget={target} --{vn}={v} --slowdownFactor={df[i]}')
-    #         elif var == 'D':
-    #             for i, v in enumerate(vv):
-    #                 os.system(
-    #                     f'{exec} --simulationTarget={target} --minDelay={float(v)} --maxDelay={float(v)} -slowdownFactor={df[i]}')
-    #         elif var == 'AW':
-    #             for i, v in enumerate([(0.66, True), (0.75, True), (0.5, False), (0.5, True)]):
-    #                 os.system(
-    #                     f'{exec} --simulationTarget={target} --confirmationThreshold={v[0]} --confirmationThresholdAbsolute={v[1]} -slowdownFactor={df[i]}')
-    #         elif var == 'IM':
-    #             for i, v in enumerate(vv):
-    #                 os.system(
-    #                     f'{exec} --simulationTarget={target}  -simulationMode=Accidental -accidentalMana="{v}" -slowdownFactor={df[i]}')
-    #         elif var == 'AD':
-    #             for i, v in enumerate(vv):
-    #                 v = str(float(v)/2)
-    #                 os.system(
-    #                     f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v} {v}" -adversaryType="{adv_strategy}" -adversaryInitColors="R B" -slowdownFactor={df[i]}')
-    #         elif var == 'AC':
-    #             for i, v in enumerate(vv):
-    #                 if "adversaryMana" not in exec:
-    #                     logging.error(
-    #                         f'You must specify "-adversaryMana" parameter!')
-    #                     sys.exit(2)
+            if var in c.SIMULATION_VAR_DICT:
+                # Simulation var
+                vn = c.SIMULATION_VAR_DICT[var]
+                # TPS = [100, 4000]
+                for i, v in enumerate(vv):
+                    if vn == 'zipfParameter' or vn == 'payloadLoss':
+                        v = float(v)
+                    else:
+                        v = int(v)
+                    os.system(
+                        f'{exec} --simulationTarget={target} --{vn}={v} --slowdownFactor={df[i]}')
+            elif var == 'D':
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target} --minDelay={float(v)} --maxDelay={float(v)} -slowdownFactor={df[i]}')
+            elif var == 'AW':
+                for i, v in enumerate([(0.66, True), (0.75, True), (0.5, False), (0.5, True)]):
+                    os.system(
+                        f'{exec} --simulationTarget={target} --confirmationThreshold={v[0]} --confirmationThresholdAbsolute={v[1]} -slowdownFactor={df[i]}')
+            elif var == 'IM':
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -simulationMode=Accidental -accidentalMana="{v}" -slowdownFactor={df[i]}')
+            elif var == 'AD':
+                for i, v in enumerate(vv):
+                    v = str(float(v)/2)
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v} {v}" -adversaryType="{adv_strategy}" -adversaryInitColors="R B" -slowdownFactor={df[i]}')
+            elif var == 'AC':
+                for i, v in enumerate(vv):
+                    if "adversaryMana" not in exec:
+                        logging.error(
+                            f'You must specify "-adversaryMana" parameter!')
+                        sys.exit(2)
 
-    #                 v = str(int(float(v)/2))
-    #                 os.system(
-    #                     f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -slowdownFactor={df[i]}')
-    #         elif var == 'BS':
-    #             for i, v in enumerate(vv):
-    #                 os.system(
-    #                     f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -slowdownFactor={df[i]}')
-    #         elif var == 'SU':
-    #             for i, v in enumerate(vv):
-    #                 os.system(
-    #                     f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -slowdownFactor={df[i]}')
-    #         elif var == 'MB':
-    #             for i, v in enumerate(vv):
-    #                 t = config.cd['SCRIPT_START_TIME']
-    #                 nc = config.cd['NODES_COUNT']
-    #                 tick = config.cd['MONITOR_INTERVAL']
-    #                 os.system(
-    #                     f'{exec} --simulationTarget={target}  -burnPolicies="{v}" -slowdownFactor={df[i]} -scriptStartTime={t} -nodesCount={nc} -consensusMonitorTick={tick}')
-    #         else:
-    #             logging.error(f'The VARIATIONS {var} is not supported!')
-    #             sys.exit(2)
+                    v = str(int(float(v)/2))
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryNodeCounts="{v} {v}" -adversaryType="1 1" -adversaryInitColors="R B" -slowdownFactor={df[i]}')
+            elif var == 'BS':
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversaryMana="{v}" -slowdownFactor={df[i]}')
+            elif var == 'SU':
+                for i, v in enumerate(vv):
+                    os.system(
+                        f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -slowdownFactor={df[i]}')
+            elif var == 'MB':
+                post_fix = f'_{str(vv[0])}'
+                # TODO: Fix the hacking codes
+                config.cd['SCRIPT_START_TIME'] += post_fix
+                config.cd['FIGURE_OUTPUT_PATH'] = (
+                    f"{config.cd['MULTIVERSE_PATH']}/results/{config.cd['SCRIPT_START_TIME']}/figures")
+                os.system(
+                    f"{exec} -slowdownFactor={df[0]} -scriptStartTime={config.cd['SCRIPT_START_TIME']}")
+            else:
+                logging.error(f'The VARIATIONS {var} is not supported!')
+                sys.exit(2)
 
     #move_results(sim_result_path, folder)
 

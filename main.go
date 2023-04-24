@@ -323,7 +323,7 @@ func dumpGlobalMetrics(dissemResultsWriter *csv.Writer, undissemResultsWriter *c
 	defer simulationWg.Done()
 	timeSinceStart := time.Since(simulationStartTime).Nanoseconds()
 	timeStr := strconv.FormatInt(timeSinceStart, 10)
-	log.Debug("Simulation Completion: ", int(100*float64(timeSinceStart)/float64(config.SimulationDuration)), "%")
+	log.Debug("Simulation Completion: ", int(100*float64(timeSinceStart)*float64(config.SlowdownFactor)/float64(config.SimulationDuration)), "%")
 	disseminatedMessageMutex.RLock()
 	record := make([]string, config.NodesCount+1)
 	for id := 0; id < config.NodesCount; id++ {

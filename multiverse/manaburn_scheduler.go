@@ -64,6 +64,7 @@ func (s *MBScheduler) BurnValue(issuanceTime time.Time) (burn float64, ok bool) 
 	}
 }
 
+// TODO: schedulingRate is not used
 func (s *MBScheduler) IncrementAccessMana(schedulingRate float64) {
 	weights := s.tangle.WeightDistribution.Weights()
 	totalWeight := config.NodesTotalWeight

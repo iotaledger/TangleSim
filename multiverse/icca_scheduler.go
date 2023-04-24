@@ -177,6 +177,7 @@ func (s *ICCAScheduler) ScheduleMessage() {
 	s.events.MessageScheduled.Trigger(m.ID)
 }
 
+// Return the issuer with the least rounds to wait.
 func (s *ICCAScheduler) selectIssuer() (rounds float64, issuerID network.PeerID) {
 	rounds = math.MaxFloat64
 	issuerID = network.PeerID(-1)

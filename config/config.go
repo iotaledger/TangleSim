@@ -62,15 +62,18 @@ var (
 	ConfEligible      = true // if true, then confirmed is used for eligible check. else just scheduled
 	MaxDeficit        = 2.0  // maximum deficit for any id
 	SlotTime          = time.Duration(1 * float64(time.Second))
-	MinCommittableAge = time.Duration(20 * float64(time.Second))
+	MinCommittableAge = time.Duration(5 * float64(time.Second))
 	RMCTime           = 2 * MinCommittableAge
-	InitialRMC        = 1.0                                                // inital value of RMC
-	LowerRMCThreshold = 0.7 * float64(SchedulingRate) * SlotTime.Seconds() // T1 for RMC
-	UpperRMCThreshold = 0.9 * float64(SchedulingRate) * SlotTime.Seconds() // T2 for RMC
+	InitialRMC        = 1.0                                                 // inital value of RMC
+	LowerRMCThreshold = 0.5 * float64(SchedulingRate) * SlotTime.Seconds()  // T1 for RMC
+	UpperRMCThreshold = 0.75 * float64(SchedulingRate) * SlotTime.Seconds() // T2 for RMC
 	AlphaRMC          = 0.8
 	BetaRMC           = 1.2
 	RMCmin            = 0.25
 	RMCmax            = 2.0
+	RMCincrease       = 1.0
+	RMCdecrease       = 0.5
+	RMCPeriodUpdate   = 5
 )
 
 // Adversary setup - enabled by setting SimulationTarget="DS"

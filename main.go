@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -238,7 +239,7 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 func shutdownSimulation(net *network.Network) {
 	net.Shutdown()
 	globalMetricsTicker.Stop()
-	dumpFinalData()
+	dumpFinalData(net)
 	simulationWg.Wait()
 	//dumpAllMessageMetaData(net.Peers[0].Node.(multiverse.NodeInterface).Tangle().Storage)
 }
@@ -507,15 +508,14 @@ func monitorGlobalMetrics(net *network.Network) {
 	}()
 }
 
-func dumpFinalData() {
-	file, err := os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "DisseminationLatency.csv"))
+func dumpFinalData(net *network.Network) {
+	file, err := os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "Traffic.csv"))
 	if err != nil {
 		panic(err)
 	}
 	header := []string{
-		"Issuer ID",
-		"Dissemination Time",
-		"Dissemination Latency",
+		"Slot ID",
+		"Blocks Count",
 	}
 	writer := csv.NewWriter(file)
 	if err := writer.Write(header); err != nil {
@@ -523,6 +523,44 @@ func dumpFinalData() {
 	}
 	writer.Flush()
 	record := make([]string, len(header))
+	mbPeer := net.Peers[0]
+	traffic := mbPeer.Node.(multiverse.NodeInterface).Tangle().Storage.MessagesCountPerSlot()
+
+	// Extract slotIDs from traffic map into a slice of integers
+	var slotIDs []int
+	for slotID := range traffic {
+		slotIDs = append(slotIDs, int(slotID))
+	}
+
+	// Sort the slotIDs in ascending order
+	sort.Ints(slotIDs)
+
+	// Iterate over sorted slotIDs and write data to CSV file
+	for _, slotID := range slotIDs {
+		blockCount := traffic[multiverse.SlotIndex(slotID)]
+		record[0] = strconv.FormatInt(int64(slotID), 10)
+		record[1] = strconv.FormatInt(int64(blockCount), 10)
+		if err := writer.Write(record); err != nil {
+			panic(err)
+		}
+		writer.Flush()
+	}
+
+	file, err = os.Create(path.Join(config.ResultDir, config.ScriptStartTimeStr, "DisseminationLatency.csv"))
+	if err != nil {
+		panic(err)
+	}
+	header = []string{
+		"Issuer ID",
+		"Dissemination Time",
+		"Dissemination Latency",
+	}
+	writer = csv.NewWriter(file)
+	if err := writer.Write(header); err != nil {
+		panic(err)
+	}
+	writer.Flush()
+	record = make([]string, len(header))
 	for messageID := range disseminatedMessages {
 		message := disseminatedMessages[messageID]
 		messageMetadata := disseminatedMessageMetadata[messageID]

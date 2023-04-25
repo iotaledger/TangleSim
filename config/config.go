@@ -19,11 +19,11 @@ var (
 // Network setup
 
 var (
-	NodesCount        = 20                            // NodesCount is the total number of nodes simulated in the network.
+	NodesCount        = 100                           // NodesCount is the total number of nodes simulated in the network.
 	SchedulingRate    = 100                           // Scheduler rate in units of messages per second.
 	IssuingRate       = SchedulingRate                // Total rate of issuing messages in units of messages per second.
 	CongestionPeriods = []float64{0.5, 1.5, 1.5, 0.5} //, 0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
-	ParentsCount      = 2                             // ParentsCount that a new message is selecting from the tip pool.
+	ParentsCount      = 8                             // ParentsCount that a new message is selecting from the tip pool.
 	NeighbourCountWS  = 4                             // Number of neighbors node is connected to in WattsStrogatz network topology.
 	RandomnessWS      = 1.0                           // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
 	IMIF              = "poisson"                     // IMIF Inter Message Issuing Function for time delay between activity messages: poisson or uniform.
@@ -31,14 +31,14 @@ var (
 	MinDelay          = 100                           // The minimum network delay in ms.
 	MaxDelay          = 100                           // The maximum network delay in ms.
 
-	SlowdownFactor = 1 // The factor to control the speed in the simulation.
+	SlowdownFactor = 10 // The factor to control the speed in the simulation.
 )
 
 // Weight setup
 
 var (
 	NodesTotalWeight              = 100_000_000 // Total number of weight for the whole network.
-	ZipfParameter                 = 0.5         // the 's' parameter for the Zipf distribution used to model weight distribution. s=0 all nodes are equal, s=2 network centralized.
+	ZipfParameter                 = 0.9         // the 's' parameter for the Zipf distribution used to model weight distribution. s=0 all nodes are equal, s=2 network centralized.
 	ConfirmationThreshold         = 0.66        // Threshold for AW collection above which messages are considered confirmed.
 	ConfirmationThresholdAbsolute = true        // If true the threshold is alway counted from zero if false the weight collected is counted from the next peer weight.
 	RelevantValidatorWeight       = 0           // The node whose weight * RelevantValidatorWeight <= largestWeight will not issue messages (disabled now)

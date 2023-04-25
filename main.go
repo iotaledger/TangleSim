@@ -149,6 +149,8 @@ func main() {
 }
 
 func startProcessingMessages(n *network.Network) {
+	simulationWg.Wait()
+	simulationWg.Add(len(n.Peers))
 	for _, peer := range n.Peers {
 		go processMessages(peer)
 	}
@@ -159,6 +161,8 @@ func processMessages(peer *network.Peer) {
 	defer simulationWg.Done()
 	pace := time.Duration((float64(time.Second) * float64(config.SlowdownFactor)) / float64(config.SchedulingRate))
 	ticker := time.NewTicker(pace)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-peer.ShutdownProcessing:
@@ -175,6 +179,9 @@ func processMessages(peer *network.Peer) {
 }
 
 func startIssuingMessages(testNetwork *network.Network) {
+	simulationWg.Wait()
+	simulationWg.Add(len(testNetwork.Peers))
+
 	nodeTotalWeight := float64(testNetwork.WeightDistribution.TotalWeight())
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
@@ -198,6 +205,8 @@ func issueMessages(peer *network.Peer, band float64) {
 	}
 	ticker := time.NewTicker(pace)
 	congestionTicker := time.NewTicker(time.Duration(config.SlowdownFactor) * config.SimulationDuration / time.Duration(len(config.CongestionPeriods)))
+	defer congestionTicker.Stop()
+
 	band *= config.CongestionPeriods[0]
 	i := 0
 	for {

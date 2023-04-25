@@ -13,7 +13,7 @@ var (
 	MonitoredWitnessWeightPeer      = 0                                    // Peer for which we monitor Witness Weight
 	MonitoredWitnessWeightMessageID = 200                                  // A specified message ID to monitor the witness weights
 	ScriptStartTimeStr              = time.Now().Format("20060102_150405") // A string indicating the start time of a simulation started by an external script
-	SimulationDuration              = time.Duration(4 * float64(time.Minute))
+	SimulationDuration              = time.Duration(4) * time.Minute
 )
 
 // Network setup
@@ -31,7 +31,7 @@ var (
 	MinDelay          = 100                           // The minimum network delay in ms.
 	MaxDelay          = 100                           // The maximum network delay in ms.
 
-	SlowdownFactor = 10 // The factor to control the speed in the simulation.
+	SlowdownFactor = 2 // The factor to control the speed in the simulation.
 )
 
 // Weight setup

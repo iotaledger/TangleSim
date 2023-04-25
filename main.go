@@ -149,8 +149,6 @@ func main() {
 }
 
 func startProcessingMessages(n *network.Network) {
-	simulationWg.Wait()
-	simulationWg.Add(len(n.Peers))
 	for _, peer := range n.Peers {
 		go processMessages(peer)
 	}
@@ -179,9 +177,6 @@ func processMessages(peer *network.Peer) {
 }
 
 func startIssuingMessages(testNetwork *network.Network) {
-	simulationWg.Wait()
-	simulationWg.Add(len(testNetwork.Peers))
-
 	nodeTotalWeight := float64(testNetwork.WeightDistribution.TotalWeight())
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
@@ -205,6 +200,7 @@ func issueMessages(peer *network.Peer, band float64) {
 	}
 	ticker := time.NewTicker(pace)
 	congestionTicker := time.NewTicker(time.Duration(config.SlowdownFactor) * config.SimulationDuration / time.Duration(len(config.CongestionPeriods)))
+	defer ticker.Stop()
 	defer congestionTicker.Stop()
 
 	band *= config.CongestionPeriods[0]
@@ -332,7 +328,7 @@ func dumpGlobalMetrics(dissemResultsWriter *csv.Writer, undissemResultsWriter *c
 	defer simulationWg.Done()
 	timeSinceStart := time.Since(simulationStartTime).Nanoseconds()
 	timeStr := strconv.FormatInt(timeSinceStart, 10)
-	log.Debug("Simulation Completion: ", int(100*float64(timeSinceStart)/float64(config.SlowdownFactor)/float64(config.SimulationDuration)), "%")
+	log.Debug("Simulation Completion: ", int(100*float64(timeSinceStart)/(float64(config.SlowdownFactor)*float64(config.SimulationDuration))), "%")
 	disseminatedMessageMutex.RLock()
 	record := make([]string, config.NodesCount+1)
 	for id := 0; id < config.NodesCount; id++ {
@@ -1029,7 +1025,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 
 func dumpRecords(dsResultsWriter *csv.Writer, tpResultsWriter *csv.Writer, ccResultsWriter *csv.Writer, adResultsWriter *csv.Writer, tpAllResultsWriter *csv.Writer, mmResultsWriter *csv.Writer, honestNodesCount int, adversaryNodesCount int) {
 	simulationWg.Add(1)
-	simulationWg.Done()
+	defer simulationWg.Done()
 
 	sinceIssuance := "0"
 	if !dsIssuanceTime.IsZero() {

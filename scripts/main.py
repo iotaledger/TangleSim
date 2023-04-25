@@ -206,7 +206,7 @@ if __name__ == '__main__':
                 config.cd['FIGURE_OUTPUT_PATH'] = (
                     f"{config.cd['MULTIVERSE_PATH']}/results/{config.cd['SCRIPT_START_TIME']}/figures")
                 os.system(
-                    f"{exec} -slowdownFactor={df[0]} -scriptStartTime={config.cd['SCRIPT_START_TIME']}")
+                    f"{exec} -scriptStartTime={config.cd['SCRIPT_START_TIME']}")
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)

@@ -87,6 +87,7 @@ var (
 	fullyConfirmedMessageMetadata    = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
 	partiallyConfirmedMessageCounter = make([]int64, config.NodesCount)
 	unconfirmedMessageCounter        = make([]int64, config.NodesCount)
+	shutdownGlobalMetrics            = make(chan struct{})
 
 	localMetrics        = make(map[string]map[network.PeerID]float64)
 	localResultsWriters = make(map[string]*csv.Writer)
@@ -164,6 +165,7 @@ func processMessages(peer *network.Peer) {
 	for {
 		select {
 		case <-peer.ShutdownProcessing:
+			log.Warn("Shutting down processing for peer", peer.ID)
 			return
 		case networkMessage := <-peer.Socket:
 			peer.Node.HandleNetworkMessage(networkMessage) // this includes payloads from the node itself so block are created here
@@ -208,6 +210,7 @@ func issueMessages(peer *network.Peer, band float64) {
 	for {
 		select {
 		case <-peer.ShutdownIssuing:
+			log.Warn("Peer ID: ", peer.ID, " has been shutdown!")
 			return
 		case <-ticker.C:
 			if config.IMIF == "poisson" {
@@ -245,7 +248,7 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 
 func shutdownSimulation(net *network.Network) {
 	net.Shutdown()
-	globalMetricsTicker.Stop()
+	close(shutdownGlobalMetrics)
 	dumpFinalData(net)
 	simulationWg.Wait()
 	//dumpAllMessageMetaData(net.Peers[0].Node.(multiverse.NodeInterface).Tangle().Storage)
@@ -508,9 +511,19 @@ func monitorGlobalMetrics(net *network.Network) {
 	}
 
 	go func() {
-		for range globalMetricsTicker.C {
-			dumpLocalMetrics()
-			dumpGlobalMetrics(dissemResultsWriter, undissemResultsWriter, confirmationResultsWriter, partialConfirmationResultsWriter, unconfirmationResultsWriter)
+		for {
+			select {
+			case <-globalMetricsTicker.C:
+				dumpLocalMetrics()
+				dumpGlobalMetrics(dissemResultsWriter,
+					undissemResultsWriter,
+					confirmationResultsWriter,
+					partialConfirmationResultsWriter,
+					unconfirmationResultsWriter)
+			case <-shutdownGlobalMetrics:
+				log.Warn("Shutting down global metrics")
+				return
+			}
 		}
 	}()
 }

@@ -1028,8 +1028,21 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	}
 
 	go func() {
-		for range globalMetricsTicker.C {
-			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, tpAllResultsWriter, mmResultsWriter, honestNodesCount, adversaryNodesCount)
+		for {
+			select {
+			case <-globalMetricsTicker.C:
+				dumpRecords(dsResultsWriter,
+					tpResultsWriter,
+					ccResultsWriter,
+					adResultsWriter,
+					tpAllResultsWriter,
+					mmResultsWriter,
+					honestNodesCount,
+					adversaryNodesCount)
+			case <-shutdownGlobalMetrics:
+				log.Warn("Shutting down global metrics")
+				return
+			}
 		}
 	}()
 

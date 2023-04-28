@@ -1027,11 +1027,18 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			}))
 	}
 
-	go func() {
-		for range globalMetricsTicker.C {
-			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, tpAllResultsWriter, mmResultsWriter, honestNodesCount, adversaryNodesCount)
-		}
-	}()
+	// TODO: reopen global metrics
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-globalMetricsTicker.C:
+	// 			dumpRecords(dsResultsWriter, tpResultsWriter, ccResultsWriter, adResultsWriter, tpAllResultsWriter, mmResultsWriter, honestNodesCount, adversaryNodesCount)
+	// 		case <-shutdownGlobalMetrics:
+	// 			log.Warn("Shutting down global metrics")
+	// 			return
+	// 		}
+	// 	}
+	// }()
 
 	return
 }

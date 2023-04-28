@@ -26,7 +26,7 @@ class Configuration:
 
         #  (self.cd['MULTIVERSE_PATH'] + '/scripts/figures')
 
-        self.cd['NODES_COUNT'] = 20
+        self.cd['NODES_COUNT'] = 100
         # monitoring interval in milliseconds
         self.cd['MONITOR_INTERVAL'] = 100
 

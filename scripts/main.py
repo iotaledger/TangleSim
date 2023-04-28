@@ -3,6 +3,8 @@
 import sys
 import shutil
 import textwrap
+import subprocess
+import time
 
 import constant as c
 from config import Configuration
@@ -205,8 +207,23 @@ if __name__ == '__main__':
                 config.cd['SCRIPT_START_TIME'] += post_fix
                 config.cd['FIGURE_OUTPUT_PATH'] = (
                     f"{config.cd['MULTIVERSE_PATH']}/results/{config.cd['SCRIPT_START_TIME']}/figures")
-                os.system(
-                    f"{exec} -scriptStartTime={config.cd['SCRIPT_START_TIME']}")
+
+                cmd = f"{exec} -scriptStartTime={config.cd['SCRIPT_START_TIME']}"
+                expire = 1020
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        shell=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        timeout=expire  # 17 minutes
+                    )
+                    print(result.stdout)
+                except subprocess.TimeoutExpired:
+                    print(f"Process timed out after {expire} seconds. Terminating simulation process.")
+
+                # os.system(
+                #     f"{exec} -scriptStartTime={config.cd['SCRIPT_START_TIME']}")
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)
@@ -221,10 +238,13 @@ if __name__ == '__main__':
             config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/config.csv")
 
         # copy the config.go file
-        # shutil.copyfile(os.path.abspath(os.path.join(os.path.dirname(__file__), '.', 'config', 'config.go')), os.path.join(
-        #     result_path, config.cd['SCRIPT_START_TIME'], 'go_config.txt'))
+        source_path = "./config/config.go"
+        destination_dir = os.path.join(config.cd['RESULTS_PATH'], config.cd['SCRIPT_START_TIME'])
+        destination_path = os.path.join(destination_dir, "config.go")
+        shutil.copyfile(source_path, destination_path)
+
         os.makedirs(config.cd['FIGURE_OUTPUT_PATH'], exist_ok=True)
-        print(config.cd['FIGURE_OUTPUT_PATH'])
+        print(f"Generating figures to {config.cd['FIGURE_OUTPUT_PATH']}")
 
         for k in newconfigs:
             config.update(k, newconfigs[k])

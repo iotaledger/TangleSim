@@ -95,7 +95,7 @@ func (s *Storage) StoreToSlotDB(message *Message) (stored bool) {
 		s.NewRMC(slotIndex)
 	}
 	if message.ManaBurnValue < s.rmc[slotIndex] { // RMC will always be zero if not in ICCA+
-		// log.Debug("Message dropped due to Mana burn < RMC")
+		log.Debug("Message dropped due to Mana burn < RMC")
 		return false // don't store this message if it burns less than RMC
 	}
 

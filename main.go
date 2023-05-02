@@ -130,14 +130,25 @@ func main() {
 	monitorNetworkState(testNetwork)
 	MetricsMgr.StartMetricsCollection()
 
+	// The simulation start time
+	simulationStartTime = time.Now()
+
+	// Dump the configuration of this simulation
+	dumpConfig(path.Join(config.ResultDir, config.ScriptStartTimeStr, "mb.config"))
+	// Dump the network information
+	dumpNetworkConfig(testNetwork)
+	// Start monitoring global metrics
+	monitorGlobalMetrics(testNetwork)
+
 	// start a go routine for each node to start issuing messages
 	startIssuingMessages(testNetwork)
-	// start a go routine for each node to start processing messages received from neighbours and scheduling.
+	// start a go routine for each node to start processing messages received from nieghbours and scheduling.
 	startProcessingMessages(testNetwork)
-	defer testNetwork.Shutdown()
 
 	// To simulate the confirmation time w/o any double spending, the colored msgs are not to be sent
-	SimulateAdversarialBehaviour(testNetwork)
+	if config.SimulationTarget == "DS" {
+		SimulateDoubleSpent(testNetwork)
+	}
 
 	select {
 	case <-shutdownSignal:

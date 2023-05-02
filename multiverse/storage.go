@@ -51,26 +51,23 @@ func (s *Storage) Setup(genesisTime time.Time) {
 }
 
 func (s *Storage) Store(message *Message) (*MessageMetadata, bool) {
-	if _, exists := s.messageDB[message.ID]; exists {
+	if m := s.Message(message.ID); m == nil {
 		return &MessageMetadata{}, false
 	}
-	slotIndex := s.SlotIndex(message.IssuanceTime)
-	s.slotMutex.Lock()
-	defer s.slotMutex.Unlock()
-	if _, exists := s.slotDB[slotIndex]; !exists {
-		s.slotDB[slotIndex] = NewMessageIDs()
+
+	if stored := s.StoreToSlotDB(message); !stored {
+		return &MessageMetadata{}, false
 	}
-	if _, exists := s.rmc[slotIndex]; !exists {
-		s.NewRMC(slotIndex)
-	}
-	if message.ManaBurnValue < s.rmc[slotIndex] { // RMC will always be zero if not in ICCA+
-		log.Debug("Message dropped due to Mana burn < RMC")
-		return &MessageMetadata{}, false // don't store this message if it burns less than RMC
-	}
-	// store to slot storage
-	s.slotDB[slotIndex].Add(message.ID)
+
 	// store message and metadata
+	s.Lock()
+	defer s.Unlock()
+
 	s.messageDB[message.ID] = message
+	// store child references
+	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
+	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
+
 	messageMetadata := &MessageMetadata{
 		id:          message.ID,
 		weightSlice: make([]byte, int(math.Ceil(float64(config.NodesCount)/8.0))),
@@ -82,10 +79,30 @@ func (s *Storage) Store(message *Message) (*MessageMetadata, bool) {
 		messageMetadata.SetOrphanTime(time.Now())
 	}
 	s.messageMetadataDB[message.ID] = messageMetadata
-	// store child references
-	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
-	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
+
 	return messageMetadata, true
+}
+
+func (s *Storage) StoreToSlotDB(message *Message) (stored bool) {
+	s.slotMutex.Lock()
+	defer s.slotMutex.Unlock()
+
+	slotIndex := s.SlotIndex(message.IssuanceTime)
+	if _, exists := s.slotDB[slotIndex]; !exists {
+		s.slotDB[slotIndex] = NewMessageIDs()
+	}
+	if _, exists := s.rmc[slotIndex]; !exists {
+		s.NewRMC(slotIndex)
+	}
+	if message.ManaBurnValue < s.rmc[slotIndex] { // RMC will always be zero if not in ICCA+
+		// log.Debug("Message dropped due to Mana burn < RMC")
+		return false // don't store this message if it burns less than RMC
+	}
+
+	// store to slot storage
+	s.slotDB[slotIndex].Add(message.ID)
+
+	return true
 }
 
 func (s *Storage) Message(messageID MessageID) (message *Message) {

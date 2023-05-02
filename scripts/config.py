@@ -20,12 +20,15 @@ class Configuration:
         # The data paths
         self.cd['MULTIVERSE_PATH'] = str(Path().absolute().parent)
         self.cd['RESULTS_PATH'] = self.cd['MULTIVERSE_PATH'] + "/results"
-        self.cd['SCRIPT_START_TIME'] = datetime.strftime(datetime.now(), "%Y%m%d_%H%M%S")
-        self.cd['FIGURE_OUTPUT_PATH'] = (
-            self.cd['MULTIVERSE_PATH'] + '/scripts/figures')
+        self.cd['SCRIPT_START_TIME'] = datetime.strftime(
+            datetime.now(), "%Y%m%d_%H%M%S")
+        self.cd['FIGURE_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/figures"
 
-        self.cd['NODES_COUNT'] = 20
-        self.cd['MONITOR_INTERVAL'] = 100 # monitoring interval in milliseconds
+        #  (self.cd['MULTIVERSE_PATH'] + '/scripts/figures')
+
+        self.cd['NODES_COUNT'] = 100
+        # monitoring interval in milliseconds
+        self.cd['MONITOR_INTERVAL'] = 100
 
         # The output folder suffix (e.g., ct for confirmation time and ds for double spending)
         self.cd['SIMULATION_TARGET'] = 'CT'
@@ -35,7 +38,9 @@ class Configuration:
         self.cd['VARIATIONS'] = 'MB'
 
         # The variations value list
-        self.cd['VARIATION_VALUES'] = ["0 2 2"] # list of policies, separated by spaces
+        # list of policies, separated by spaces
+        self.cd['VARIATION_VALUES'] = [
+            "2 0 2 2 2 2 2 2 2 2 2 0 2 2 2 2 2 2 2 2"]
 
         # The deceleration factor list
         self.cd['DECELERATION_FACTORS'] = [1]

@@ -30,8 +30,8 @@ func NewCounters[T CounterElements, V constraints.Integer]() *MapCounters[T, V] 
 	}
 }
 
-// RegisterCounters creates a new counting map under provided counterKey, with provided elements and optional initial values.
-func (c *MapCounters[T, V]) RegisterCounters(counterKey string, elements []T, values ...V) {
+// CreateCounter creates a new counting map under provided counterKey, with provided elements and optional initial values.
+func (c *MapCounters[T, V]) CreateCounter(counterKey string, elements []T, values ...V) {
 	c.counterMutex.Lock()
 	defer c.counterMutex.Unlock()
 	if len(elements) == 0 {
@@ -96,7 +96,7 @@ func NewAtomicCounters[T CounterElements, V constraints.Integer]() *AtomicCounte
 	}
 }
 
-func (ac *AtomicCounters[T, V]) RegisterCounter(counterKey T, initValue V) {
+func (ac *AtomicCounters[T, V]) CreateCounter(counterKey T, initValue V) {
 	ac.countersMutex.Lock()
 	defer ac.countersMutex.Unlock()
 	// if key not exist create new counter
@@ -133,6 +133,74 @@ func (ac *AtomicCounters[T, V]) Set(counterKey T, value V) {
 		panic(fmt.Sprintf("Trying set for not initiated counter, key: %s", counterKey))
 	}
 	ac.counters[counterKey] = value
+}
+
+// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// region ColorCounters ////////////////////////////////////////////////////////////////////////////////////////////////
+
+type ColorCounters struct {
+	counts map[string]map[multiverse.Color]int64
+	mu     sync.RWMutex
+}
+
+func NewColorCounters() *ColorCounters {
+	return &ColorCounters{
+		counts: make(map[string]map[multiverse.Color]int64),
+	}
+}
+
+// CreateCounter Adds new counter with key and provided initial conditions.
+func (c *ColorCounters) CreateCounter(counterKey string, colors []multiverse.Color, initValues []int64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(initValues) == 0 {
+		return
+	}
+	// if key not exist create new map
+	if innerMap, ok := c.counts[counterKey]; !ok {
+		innerMap = make(map[multiverse.Color]int64)
+		for i, color := range colors {
+			innerMap[color] = initValues[i]
+		}
+		c.counts[counterKey] = innerMap
+	}
+}
+
+func (c *ColorCounters) Add(counterKey string, value int64, color multiverse.Color) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	innerMap, ok := c.counts[counterKey]
+	if !ok {
+		panic(fmt.Sprintf("Trying add to not initiated counter, key: %s, color: %s", counterKey, color))
+	}
+	innerMap[color] += value
+}
+
+func (c *ColorCounters) Set(counterKey string, value int64, color multiverse.Color) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	innerMap, ok := c.counts[counterKey]
+	if !ok {
+		panic(fmt.Sprintf("Trying set the not initiated counter value, key: %s, color: %s", counterKey, color))
+	}
+	innerMap[color] = value
+}
+
+// Get gets the counter value for provided key and color.
+func (c *ColorCounters) Get(counterKey string, color multiverse.Color) int64 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	innerMap, ok := c.counts[counterKey]
+	if !ok {
+		panic(fmt.Sprintf("Trying get value for not initiated counter, key: %s, color: %s", counterKey, color))
+	}
+	return innerMap[color]
+}
+
+func (c *ColorCounters) GetInt(counterKey string, color multiverse.Color) int {
+	v := c.Get(counterKey, color)
+	return int(v)
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

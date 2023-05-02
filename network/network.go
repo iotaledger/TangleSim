@@ -73,6 +73,7 @@ type Configuration struct {
 	peeringStrategy     PeeringStrategy
 	adversaryPeeringAll bool
 	adversarySpeedup    []float64
+	genesisTime         time.Time
 }
 
 func NewConfiguration(options ...Option) (configuration *Configuration) {
@@ -126,7 +127,7 @@ func (c *Configuration) CreatePeers(network *Network) {
 			network.WeightDistribution.SetWeight(peer.ID, nodeWeights[i])
 		}
 		for _, peer := range network.Peers {
-			peer.SetupNode(network.WeightDistribution)
+			peer.SetupNode(network.WeightDistribution, c.genesisTime)
 			log.Debugf("Setup %s ... [DONE]", peer)
 		}
 	}
@@ -221,6 +222,12 @@ func AdversaryPeeringAll(adversaryPeeringAll bool) Option {
 func AdversarySpeedup(adversarySpeedupFactors []float64) Option {
 	return func(config *Configuration) {
 		config.adversarySpeedup = adversarySpeedupFactors
+	}
+}
+
+func GenesisTime(genesisTime time.Time) Option {
+	return func(config *Configuration) {
+		config.genesisTime = genesisTime
 	}
 }
 

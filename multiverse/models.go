@@ -10,6 +10,12 @@ import (
 	"github.com/iotaledger/multivers-simulation/network"
 )
 
+// region Slot //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+type SlotIndex int
+
+// endregion Slot ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 // region Message //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Message struct {
@@ -37,6 +43,7 @@ type MessageMetadata struct {
 	weightSlice      []byte
 	weight           uint64
 	confirmationTime time.Time
+	orphanTime       time.Time
 	arrivalTime      time.Time
 	enqueueTime      time.Time
 	scheduleTime     time.Time
@@ -101,6 +108,10 @@ func (m *MessageMetadata) SetConfirmationTime(confirmationTime time.Time) {
 	m.confirmationTime = confirmationTime
 }
 
+func (m *MessageMetadata) SetOrphanTime(orphanTime time.Time) {
+	m.orphanTime = orphanTime
+}
+
 func (m *MessageMetadata) SetEnqueueTime(enqueueTime time.Time) {
 	m.Lock()
 	defer m.Unlock()
@@ -146,6 +157,10 @@ func (m *MessageMetadata) Confirmed() bool {
 	m.RLock()
 	defer m.RUnlock()
 	return !m.confirmationTime.IsZero()
+}
+
+func (m *MessageMetadata) Orphaned() bool {
+	return !m.orphanTime.IsZero()
 }
 
 func (m *MessageMetadata) Eligible() bool { // a message is ready if all parents are eligible = either scheduled or confirmed

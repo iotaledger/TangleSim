@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"container/ring"
 	"sync"
+	"time"
 
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
@@ -21,25 +22,20 @@ type IssuerQueue struct {
 	sync.RWMutex
 }
 
-type DRRQueue struct {
-	issuerID network.PeerID
-	q        *IssuerQueue
-}
-
 type BurnPolicyType int
 
 const (
-	NoBurn       BurnPolicyType = 0
-	Anxious      BurnPolicyType = 1
-	Greedy       BurnPolicyType = 2
-	RandomGreedy BurnPolicyType = 3
+	NoBurn   BurnPolicyType = 0
+	Anxious  BurnPolicyType = 1
+	Greedy1  BurnPolicyType = 2
+	Greedy10 BurnPolicyType = 3
 )
 
 type Scheduler interface {
 	Setup()
 	IncrementAccessMana(float64)
 	DecreaseNodeAccessMana(network.PeerID, float64) float64
-	BurnValue() (float64, bool)
+	BurnValue(time.Time) (float64, bool)
 	EnqueueMessage(MessageID)
 	ScheduleMessage()
 	Events() *SchedulerEvents
@@ -49,6 +45,7 @@ type Scheduler interface {
 	GetMaxManaBurn() float64
 	IssuerQueueLen(network.PeerID) int
 	Deficit(network.PeerID) float64
+	RateSetter() bool
 }
 
 func NewScheduler(tangle *Tangle) (s Scheduler) {
@@ -66,7 +63,7 @@ func NewScheduler(tangle *Tangle) (s Scheduler) {
 				MessageEnqueued:  events.NewEvent(schedulerEventCaller),
 			},
 		}
-	} else if config.SchedulerType == "ICCA" {
+	} else if config.SchedulerType == "ICCA+" {
 		s = &ICCAScheduler{
 			tangle:       tangle,
 			nonReadyMap:  make(map[MessageID]*Message),

@@ -5,25 +5,25 @@ import "time"
 // simulator settings
 
 var (
-	ResultDir               = "results" // Path where all the result files will be saved
-	SimulationStopThreshold = 1.0       // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
-	MetricsMonitorTick      = 100       // Tick to monitor the consensus, in milliseconds.
-
-	MonitoredPeers                  = []int{0}                             // Nodes for which we collect more specific metrics, collected metrics depend on the simulator configuration.
+	ResultDir                       = "results"                            // Path where all the result files will be saved
+	SimulationTarget                = "CT"                                 // The simulation target, CT: Confirmation Time, DS: Double Spending
+	SimulationStopThreshold         = 1.0                                  // Stop the simulation when > SimulationStopThreshold * NodesCount have reached the same opinion.
+	ConsensusMonitorTick            = 100                                  // Tick to monitor the consensus, in milliseconds.
+	MonitoredAWPeers                = [...]int{0}                          // Nodes for which we monitor the AW growth
 	MonitoredWitnessWeightPeer      = 0                                    // Peer for which we monitor Witness Weight
 	MonitoredWitnessWeightMessageID = 200                                  // A specified message ID to monitor the witness weights
 	ScriptStartTimeStr              = time.Now().Format("20060102_150405") // A string indicating the start time of a simulation started by an external script
-	SimulationDuration              = 1 * time.Minute
+	SimulationDuration              = time.Duration(4) * time.Minute
 )
 
 // Network setup
 
 var (
-	NodesCount        = 20                            // NodesCount is the total number of nodes simulated in the network.
+	NodesCount        = 100                           // NodesCount is the total number of nodes simulated in the network.
 	SchedulingRate    = 100                           // Scheduler rate in units of messages per second.
 	IssuingRate       = SchedulingRate                // Total rate of issuing messages in units of messages per second.
-	CongestionPeriods = []float64{0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
-	ParentsCount      = 2                             // ParentsCount that a new message is selecting from the tip pool.
+	CongestionPeriods = []float64{0.5, 1.5, 1.5, 0.5} //, 0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
+	ParentsCount      = 8                             // ParentsCount that a new message is selecting from the tip pool.
 	NeighbourCountWS  = 4                             // Number of neighbors node is connected to in WattsStrogatz network topology.
 	RandomnessWS      = 1.0                           // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
 	IMIF              = "poisson"                     // IMIF Inter Message Issuing Function for time delay between activity messages: poisson or uniform.
@@ -31,7 +31,7 @@ var (
 	MinDelay          = 100                           // The minimum network delay in ms.
 	MaxDelay          = 100                           // The maximum network delay in ms.
 
-	SlowdownFactor = 1 // The factor to control the speed in the simulation.
+	SlowdownFactor = 2 // The factor to control the speed in the simulation.
 )
 
 // Weight setup
@@ -47,22 +47,33 @@ var (
 // Tip Selection Algorithm setup
 
 var (
-	TSA           = "URTS" // Currently only one supported TSA is URTS
-	DeltaURTS     = 5.0    // in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199
-	WeakTipsRatio = 0.0    // The ratio of weak tips
+	TSA           = "RURTS" // Currently only one supported TSA is URTS
+	DeltaURTS     = 5.0     // in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199
+	WeakTipsRatio = 0.0     // The ratio of weak tips
 )
 
-// TODO: expose the configuration in Parser
-// Mana Burn Setup
-// 0 = noburn, 1 = anxious, 2 = greedy, 3 = random_greedy
+// Congestion Control
+
 var (
-	// BurnPolicies = ZeroValueArray(NodesCount)
-	SchedulerType = "None" // ManaBurn or ICCA or None
-	BurnPolicies  = RandomArrayFromValues(0, []int{0, 1}, NodesCount)
-	ExtraBurn     = 1.0
-	MaxBuffer     = 200
-	ConfEligible  = true // if true, then confirmed is used for eligible check. else just scheduled
-	MaxDeficit    = 10.0 // maximum deficit for any id
+	SchedulerType     = "ICCA+" // ManaBurn or ICCA+
+	BurnPolicies      = RandomArrayFromValues(0, []int{0, 1}, NodesCount)
+	InitialMana       = 0.0
+	MaxBuffer         = 200
+	ConfEligible      = true // if true, then confirmed is used for eligible check. else just scheduled
+	MaxDeficit        = 2.0  // maximum deficit for any id
+	SlotTime          = time.Duration(1 * float64(time.Second))
+	MinCommittableAge = time.Duration(5 * float64(time.Second))
+	RMCTime           = 2 * MinCommittableAge
+	InitialRMC        = 1.0                                                 // inital value of RMC
+	LowerRMCThreshold = 0.5 * float64(SchedulingRate) * SlotTime.Seconds()  // T1 for RMC
+	UpperRMCThreshold = 0.75 * float64(SchedulingRate) * SlotTime.Seconds() // T2 for RMC
+	AlphaRMC          = 0.8
+	BetaRMC           = 1.2
+	RMCmin            = 0.25
+	RMCmax            = 2.0
+	RMCincrease       = 1.0
+	RMCdecrease       = 0.5
+	RMCPeriodUpdate   = 5
 )
 
 // Adversary setup - enabled by setting SimulationTarget="DS"

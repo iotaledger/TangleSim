@@ -86,14 +86,14 @@ func (s *MetricsManager) SetupInternalVariables() {
 		s.allPeerIDs = append(s.allPeerIDs, peer.ID)
 	}
 	// peers with collected more specific metrics, can be set in config
-	for _, monitoredID := range config.MonitoredPeers {
+	for _, monitoredID := range config.MonitoredAWPeers {
 		s.watchedPeerIDs = append(s.watchedPeerIDs, network.PeerID(monitoredID))
 	}
 	s.simulationStartTime = time.Now()
 }
 
 func (s *MetricsManager) StartMetricsCollection() {
-	s.dumpingTicker = time.NewTicker(time.Duration(config.SlowdownFactor*config.MetricsMonitorTick) * time.Millisecond)
+	s.dumpingTicker = time.NewTicker(time.Duration(config.SlowdownFactor*config.ConsensusMonitorTick) * time.Millisecond)
 	go func() {
 		for {
 			select {

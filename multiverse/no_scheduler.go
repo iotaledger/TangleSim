@@ -1,6 +1,8 @@
 package multiverse
 
 import (
+	"time"
+
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/network"
 )
@@ -19,7 +21,7 @@ func (s *NoScheduler) Setup() {
 }
 func (s *NoScheduler) IncrementAccessMana(float64)                            {}
 func (s *NoScheduler) DecreaseNodeAccessMana(network.PeerID, float64) float64 { return 0 }
-func (s *NoScheduler) BurnValue() (float64, bool)                             { return 0, false }
+func (s *NoScheduler) BurnValue(time.Time) (float64, bool)                    { return 0, false }
 func (s *NoScheduler) EnqueueMessage(messageID MessageID) {
 	s.events.MessageScheduled.Trigger(messageID)
 }
@@ -31,3 +33,4 @@ func (s *NoScheduler) GetNodeAccessMana(network.PeerID) float64 { return 0 }
 func (s *NoScheduler) GetMaxManaBurn() float64                  { return 0 }
 func (s *NoScheduler) IssuerQueueLen(network.PeerID) int        { return 0 }
 func (s *NoScheduler) Deficit(network.PeerID) float64           { return 0 }
+func (s *NoScheduler) RateSetter() bool                         { return true }

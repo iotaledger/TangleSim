@@ -12,42 +12,42 @@ import (
 // SetupMetrics registers all metrics that are used in the simulation, add any new metric registration here.
 func (s *MetricsManager) SetupMetrics() {
 	// counters for double spending
-	s.ColorCounters.RegisterCounters("opinions", s.uRGBColors, int64(config.NodesCount), 0, 0, 0)
-	s.ColorCounters.RegisterCounters("confirmedNodes", s.uRGBColors)
-	s.ColorCounters.RegisterCounters("opinionsWeights", s.uRGBColors)
-	s.ColorCounters.RegisterCounters("likeAccumulatedWeight", s.uRGBColors)
-	s.ColorCounters.RegisterCounters("processedMessages", s.uRGBColors)
-	s.ColorCounters.RegisterCounters("requestedMissingMessages", s.uRGBColors)
-	s.ColorCounters.RegisterCounters("tipPoolSizes", s.uRGBColors)
+	s.ColorCounters.CreateCounter("opinions", s.uRGBColors, int64(config.NodesCount), 0, 0, 0)
+	s.ColorCounters.CreateCounter("confirmedNodes", s.uRGBColors)
+	s.ColorCounters.CreateCounter("opinionsWeights", s.uRGBColors)
+	s.ColorCounters.CreateCounter("likeAccumulatedWeight", s.uRGBColors)
+	s.ColorCounters.CreateCounter("processedMessages", s.uRGBColors)
+	s.ColorCounters.CreateCounter("requestedMissingMessages", s.uRGBColors)
+	s.ColorCounters.CreateCounter("tipPoolSizes", s.uRGBColors)
 
-	s.ColorCounters.RegisterCounters("colorUnconfirmed", s.RGBColors)
-	s.ColorCounters.RegisterCounters("confirmedAccumulatedWeight", s.RGBColors)
-	s.ColorCounters.RegisterCounters("confirmedAccumulatedWeight", s.RGBColors)
-	s.ColorCounters.RegisterCounters("unconfirmedAccumulatedWeight", s.RGBColors)
+	s.ColorCounters.CreateCounter("colorUnconfirmed", s.RGBColors)
+	s.ColorCounters.CreateCounter("confirmedAccumulatedWeight", s.RGBColors)
+	s.ColorCounters.CreateCounter("confirmedAccumulatedWeight", s.RGBColors)
+	s.ColorCounters.CreateCounter("unconfirmedAccumulatedWeight", s.RGBColors)
 
-	s.AdversaryCounters.RegisterCounters("likeAccumulatedWeight", s.RGBColors)
-	s.AdversaryCounters.RegisterCounters("opinions", s.RGBColors, int64(s.adversaryNodesCount), 0, 0, 0)
-	s.AdversaryCounters.RegisterCounters("confirmedNodes", s.RGBColors)
-	s.AdversaryCounters.RegisterCounters("confirmedAccumulatedWeight", s.RGBColors)
+	s.AdversaryCounters.CreateCounter("likeAccumulatedWeight", s.RGBColors)
+	s.AdversaryCounters.CreateCounter("opinions", s.RGBColors, int64(s.adversaryNodesCount), 0, 0, 0)
+	s.AdversaryCounters.CreateCounter("confirmedNodes", s.RGBColors)
+	s.AdversaryCounters.CreateCounter("confirmedAccumulatedWeight", s.RGBColors)
 
 	// all peers and tip pool sizes and processed messages per color
 	for _, peerID := range s.allPeerIDs {
 		tipCounterName := fmt.Sprint("tipPoolSizes-", peerID)
 		processedCounterName := fmt.Sprint("processedMessages-", peerID)
-		s.ColorCounters.RegisterCounters(tipCounterName, s.uRGBColors)
-		s.ColorCounters.RegisterCounters(processedCounterName, s.uRGBColors)
+		s.ColorCounters.CreateCounter(tipCounterName, s.uRGBColors)
+		s.ColorCounters.CreateCounter(processedCounterName, s.uRGBColors)
 	}
 	// Initialize the minConfirmedWeight to be the max value (i.e., the total weight)
-	s.PeerCounters.RegisterCounters("minConfirmedAccumulatedWeight", s.allPeerIDs, int64(config.NodesTotalWeight))
-	s.PeerCounters.RegisterCounters("unconfirmationCount", s.allPeerIDs, 0)
-	s.PeerCounters.RegisterCounters("issuedMessages", s.allPeerIDs, 0)
-	s.PeerCounters.RegisterCounters("confirmedMessageCount", s.watchedPeerIDs)
+	s.PeerCounters.CreateCounter("minConfirmedAccumulatedWeight", s.allPeerIDs, int64(config.NodesTotalWeight))
+	s.PeerCounters.CreateCounter("unconfirmationCount", s.allPeerIDs, 0)
+	s.PeerCounters.CreateCounter("issuedMessages", s.allPeerIDs, 0)
+	s.PeerCounters.CreateCounter("confirmedMessageCount", s.watchedPeerIDs)
 
-	s.GlobalCounters.RegisterCounter("flips", 0)
-	s.GlobalCounters.RegisterCounter("honestFlips", 0)
-	s.GlobalCounters.RegisterCounter("tps", 0)
-	s.GlobalCounters.RegisterCounter("relevantValidators", 0)
-	s.GlobalCounters.RegisterCounter("issuedMessages", 0)
+	s.GlobalCounters.CreateCounter("flips", 0)
+	s.GlobalCounters.CreateCounter("honestFlips", 0)
+	s.GlobalCounters.CreateCounter("tps", 0)
+	s.GlobalCounters.CreateCounter("relevantValidators", 0)
+	s.GlobalCounters.CreateCounter("issuedMessages", 0)
 
 }
 

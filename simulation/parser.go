@@ -42,7 +42,7 @@ func ParseFlags() {
 	slowdownFactorPtr :=
 		flag.Int("slowdownFactor", config.SlowdownFactor, "The factor to control the speed in the simulation")
 	consensusMonitorTickPtr :=
-		flag.Int("consensusMonitorTick", config.MetricsMonitorTick, "The tick to monitor the consensus, in milliseconds")
+		flag.Int("consensusMonitorTick", config.ConsensusMonitorTick, "The tick to monitor the consensus, in milliseconds")
 	doubleSpendDelayPtr :=
 		flag.Int("doubleSpendDelay", config.DoubleSpendDelay, "Delay for issuing double spend transactions. (Seconds)")
 	relevantValidatorWeightPtr :=
@@ -102,7 +102,7 @@ func ParseFlags() {
 	config.TSA = *tsaPtr
 	config.IssuingRate = *issuingRatePtr
 	config.SlowdownFactor = *slowdownFactorPtr
-	config.MetricsMonitorTick = *consensusMonitorTickPtr
+	config.ConsensusMonitorTick = *consensusMonitorTickPtr
 	config.RelevantValidatorWeight = *relevantValidatorWeightPtr
 	config.DoubleSpendDelay = *doubleSpendDelayPtr
 	config.PacketLoss = *packetLoss
@@ -132,7 +132,7 @@ func ParseFlags() {
 	log.Info("SchedulingRate:", config.SchedulingRate)
 	log.Info("IssuingRate: ", config.IssuingRate)
 	log.Info("SlowdownFactor: ", config.SlowdownFactor)
-	log.Info("MetricsMonitorTick: ", config.MetricsMonitorTick)
+	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
 	log.Info("RelevantValidatorWeight: ", config.RelevantValidatorWeight)
 	log.Info("DoubleSpendDelay: ", config.DoubleSpendDelay)
 	log.Info("PacketLoss: ", config.PacketLoss)
@@ -276,7 +276,7 @@ func DumpConfig(fileName string) {
 		SchedulingRate:          config.SchedulingRate,
 		IssuingRate:             config.IssuingRate,
 		SlowdownFactor:          config.SlowdownFactor,
-		ConsensusMonitorTick:    config.MetricsMonitorTick,
+		ConsensusMonitorTick:    config.ConsensusMonitorTick,
 		RelevantValidatorWeight: config.RelevantValidatorWeight,
 		DoubleSpendDelay:        config.DoubleSpendDelay,
 		PacketLoss:              config.PacketLoss,

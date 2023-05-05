@@ -50,5 +50,6 @@ func NewSingleAttacker() *SingleAttacker {
 //}
 
 func IsAttacker(nodeID int) bool {
-	return nodeID == config.BlowballNodeID
+	// return nodeID == config.BlowballNodeID
+	return false
 }

@@ -98,7 +98,6 @@ func (s *MetricsManager) StartMetricsCollection() {
 		for {
 			select {
 			case <-s.dumpingTicker.C:
-				fmt.Println("collecting metrics tps ", s.GlobalCounters.Get("tps"), "messages issued ", s.GlobalCounters.Get("issuedMessages"))
 				s.collectMetrics()
 			case <-s.shutdown:
 				for _, w := range s.writers {

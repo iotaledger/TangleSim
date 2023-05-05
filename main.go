@@ -15,10 +15,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/iotaledger/multivers-simulation/singlenodeattacks"
-
 	"github.com/iotaledger/multivers-simulation/adversary"
 	"github.com/iotaledger/multivers-simulation/simulation"
+	"github.com/iotaledger/multivers-simulation/singlenodeattacks"
 
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/types"
@@ -67,7 +66,7 @@ var (
 	mostLikedColor           multiverse.Color
 	honestOnlyMostLikedColor multiverse.Color
 	simulationStartTime      time.Time
-	MetricsMgr               *simulation.MetricsManager
+	// MetricsMgr               *simulation.MetricsManager
 
 	// counters
 	colorCounters     = simulation.NewColorCounters()
@@ -124,11 +123,11 @@ func main() {
 		network.AdversarySpeedup(config.AdversarySpeedup),
 		network.GenesisTime(simulationStartTime),
 	)
-	MetricsMgr = simulation.NewMetricsManager()
-	MetricsMgr.Setup(testNetwork)
+	// MetricsMgr = simulation.NewMetricsManager()
+	// MetricsMgr.Setup(testNetwork)
 
 	monitorNetworkState(testNetwork)
-	MetricsMgr.StartMetricsCollection()
+	// MetricsMgr.StartMetricsCollection()
 
 	// The simulation start time
 	simulationStartTime = time.Now()
@@ -193,6 +192,7 @@ func processMessages(peer *network.Peer) {
 			// Trigger the scheduler to pop messages and gossip them
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.SchedulingRate))
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
+			monitorLocalMetrics(peer)
 		}
 	}
 }
@@ -209,7 +209,7 @@ func SimulateAdversarialBehaviour(testNetwork *network.Network) {
 	case "Adversary":
 		time.Sleep(time.Duration(config.DoubleSpendDelay*config.SlowdownFactor) * time.Second)
 		// Here we simulate the double spending
-		MetricsMgr.SetDSIssuanceTime()
+		// MetricsMgr.SetDSIssuanceTime()
 		for _, group := range testNetwork.AdversaryGroups {
 			color := multiverse.ColorFromStr(group.InitColor)
 
@@ -257,7 +257,7 @@ func startIssuingMessages(testNetwork *network.Network) {
 	for _, peer := range testNetwork.Peers {
 		weightOfPeer := float64(testNetwork.WeightDistribution.Weight(peer.ID))
 		log.Warn("Peer ID Weight: ", peer.ID, weightOfPeer, nodeTotalWeight)
-		MetricsMgr.GlobalCounters.Add("relevantValidators", 1)
+		// MetricsMgr.GlobalCounters.Add("relevantValidators", 1)
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
 		band := peer.AdversarySpeedup * weightOfPeer * float64(config.IssuingRate) / nodeTotalWeight

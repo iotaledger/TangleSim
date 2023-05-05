@@ -29,7 +29,7 @@ func (m *MessageFactory) CreateMessage(payload Color) (*Message, bool) {
 			ID:             NewMessageID(),
 			StrongParents:  strongParents,
 			WeakParents:    weakParents,
-			SequenceNumber: m.SequenceNumber(),
+			SequenceNumber: atomic.AddUint64(&m.sequenceNumber, 1),
 			Issuer:         m.tangle.Peer.ID,
 			Payload:        payload,
 			IssuanceTime:   issuanceTime,

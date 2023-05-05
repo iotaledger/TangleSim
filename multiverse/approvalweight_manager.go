@@ -63,7 +63,7 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 					messageMetadata.SetOrphanTime(now)
 				} else {
 					messageMetadata.SetConfirmationTime(now)
-					a.Events.MessageConfirmed.Trigger(message, messageMetadata, messageMetadata.Weight(), messageIDCounter.Load())
+					a.Events.MessageConfirmed.Trigger(message, messageMetadata, messageMetadata.Weight(), messageIDCounter)
 				}
 			}
 

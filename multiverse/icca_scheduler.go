@@ -16,7 +16,7 @@ import (
 
 func (s *ICCAScheduler) initQueues() {
 	for i := 0; i < config.NodesCount; i++ {
-		issuerQueue := NewIssuerQueue()
+		issuerQueue := &IssuerQueue{}
 		heap.Init(issuerQueue)
 		s.issuerQueues[network.PeerID(i)] = issuerQueue
 		s.roundRobin.Value = network.PeerID(i)
@@ -32,8 +32,8 @@ func (s *ICCAScheduler) initQueues() {
 type ICCAScheduler struct {
 	tangle *Tangle
 
-	nonReadyMapMutex sync.RWMutex
-	nonReadyMap      map[MessageID]*Message
+	// nonReadyMapMutex sync.RWMutex
+	nonReadyMap map[MessageID]*Message
 
 	accessMana   map[network.PeerID]float64
 	deficits     map[network.PeerID]float64
@@ -91,8 +91,8 @@ func (s *ICCAScheduler) setReady(messageID MessageID) {
 	s.tangle.Storage.MessageMetadata(messageID).SetReady()
 	// move from non-ready queue to ready queue if this child is already enqueued
 
-	s.nonReadyMapMutex.Lock()
-	defer s.nonReadyMapMutex.Unlock()
+	// s.nonReadyMapMutex.Lock()
+	// defer s.nonReadyMapMutex.Unlock()
 	if m, exists := s.nonReadyMap[messageID]; exists {
 		delete(s.nonReadyMap, messageID)
 		s.push(m)
@@ -138,9 +138,9 @@ func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
 	} else {
 		//log.Debug("Not Ready Message Enqueued")
 		s.tangle.Storage.MessageMetadata(messageID).SetReady()
-		s.nonReadyMapMutex.Lock()
+		// s.nonReadyMapMutex.Lock()
 		s.nonReadyMap[messageID] = s.tangle.Storage.Message(messageID)
-		s.nonReadyMapMutex.Unlock()
+		// s.nonReadyMapMutex.Unlock()
 	}
 	s.events.MessageEnqueued.Trigger(s.IssuerQueueLen(m.Issuer), len(s.nonReadyMap))
 	s.BufferManagement()
@@ -217,8 +217,8 @@ func (s *ICCAScheduler) ReadyLen() int {
 }
 
 func (s *ICCAScheduler) NonReadyLen() int {
-	s.nonReadyMapMutex.RLock()
-	defer s.nonReadyMapMutex.RUnlock()
+	// s.nonReadyMapMutex.RLock()
+	// defer s.nonReadyMapMutex.RUnlock()
 	return len(s.nonReadyMap)
 }
 
@@ -233,7 +233,7 @@ func (s *ICCAScheduler) GetMaxManaBurn() (maxManaBurn float64) {
 	for id := 0; id < config.NodesCount; id++ {
 		q := s.issuerQueues[network.PeerID(id)]
 		if q.Len() > 0 {
-			maxManaBurn = math.Max(maxManaBurn, q.msg[0].ManaBurnValue)
+			maxManaBurn = math.Max(maxManaBurn, (*q)[0].ManaBurnValue)
 		}
 	}
 	return

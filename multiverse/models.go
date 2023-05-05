@@ -1,7 +1,6 @@
 package multiverse
 
 import (
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -34,8 +33,6 @@ type Message struct {
 // region MessageMetadata //////////////////////////////////////////////////////////////////////////////////////////////
 
 type MessageMetadata struct {
-	sync.RWMutex
-
 	id               MessageID
 	solid            bool
 	ready            bool
@@ -51,60 +48,38 @@ type MessageMetadata struct {
 }
 
 func (m *MessageMetadata) ArrivalTime() time.Time {
-	m.RLock()
-	defer m.RUnlock()
 	return m.arrivalTime
 }
 
 func (m *MessageMetadata) WeightByte(index int) byte {
-	m.RLock()
-	defer m.RUnlock()
 	return m.weightSlice[index]
 }
 
 func (m *MessageMetadata) SetWeightByte(index int, weight byte) {
-	m.Lock()
-	defer m.Unlock()
-
 	m.weightSlice[index] = weight
 }
 
 func (m *MessageMetadata) SetWeightSlice(weightSlice []byte) {
-	m.Lock()
-	defer m.Unlock()
-
 	m.weightSlice = weightSlice
 }
 
 func (m *MessageMetadata) Weight() uint64 {
-	m.RLock()
-	defer m.RUnlock()
 	return m.weight
 }
 
 func (m *MessageMetadata) AddWeight(weight uint64) {
-	m.Lock()
-	defer m.Unlock()
-
 	m.weight += weight
 }
 
 func (m *MessageMetadata) SetWeight(weight uint64) {
-	m.Lock()
-	defer m.Unlock()
-
 	m.weight = weight
 }
 
 func (m *MessageMetadata) ConfirmationTime() time.Time {
-	m.RLock()
-	defer m.RUnlock()
 	return m.confirmationTime
 }
 
 func (m *MessageMetadata) SetConfirmationTime(confirmationTime time.Time) {
-	m.Lock()
-	defer m.Unlock()
 	m.confirmationTime = confirmationTime
 }
 
@@ -113,20 +88,14 @@ func (m *MessageMetadata) SetOrphanTime(orphanTime time.Time) {
 }
 
 func (m *MessageMetadata) SetEnqueueTime(enqueueTime time.Time) {
-	m.Lock()
-	defer m.Unlock()
 	m.enqueueTime = enqueueTime
 }
 
 func (m *MessageMetadata) SetScheduleTime(scheduleTime time.Time) {
-	m.Lock()
-	defer m.Unlock()
 	m.scheduleTime = scheduleTime
 }
 
 func (m *MessageMetadata) SetDropTime(dropTime time.Time) {
-	m.Lock()
-	defer m.Unlock()
 	m.dropTime = dropTime
 }
 
@@ -135,27 +104,18 @@ func (m *MessageMetadata) ID() (messageID MessageID) {
 }
 
 func (m *MessageMetadata) Ready() bool {
-	m.RLock()
-	defer m.RUnlock()
 	return m.ready
 }
 
 func (m *MessageMetadata) SetReady() {
-	m.Lock()
-	defer m.Unlock()
-
 	m.ready = true
 }
 
 func (m *MessageMetadata) Scheduled() bool {
-	m.RLock()
-	defer m.RUnlock()
 	return !m.scheduleTime.IsZero()
 }
 
 func (m *MessageMetadata) Confirmed() bool {
-	m.RLock()
-	defer m.RUnlock()
 	return !m.confirmationTime.IsZero()
 }
 
@@ -168,9 +128,6 @@ func (m *MessageMetadata) Eligible() bool { // a message is ready if all parents
 }
 
 func (m *MessageMetadata) SetSolid(solid bool) (modified bool) {
-	m.Lock()
-	defer m.Unlock()
-
 	if solid == m.solid {
 		return
 	}
@@ -182,14 +139,10 @@ func (m *MessageMetadata) SetSolid(solid bool) (modified bool) {
 }
 
 func (m *MessageMetadata) Solid() (solid bool) {
-	m.RLock()
-	defer m.RUnlock()
 	return m.solid
 }
 
 func (m *MessageMetadata) SetInheritedColor(color Color) (modified bool) {
-	m.Lock()
-	defer m.Unlock()
 	if color == m.inheritedColor {
 		return
 	}
@@ -201,8 +154,6 @@ func (m *MessageMetadata) SetInheritedColor(color Color) (modified bool) {
 }
 
 func (m *MessageMetadata) InheritedColor() (color Color) {
-	m.RLock()
-	defer m.RUnlock()
 	return m.inheritedColor
 }
 
@@ -224,11 +175,11 @@ type MessageID int64
 var (
 	Genesis MessageID
 
-	messageIDCounter atomic.Int64
+	messageIDCounter int64
 )
 
 func NewMessageID() MessageID {
-	return MessageID(messageIDCounter.Add(1))
+	return MessageID(atomic.AddInt64(&messageIDCounter, 1))
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -18,15 +18,13 @@ type Storage struct {
 	messageMetadataDB map[MessageID]*MessageMetadata
 	strongChildrenDB  map[MessageID]MessageIDs
 	weakChildrenDB    map[MessageID]MessageIDs
-
-	slotDB         map[SlotIndex]MessageIDs
-	acceptedSlotDB map[SlotIndex]MessageIDs
-	rmc            map[SlotIndex]float64
-	genesisTime    time.Time
-	ATT            time.Time
+	slotDB            map[SlotIndex]MessageIDs
+	acceptedSlotDB    map[SlotIndex]MessageIDs
+	rmc               map[SlotIndex]float64
+	genesisTime       time.Time
+	ATT               time.Time
 
 	slotMutex sync.Mutex
-	sync.RWMutex
 }
 
 func NewStorage() (storage *Storage) {
@@ -51,23 +49,26 @@ func (s *Storage) Setup(genesisTime time.Time) {
 }
 
 func (s *Storage) Store(message *Message) (*MessageMetadata, bool) {
-	if m := s.Message(message.ID); m == nil {
+	if _, exists := s.messageDB[message.ID]; exists {
 		return &MessageMetadata{}, false
 	}
-
-	if stored := s.StoreToSlotDB(message); !stored {
-		return &MessageMetadata{}, false
+	slotIndex := s.SlotIndex(message.IssuanceTime)
+	s.slotMutex.Lock()
+	defer s.slotMutex.Unlock()
+	if _, exists := s.slotDB[slotIndex]; !exists {
+		s.slotDB[slotIndex] = NewMessageIDs()
 	}
-
+	if _, exists := s.rmc[slotIndex]; !exists {
+		s.NewRMC(slotIndex)
+	}
+	if message.ManaBurnValue < s.rmc[slotIndex] { // RMC will always be zero if not in ICCA+
+		log.Debug("Message dropped due to Mana burn < RMC", message.Issuer, message.ManaBurnValue, s.rmc[slotIndex])
+		return &MessageMetadata{}, false // don't store this message if it burns less than RMC
+	}
+	// store to slot storage
+	s.slotDB[slotIndex].Add(message.ID)
 	// store message and metadata
-	s.Lock()
-	defer s.Unlock()
-
 	s.messageDB[message.ID] = message
-	// store child references
-	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
-	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
-
 	messageMetadata := &MessageMetadata{
 		id:          message.ID,
 		weightSlice: make([]byte, int(math.Ceil(float64(config.NodesCount)/8.0))),
@@ -79,53 +80,25 @@ func (s *Storage) Store(message *Message) (*MessageMetadata, bool) {
 		messageMetadata.SetOrphanTime(time.Now())
 	}
 	s.messageMetadataDB[message.ID] = messageMetadata
-
+	// store child references
+	s.storeChildReferences(message.ID, s.strongChildrenDB, message.StrongParents)
+	s.storeChildReferences(message.ID, s.weakChildrenDB, message.WeakParents)
 	return messageMetadata, true
 }
 
-func (s *Storage) StoreToSlotDB(message *Message) (stored bool) {
-	s.slotMutex.Lock()
-	defer s.slotMutex.Unlock()
-
-	slotIndex := s.SlotIndex(message.IssuanceTime)
-	if _, exists := s.slotDB[slotIndex]; !exists {
-		s.slotDB[slotIndex] = NewMessageIDs()
-	}
-	if _, exists := s.rmc[slotIndex]; !exists {
-		s.NewRMC(slotIndex)
-	}
-	if message.ManaBurnValue < s.rmc[slotIndex] { // RMC will always be zero if not in ICCA+
-		log.Debug("Message dropped due to Mana burn < RMC")
-		return false // don't store this message if it burns less than RMC
-	}
-
-	// store to slot storage
-	s.slotDB[slotIndex].Add(message.ID)
-
-	return true
-}
-
 func (s *Storage) Message(messageID MessageID) (message *Message) {
-	s.RLock()
-	defer s.RUnlock()
 	return s.messageDB[messageID]
 }
 
 func (s *Storage) MessageMetadata(messageID MessageID) (messageMetadata *MessageMetadata) {
-	s.RLock()
-	defer s.RUnlock()
 	return s.messageMetadataDB[messageID]
 }
 
 func (s *Storage) StrongChildren(messageID MessageID) (strongChildren MessageIDs) {
-	s.RLock()
-	defer s.RUnlock()
 	return s.strongChildrenDB[messageID]
 }
 
 func (s *Storage) WeakChildren(messageID MessageID) (weakChildren MessageIDs) {
-	s.RLock()
-	defer s.RUnlock()
 	return s.weakChildrenDB[messageID]
 }
 
@@ -136,30 +109,6 @@ func (s *Storage) storeChildReferences(messageID MessageID, childReferenceDB map
 		}
 
 		childReferenceDB[parent].Add(messageID)
-	}
-}
-
-func (s *Storage) storeStrongChildren(messageID MessageID, parents MessageIDs) {
-	s.Lock()
-	defer s.Unlock()
-	for parent := range parents {
-		if _, exists := s.strongChildrenDB[parent]; !exists {
-			s.strongChildrenDB[parent] = NewMessageIDs()
-		}
-
-		s.strongChildrenDB[parent].Add(messageID)
-	}
-}
-
-func (s *Storage) storeWeakChildren(messageID MessageID, parents MessageIDs) {
-	s.Lock()
-	defer s.Unlock()
-	for parent := range parents {
-		if _, exists := s.weakChildrenDB[parent]; !exists {
-			s.weakChildrenDB[parent] = NewMessageIDs()
-		}
-
-		s.weakChildrenDB[parent].Add(messageID)
 	}
 }
 

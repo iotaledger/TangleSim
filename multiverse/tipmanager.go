@@ -3,12 +3,10 @@ package multiverse
 import (
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/iotaledger/hive.go/datastructure/walker"
-
 	"github.com/iotaledger/hive.go/datastructure/randommap"
+	"github.com/iotaledger/hive.go/datastructure/walker"
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
 )
@@ -23,13 +21,9 @@ var (
 type TipManager struct {
 	Events *TipManagerEvents
 
-	tangle *Tangle
-	tsa    TipSelector
-
-	tipSetsMutex sync.Mutex
-	tipSets      map[Color]*TipSet
-
-	msgProcessedMutex   sync.RWMutex
+	tangle              *Tangle
+	tsa                 TipSelector
+	tipSets             map[Color]*TipSet
 	msgProcessedCounter map[Color]uint64
 }
 
@@ -82,14 +76,13 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 		for color, tipSet := range t.TipSets(inheritedColor) {
 			addedAsStrongTip[color] = true
 			tipSet.AddStrongTip(message)
-
-			t.AddMsgProcessedCounter(color, 1)
+			t.msgProcessedCounter[color] += 1
 		}
 	}
 
 	// Color, tips pool count, processed messages issued messages
 	t.Events.MessageProcessed.Trigger(inheritedColor, currentTipPoolSize,
-		t.GetMsgProcessedCounter(inheritedColor), messageIDCounter.Load())
+		t.msgProcessedCounter[inheritedColor], messageIDCounter)
 
 	// Remove the weak tip codes
 	// for color, tipSet := range t.TipSets(inheritedColor) {
@@ -100,15 +93,12 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 }
 
 func (t *TipManager) TipSets(color Color) map[Color]*TipSet {
-	if color == UndefinedColor {
-		return t.tipSets
-	}
-
-	t.tipSetsMutex.Lock()
-	defer t.tipSetsMutex.Unlock()
-
 	if _, exists := t.tipSets[color]; !exists {
 		t.tipSets[color] = NewTipSet(t.tipSets[UndefinedColor])
+	}
+
+	if color == UndefinedColor {
+		return t.tipSets
 	}
 
 	return map[Color]*TipSet{
@@ -117,9 +107,6 @@ func (t *TipManager) TipSets(color Color) map[Color]*TipSet {
 }
 
 func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
-	t.tipSetsMutex.Lock()
-	defer t.tipSetsMutex.Unlock()
-
 	tipSet, exists := t.tipSets[color]
 	if !exists {
 		tipSet = NewTipSet(t.tipSets[UndefinedColor])
@@ -129,83 +116,9 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 	return
 }
 
-func (t *TipManager) WalkForOldestUnconfirmed(tipSet *TipSet) (oldestMessage MessageID) {
-	for _, tip := range tipSet.strongTips.Keys() {
-		messageID := tip.(MessageID)
-		//currentTangleTime := time.Now()
-		//tipTangleTime := t.tangle.Storage.Message(messageID).IssuanceTime
-		for latestAcceptedBlocks := range t.tangle.Storage.Message(messageID).StrongParents {
-			if latestAcceptedBlocks == Genesis {
-				continue
-			}
-
-			oldestUnconfirmedTime := time.Now()
-			oldestConfirmationTime := time.Now()
-
-			// Walk through the past cone to find the oldest unconfirmed blocks
-			t.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
-				confirmedTimestamp := messageMetadata.ConfirmationTime()
-				// Reaches the confirmed blocks, stop traversing
-				if !confirmedTimestamp.IsZero() {
-					// Use the issuance time of the youngest confirmed block
-					issuanceTime := message.IssuanceTime
-					if issuanceTime.Before(oldestConfirmationTime) {
-						oldestConfirmationTime = issuanceTime
-					}
-				} else {
-					if message.IssuanceTime.Before(oldestUnconfirmedTime) {
-						oldestUnconfirmedTime = message.IssuanceTime
-						oldestMessage = message.ID
-					}
-					// Only continue the BFS when the current block is unconfirmed
-					for strongChildID := range message.StrongParents {
-						walker.Push(strongChildID)
-					}
-				}
-
-			}, NewMessageIDs(messageID), false)
-
-			//printAges(currentTangleTime, oldestUnconfirmedTime, oldestConfirmationTime, tipTangleTime)
-			// if timeSinceConfirmation > tsc_condition {
-			// 	oldTips[tip.(*Message).ID] = void{}
-			// 	fmt.Printf("Prune %d\n", tip.(*Message).ID)
-			// }
-		}
-	}
-	return 0
-}
-
-func printAges(currentTangleTime time.Time, oldestUnconfirmedTime time.Time, oldestConfirmationTime time.Time, tipTangleTime time.Time) {
-	// Distance between (Now, Issuance Time of the oldest UNCONFIRMED block that has confirmed parents)
-	fmt.Printf("UnconfirmationAge %f\n", currentTangleTime.Sub(oldestUnconfirmedTime).Seconds())
-
-	// Distance between (Now, Issuance Time of the oldest CONFIRMED block that has no confirmed children)
-	fmt.Printf("ConfirmationAge %f\n", currentTangleTime.Sub(oldestConfirmationTime).Seconds())
-
-	// Distance between (Issuance Time of the tip, Issuance Time of the oldest UNCONFIRMED block that has confirmed parents)
-	fmt.Printf("UnconfirmationAgeSinceTip %f\n", tipTangleTime.Sub(oldestUnconfirmedTime).Seconds())
-
-	// Distance between (Issuance Time of the tip, Issuance Time of the oldest CONFIRMED block that has no confirmed children)
-	fmt.Printf("ConfirmationAgeSinceTip %f\n", tipTangleTime.Sub(oldestConfirmationTime).Seconds())
-
-}
-
 func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
-
-	// monitored peerID for TSC and orphanage
-	// N = 1000, BPS ~ 10
-	peerID := t.tangle.Peer.ID
-	if peerID == 99 {
-		type void struct{}
-		oldTips := make(map[MessageID]void)
-		t.WalkForOldestUnconfirmed(tipSet)
-
-		for oldTip := range oldTips {
-			tipSet.strongTips.Delete(oldTip)
-		}
-	}
 
 	strongTips = tipSet.StrongTips(config.ParentsCount, t.tsa)
 	// In the paper we consider all strong tips
@@ -242,20 +155,6 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// weakTips.Trim(OptimalWeakParentsCount)
 
 	return
-}
-
-func (t *TipManager) AddMsgProcessedCounter(color Color, amount uint64) {
-	t.msgProcessedMutex.Lock()
-	defer t.msgProcessedMutex.Unlock()
-
-	t.msgProcessedCounter[color] += amount
-}
-
-func (t *TipManager) GetMsgProcessedCounter(color Color) uint64 {
-	t.msgProcessedMutex.RLock()
-	defer t.msgProcessedMutex.RUnlock()
-
-	return t.msgProcessedCounter[color]
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -383,8 +282,6 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 			// If the time difference is greater than DeltaURTS, delete it from tips
 			if currentTime.Sub(tip.(*Message).IssuanceTime).Seconds() > config.DeltaURTS {
 				tips.Delete(tip)
-			} else if fishingConditionFailed(tip) {
-				tips.Delete(tip)
 			} else {
 				// Append the valid tip to tipsToReturn and decrease the amountLeft
 				tipsToReturn = append(tipsToReturn, tip)
@@ -402,13 +299,65 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 
 }
 
-// TODO: implement fishing condition
-func fishingConditionFailed(tip interface{}) bool {
-	// Traversing the parents of the tip
-	// If the tip contains the block with `issuance time < Minimum Supported Time`
-	//   return true
-	// else return false
-	return false
+func (t *TipManager) WalkForOldestUnconfirmed(tipSet *TipSet) (oldestMessage MessageID) {
+	for _, tip := range tipSet.strongTips.Keys() {
+		messageID := tip.(MessageID)
+		//currentTangleTime := time.Now()
+		//tipTangleTime := t.tangle.Storage.Message(messageID).IssuanceTime
+		for latestAcceptedBlocks := range t.tangle.Storage.Message(messageID).StrongParents {
+			if latestAcceptedBlocks == Genesis {
+				continue
+			}
+
+			oldestUnconfirmedTime := time.Now()
+			oldestConfirmationTime := time.Now()
+
+			// Walk through the past cone to find the oldest unconfirmed blocks
+			t.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
+				confirmedTimestamp := messageMetadata.ConfirmationTime()
+				// Reaches the confirmed blocks, stop traversing
+				if !confirmedTimestamp.IsZero() {
+					// Use the issuance time of the youngest confirmed block
+					issuanceTime := message.IssuanceTime
+					if issuanceTime.Before(oldestConfirmationTime) {
+						oldestConfirmationTime = issuanceTime
+					}
+				} else {
+					if message.IssuanceTime.Before(oldestUnconfirmedTime) {
+						oldestUnconfirmedTime = message.IssuanceTime
+						oldestMessage = message.ID
+					}
+					// Only continue the BFS when the current block is unconfirmed
+					for strongChildID := range message.StrongParents {
+						walker.Push(strongChildID)
+					}
+				}
+
+			}, NewMessageIDs(messageID), false)
+
+			//printAges(currentTangleTime, oldestUnconfirmedTime, oldestConfirmationTime, tipTangleTime)
+			// if timeSinceConfirmation > tsc_condition {
+			// 	oldTips[tip.(*Message).ID] = void{}
+			// 	fmt.Printf("Prune %d\n", tip.(*Message).ID)
+			// }
+		}
+	}
+	return 0
+}
+
+func printAges(currentTangleTime time.Time, oldestUnconfirmedTime time.Time, oldestConfirmationTime time.Time, tipTangleTime time.Time) {
+	// Distance between (Now, Issuance Time of the oldest UNCONFIRMED block that has confirmed parents)
+	fmt.Printf("UnconfirmationAge %f\n", currentTangleTime.Sub(oldestUnconfirmedTime).Seconds())
+
+	// Distance between (Now, Issuance Time of the oldest CONFIRMED block that has no confirmed children)
+	fmt.Printf("ConfirmationAge %f\n", currentTangleTime.Sub(oldestConfirmationTime).Seconds())
+
+	// Distance between (Issuance Time of the tip, Issuance Time of the oldest UNCONFIRMED block that has confirmed parents)
+	fmt.Printf("UnconfirmationAgeSinceTip %f\n", tipTangleTime.Sub(oldestUnconfirmedTime).Seconds())
+
+	// Distance between (Issuance Time of the tip, Issuance Time of the oldest CONFIRMED block that has no confirmed children)
+	fmt.Printf("ConfirmationAgeSinceTip %f\n", tipTangleTime.Sub(oldestConfirmationTime).Seconds())
+
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////

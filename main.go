@@ -174,6 +174,9 @@ func startProcessingMessages(n *network.Network) {
 }
 
 func processMessages(peer *network.Peer) {
+	simulationWg.Add(1)
+	defer simulationWg.Done()
+
 	pace := time.Duration((float64(time.Second) * float64(config.SlowdownFactor)) / float64(config.SchedulingRate))
 	ticker := time.NewTicker(pace)
 	defer ticker.Stop()
@@ -265,6 +268,9 @@ func startIssuingMessages(testNetwork *network.Network) {
 }
 
 func issueMessages(peer *network.Peer, band float64) {
+	simulationWg.Add(1)
+	defer simulationWg.Done()
+
 	pace := time.Duration(float64(time.Second) * float64(config.SlowdownFactor) / band)
 
 	if pace == time.Duration(0) {

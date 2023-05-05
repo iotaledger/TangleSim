@@ -31,7 +31,7 @@ var (
 	MinDelay          = 100                           // The minimum network delay in ms.
 	MaxDelay          = 100                           // The maximum network delay in ms.
 
-	SlowdownFactor = 2 // The factor to control the speed in the simulation.
+	SlowdownFactor = 4 // The factor to control the speed in the simulation.
 )
 
 // Weight setup

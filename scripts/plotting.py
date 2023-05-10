@@ -251,7 +251,7 @@ class FigurePlotter:
 
         data = []
         variations = []
-        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item))):
             data.append(d)
             variations.append(v)
 
@@ -591,7 +591,8 @@ class FigurePlotter:
         variations = []
 
         # thorughput = [100, 4000]
-        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
+
+        for i, (v, d) in enumerate(sorted(variation_data.items())):
             z = (d[0]*1e-9).tolist()
             if len(z) == 0:
                 continue
@@ -612,21 +613,21 @@ class FigurePlotter:
             #         f'Uniform Random Delay = 50–950 (ms)', fontsize=12)
             # variations.append(f'{v}, {thorughput[i]}')
             # variations.append(float(v)*100)
-            print(z, v)
-            variations.append(int(eval(v)[0]))
+            # print(z, v)
+            variations.append(int(eval(v)))
 
         # print(data)
         plt.violinplot(data)
-        plt.xlabel('Adversary Weight (%)')
+        # plt.xlabel('Adversary Weight (%)')
         # plt.xlabel('Uniform Random Network Delay (ms)')
-        # plt.xlabel('Node Count, TPS')
+        plt.xlabel('Node Count')
         # plt.ylim(0, 6)
         # plt.xlabel('Zipf Parameter')
         plt.xticks(ticks=list(range(1, 1 + len(variations))),
                    labels=variations)
 
-        axes = plt.axes()
-        axes.set_ylim([0, 6])
+        # axes = plt.axes()
+        # axes.set_ylim([0, 6])
         plt.ylabel('Confirmation Time (s)')
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent, dpi=300)

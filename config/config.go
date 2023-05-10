@@ -41,7 +41,7 @@ var (
 // Tip Selection Algorithm setup
 
 var (
-	TSA           = "URTS" // Currently only one supported TSA is URTS
+	TSA           = "URTS" // The supported TSA is URTS or RURTS
 	DeltaURTS     = 5.0    // in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199
 	WeakTipsRatio = 0.0    // The ratio of weak tips
 )

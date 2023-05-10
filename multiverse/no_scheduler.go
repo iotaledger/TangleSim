@@ -21,7 +21,7 @@ func (s *NoScheduler) Setup() {
 }
 func (s *NoScheduler) IncrementAccessMana(float64)                            {}
 func (s *NoScheduler) DecreaseNodeAccessMana(network.PeerID, float64) float64 { return 0 }
-func (s *NoScheduler) BurnValue(time.Time) (float64, bool)                    { return 0, false }
+func (s *NoScheduler) BurnValue(time.Time) (float64, bool)                    { return 0, true }
 func (s *NoScheduler) EnqueueMessage(messageID MessageID) {
 	s.events.MessageScheduled.Trigger(messageID)
 }

@@ -120,6 +120,11 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
+	peerID := t.tangle.Peer.ID
+	if peerID == 99 {
+		t.WalkForOldestUnconfirmed(tipSet)
+	}
+
 	strongTips = tipSet.StrongTips(config.ParentsCount, t.tsa)
 	// In the paper we consider all strong tips
 	// weakTips = tipSet.WeakTips(config.ParentsCount-1, t.tsa)
@@ -302,8 +307,8 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 func (t *TipManager) WalkForOldestUnconfirmed(tipSet *TipSet) (oldestMessage MessageID) {
 	for _, tip := range tipSet.strongTips.Keys() {
 		messageID := tip.(MessageID)
-		//currentTangleTime := time.Now()
-		//tipTangleTime := t.tangle.Storage.Message(messageID).IssuanceTime
+		currentTangleTime := time.Now()
+		tipTangleTime := t.tangle.Storage.Message(messageID).IssuanceTime
 		for latestAcceptedBlocks := range t.tangle.Storage.Message(messageID).StrongParents {
 			if latestAcceptedBlocks == Genesis {
 				continue
@@ -335,7 +340,7 @@ func (t *TipManager) WalkForOldestUnconfirmed(tipSet *TipSet) (oldestMessage Mes
 
 			}, NewMessageIDs(messageID), false)
 
-			//printAges(currentTangleTime, oldestUnconfirmedTime, oldestConfirmationTime, tipTangleTime)
+			printAges(currentTangleTime, oldestUnconfirmedTime, oldestConfirmationTime, tipTangleTime)
 			// if timeSinceConfirmation > tsc_condition {
 			// 	oldTips[tip.(*Message).ID] = void{}
 			// 	fmt.Printf("Prune %d\n", tip.(*Message).ID)

@@ -187,6 +187,27 @@ func (s *Storage) RMC(slotIndex SlotIndex) float64 {
 	return s.rmc[slotIndex]
 }
 
+// func (s *Storage) NewRMC(currentSlotIndex SlotIndex) {
+// 	currentSlotStartTime := s.genesisTime.Add(time.Duration(float64(currentSlotIndex)*float64(config.SlowdownFactor)) * config.SlotTime)
+// 	if config.SchedulerType != "ICCA+" {
+// 		s.rmc[currentSlotIndex] = 0.0
+// 		return
+// 	}
+// 	if currentSlotIndex == SlotIndex(0) {
+// 		s.rmc[currentSlotIndex] = config.InitialRMC
+// 		return
+// 	}
+// 	s.rmc[currentSlotIndex] = s.rmc[currentSlotIndex-SlotIndex(1)] // keep RMC the same by default
+// 	if currentSlotStartTime.After(s.genesisTime.Add(config.RMCTime * time.Duration(config.SlowdownFactor))) {
+// 		n := len(s.AcceptedSlot(s.SlotIndex(currentSlotStartTime.Add(-config.RMCTime)))) // number of messages k slots in the past
+// 		if n < int(config.LowerRMCThreshold) {
+// 			s.rmc[currentSlotIndex] = math.Max(config.RMCmin, s.rmc[currentSlotIndex]*config.AlphaRMC)
+// 		} else if n > int(config.UpperRMCThreshold) {
+// 			s.rmc[currentSlotIndex] = math.Min(config.RMCmax, s.rmc[currentSlotIndex]*config.BetaRMC)
+// 		}
+// 	}
+// }
+
 func (s *Storage) NewRMC(currentSlotIndex SlotIndex) {
 	currentSlotStartTime := s.genesisTime.Add(time.Duration(float64(currentSlotIndex)*float64(config.SlowdownFactor)) * config.SlotTime)
 	if config.SchedulerType != "ICCA+" {
@@ -201,21 +222,50 @@ func (s *Storage) NewRMC(currentSlotIndex SlotIndex) {
 
 	// Update the RMC every RMCPeriodUpdate
 	if currentSlotStartTime.After(s.genesisTime.Add(config.RMCTime * time.Duration(config.SlowdownFactor))) {
+		// log.Debugf("CurrentSlotIndex %d", currentSlotIndex)
 		if int(currentSlotIndex)%config.RMCPeriodUpdate == 0 {
 			traffic := s.MessagesCountInRange(
 				currentSlotIndex-SlotIndex(config.MinCommittableAge/config.SlotTime)-SlotIndex(config.RMCPeriodUpdate),
-				currentSlotIndex-SlotIndex(config.MinCommittableAge/config.SlotTime))
+				currentSlotIndex-SlotIndex(config.MinCommittableAge/config.SlotTime)) / config.RMCPeriodUpdate
+				
+				// currentSlotIndex-SlotIndex(config.RMCTime/config.SlotTime)-SlotIndex(config.RMCPeriodUpdate),
+				// currentSlotIndex-SlotIndex(config.RMCTime/config.SlotTime))
+			
+			// a := currentSlotIndex-SlotIndex(config.RMCTime/config.SlotTime)-SlotIndex(config.RMCPeriodUpdate)
+			// b := currentSlotIndex-SlotIndex(config.RMCTime/config.SlotTime)
+			
+			// traffic := 0			
+			// for i := 0; i < config.RMCPeriodUpdate; i++ {
+			// 	// traffic += len(s.AcceptedSlot(s.SlotIndex(currentSlotStartTime.Add(-config.MinCommittableAge-time.Duration(i) * config.SlotTime))))
+			// 	traffic += len(s.AcceptedSlot(s.SlotIndex(currentSlotStartTime.Add(-config.RMCTime -time.Duration(i) * config.SlotTime)))) // number of messages k slots in the past
+			// }
+			// MessagesCountInRange
+			// log.Debugf("Traffic: %d, Slot: %d, Slot a: %d, Slot b: %d", traffic, currentSlotIndex, a, b)
+			// traffic = traffic
+			// log.Debugf("Enter Branch, traffic after division: %d", traffic)
+			
 
-			if traffic < config.RMCPeriodUpdate*int(config.LowerRMCThreshold) {
+			// Modified
+			// if traffic < config.RMCPeriodUpdate*int(config.LowerRMCThreshold) {
+			// 	s.rmc[currentSlotIndex] = math.Max(config.RMCmin, s.rmc[currentSlotIndex]*config.AlphaRMC)
+			// } else if traffic > config.RMCPeriodUpdate*int(config.UpperRMCThreshold) {
+			// 	s.rmc[currentSlotIndex] = math.Min(config.RMCmax, s.rmc[currentSlotIndex]*config.BetaRMC)
+			// }	
+	
+			
+			// log.Debugf("Traffic: %d", traffic)
+			if traffic < int(config.LowerRMCThreshold) {
 				for i := 0; i < config.RMCPeriodUpdate; i++ {
 					s.rmc[currentSlotIndex+SlotIndex(i)] = math.Max(
 						s.rmc[currentSlotIndex-SlotIndex(1)]-config.RMCdecrease, config.RMCmin)
 				}
-			} else if traffic > config.RMCPeriodUpdate*int(config.UpperRMCThreshold) {
+				// log.Debugf("LOW!!!!, rmc = %f", s.rmc[currentSlotIndex])
+			} else if traffic > int(config.UpperRMCThreshold) {
 				for i := 0; i < config.RMCPeriodUpdate; i++ {
 					s.rmc[currentSlotIndex+SlotIndex(i)] = math.Min(
 						s.rmc[currentSlotIndex-SlotIndex(1)]+config.RMCincrease, config.RMCmax)
 				}
+				// log.Debugf("HIGH!!!!, rmc = %f", s.rmc[currentSlotIndex])
 			} else {
 				for i := 0; i < config.RMCPeriodUpdate; i++ {
 					s.rmc[currentSlotIndex+SlotIndex(i)] = s.rmc[currentSlotIndex-SlotIndex(1)]

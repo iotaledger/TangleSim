@@ -792,7 +792,7 @@ func dumpNetworkConfig(net *network.Network) {
 
 func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Writer) {
 	adversaryNodesCount := len(network.AdversaryNodeIDToGroupIDMap)
-	honestNodesCount := config.NodesCount - adversaryNodesCount
+	// honestNodesCount := config.NodesCount - adversaryNodesCount
 
 	allColors := []multiverse.Color{multiverse.UndefinedColor, multiverse.Red, multiverse.Green, multiverse.Blue}
 
@@ -848,13 +848,13 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	dumpResultsAD(adResultsWriter, testNetwork)
 
 	// Dump the double spending result
-	dsResultsWriter := createWriter(fmt.Sprintf("ds-%s.csv", config.ScriptStartTimeStr), dsHeader, &resultsWriters)
+	// dsResultsWriter := createWriter(fmt.Sprintf("ds-%s.csv", config.ScriptStartTimeStr), dsHeader, &resultsWriters)
 
 	// Dump the tip pool and processed message (throughput) results
-	tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", config.ScriptStartTimeStr), tpHeader, &resultsWriters)
+	// tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", config.ScriptStartTimeStr), tpHeader, &resultsWriters)
 
 	// Dump the requested missing message result
-	mmResultsWriter := createWriter(fmt.Sprintf("mm-%s.csv", config.ScriptStartTimeStr), mmHeader, &resultsWriters)
+	// mmResultsWriter := createWriter(fmt.Sprintf("mm-%s.csv", config.ScriptStartTimeStr), mmHeader, &resultsWriters)
 
 	tpAllHeader := make([]string, 0, config.NodesCount+1)
 
@@ -866,10 +866,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	tpAllHeader = append(tpAllHeader, header...)
 
 	// Dump the tip pool and processed message (throughput) results
-	tpAllResultsWriter := createWriter(fmt.Sprintf("all-tp-%s.csv", config.ScriptStartTimeStr), tpAllHeader, &resultsWriters)
+	// tpAllResultsWriter := createWriter(fmt.Sprintf("all-tp-%s.csv", config.ScriptStartTimeStr), tpAllHeader, &resultsWriters)
 
 	// Dump the info about how many nodes have confirmed and liked a certain color
-	ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", config.ScriptStartTimeStr), ccHeader, &resultsWriters)
+	// ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", config.ScriptStartTimeStr), ccHeader, &resultsWriters)
 
 	// Define the file name of the ww results
 	wwResultsWriter := createWriter(fmt.Sprintf("ww-%s.csv", config.ScriptStartTimeStr), wwHeader, &resultsWriters)

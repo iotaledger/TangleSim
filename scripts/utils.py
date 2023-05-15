@@ -213,7 +213,33 @@ def plot_per_node_metric(data, times, cd, title, ylab):
                for i in bps], loc="lower right")
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
                 '/figures/' + title+'.png', bbox_inches='tight')
+    plt.close()
 
+
+def plot_per_node_wo_spammer_metric(data, times, cd, title, ylab):
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.grid(linestyle='--')
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel(ylab)
+    ax.title.set_text(title + ' wo Spammer')
+    burnPolicies = cd['BURN_POLICIES']
+    weights = cd['WEIGHTS']
+    for NodeID in range(cd['NODES_COUNT']):
+        # Skip spammer
+        if burnPolicies[NodeID] == 0:
+            continue
+        ax.plot(times, data[NodeID, :], color=colors[colornames[burnPolicies[NodeID]]],
+                linewidth=4*weights[NodeID]/weights[0])
+    ax.set_xlim(0, times[-1])
+    ax.set_ylim(0)
+    bps = list(set(burnPolicies))
+    # ModeLines = [Line2D([0], [0], color=colors[colornames[bp]], lw=4)
+    #              for bp in bps]
+    # fig.legend(ModeLines, [burnPolicyNames[cd["SchedulerType"]][i]
+    #            for i in bps], loc="lower right")
+    plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
+                '/figures/' + title+'_wo_spammer.png', bbox_inches='tight')
+    plt.close()
 
 def plot_per_node_rates(messages, times, cd, title):
     fig, ax = plt.subplots(2, 1, sharex=True, figsize=(8, 8))
@@ -245,6 +271,7 @@ def plot_per_node_rates(messages, times, cd, title):
                for i in bps], loc="lower right")
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
                 '/figures/'+title+'.png', bbox_inches='tight')
+    plt.close()
 
 
 def plot_latency_cdf(latencies, cd, title):
@@ -288,6 +315,7 @@ def plot_latency_cdf(latencies, cd, title):
                for i in bps], loc="lower right")
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
                 '/figures/'+title+'.png', bbox_inches='tight')
+    plt.close()
 
 
 def plot_total_rate(data, times, cd, title, ylim=None):
@@ -309,7 +337,7 @@ def plot_total_rate(data, times, cd, title, ylim=None):
     else:
         plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
                     '/figures/'+title+'.png', bbox_inches='tight')
-
+    plt.close()
 
 def plot_traffic(data, title, cd):
     plt.clf()
@@ -337,7 +365,7 @@ def plot_traffic(data, title, cd):
 
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
                 '/figures/'+title+'.png', bbox_inches='tight')
-
+    plt.close()
 
 def plot_latency(latencies, times, cd, title):
     fig, ax = plt.subplots(figsize=(8, 4))

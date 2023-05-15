@@ -296,6 +296,7 @@ if __name__ == '__main__':
             data, times = parse_per_node_metrics(
                 config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/" + name + ".csv")
             plot_per_node_metric(data, times, config.cd, name, "")
+            plot_per_node_wo_spammer_metric(data, times, config.cd, name, "")
 
         plot_traffic(pd.read_csv(
             config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/Traffic.csv"), "Traffic",  config.cd)

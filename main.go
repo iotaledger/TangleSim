@@ -928,10 +928,10 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	// Dump the double spending result
 	// dsResultsWriter := createWriter(fmt.Sprintf("ds-%s.csv", config.ScriptStartTimeStr), dsHeader, &resultsWriters)
 
-	// // Dump the tip pool and processed message (throughput) results
+	// Dump the tip pool and processed message (throughput) results
 	// tpResultsWriter := createWriter(fmt.Sprintf("tp-%s.csv", config.ScriptStartTimeStr), tpHeader, &resultsWriters)
 
-	// // Dump the requested missing message result
+	// Dump the requested missing message result
 	// mmResultsWriter := createWriter(fmt.Sprintf("mm-%s.csv", config.ScriptStartTimeStr), mmHeader, &resultsWriters)
 
 	tpAllHeader := make([]string, 0, config.NodesCount+1)
@@ -946,7 +946,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 	// Dump the tip pool and processed message (throughput) results
 	// tpAllResultsWriter := createWriter(fmt.Sprintf("all-tp-%s.csv", config.ScriptStartTimeStr), tpAllHeader, &resultsWriters)
 
-	// // Dump the info about how many nodes have confirmed and liked a certain color
+	// Dump the info about how many nodes have confirmed and liked a certain color
 	// ccResultsWriter := createWriter(fmt.Sprintf("cc-%s.csv", config.ScriptStartTimeStr), ccHeader, &resultsWriters)
 
 	// Define the file name of the ww results

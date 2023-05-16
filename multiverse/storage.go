@@ -172,7 +172,7 @@ func (s *Storage) MessagesCountInRange(startSlotIndex SlotIndex, endSlotIndex Sl
 		if _, exists := s.slotDB[slotIndex]; !exists {
 			continue
 		}
-		count += len(s.slotDB[slotIndex])
+		count += len(s.acceptedSlotDB[slotIndex])
 	}
 	return count
 }
@@ -224,34 +224,13 @@ func (s *Storage) NewRMC(currentSlotIndex SlotIndex) {
 	if currentSlotStartTime.After(s.genesisTime.Add(config.RMCTime * time.Duration(config.SlowdownFactor))) {
 		// log.Debugf("CurrentSlotIndex %d", currentSlotIndex)
 		if int(currentSlotIndex)%config.RMCPeriodUpdate == 0 {
+
+			// TODO: Only account for the blocks already accepted (confirmed)
+			//       Only account for non-negative mana-burn messages
+			//       Mana check: TODO
 			traffic := s.MessagesCountInRange(
 				currentSlotIndex-SlotIndex(config.MinCommittableAge/config.SlotTime)-SlotIndex(config.RMCPeriodUpdate),
 				currentSlotIndex-SlotIndex(config.MinCommittableAge/config.SlotTime)) / config.RMCPeriodUpdate
-				
-				// currentSlotIndex-SlotIndex(config.RMCTime/config.SlotTime)-SlotIndex(config.RMCPeriodUpdate),
-				// currentSlotIndex-SlotIndex(config.RMCTime/config.SlotTime))
-			
-			// a := currentSlotIndex-SlotIndex(config.RMCTime/config.SlotTime)-SlotIndex(config.RMCPeriodUpdate)
-			// b := currentSlotIndex-SlotIndex(config.RMCTime/config.SlotTime)
-			
-			// traffic := 0			
-			// for i := 0; i < config.RMCPeriodUpdate; i++ {
-			// 	// traffic += len(s.AcceptedSlot(s.SlotIndex(currentSlotStartTime.Add(-config.MinCommittableAge-time.Duration(i) * config.SlotTime))))
-			// 	traffic += len(s.AcceptedSlot(s.SlotIndex(currentSlotStartTime.Add(-config.RMCTime -time.Duration(i) * config.SlotTime)))) // number of messages k slots in the past
-			// }
-			// MessagesCountInRange
-			// log.Debugf("Traffic: %d, Slot: %d, Slot a: %d, Slot b: %d", traffic, currentSlotIndex, a, b)
-			// traffic = traffic
-			// log.Debugf("Enter Branch, traffic after division: %d", traffic)
-			
-
-			// Modified
-			// if traffic < config.RMCPeriodUpdate*int(config.LowerRMCThreshold) {
-			// 	s.rmc[currentSlotIndex] = math.Max(config.RMCmin, s.rmc[currentSlotIndex]*config.AlphaRMC)
-			// } else if traffic > config.RMCPeriodUpdate*int(config.UpperRMCThreshold) {
-			// 	s.rmc[currentSlotIndex] = math.Min(config.RMCmax, s.rmc[currentSlotIndex]*config.BetaRMC)
-			// }	
-	
 			
 			// log.Debugf("Traffic: %d", traffic)
 			if traffic < int(config.LowerRMCThreshold) {

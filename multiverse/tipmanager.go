@@ -305,31 +305,32 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 }
 
 func (t *TipManager) WalkForOldestUnconfirmed(tipSet *TipSet) (oldestMessage MessageID) {
-	for _, tip := range tipSet.strongTips.Keys() {
+	strongKeys := tipSet.strongTips.Keys()
+
+	for _, tip := range strongKeys {
 		messageID := tip.(MessageID)
 		currentTangleTime := time.Now()
 		tipTangleTime := t.tangle.Storage.Message(messageID).IssuanceTime
-		for latestAcceptedBlocks := range t.tangle.Storage.Message(messageID).StrongParents {
-			if latestAcceptedBlocks == Genesis {
+		for parent := range t.tangle.Storage.Message(messageID).StrongParents {
+			if parent == Genesis {
 				continue
 			}
 
-			oldestUnconfirmedTime := time.Now()
-			oldestConfirmationTime := time.Now()
+			oldestUnconfirmedTime := currentTangleTime
+			oldestConfirmationTime := currentTangleTime
 
 			// Walk through the past cone to find the oldest unconfirmed blocks
 			t.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
-				confirmedTimestamp := messageMetadata.ConfirmationTime()
+				issuanceTime := message.IssuanceTime
 				// Reaches the confirmed blocks, stop traversing
-				if !confirmedTimestamp.IsZero() {
+				if messageMetadata.Confirmed() {
 					// Use the issuance time of the youngest confirmed block
-					issuanceTime := message.IssuanceTime
 					if issuanceTime.Before(oldestConfirmationTime) {
 						oldestConfirmationTime = issuanceTime
 					}
 				} else {
-					if message.IssuanceTime.Before(oldestUnconfirmedTime) {
-						oldestUnconfirmedTime = message.IssuanceTime
+					if issuanceTime.Before(oldestUnconfirmedTime) {
+						oldestUnconfirmedTime = issuanceTime
 						oldestMessage = message.ID
 					}
 					// Only continue the BFS when the current block is unconfirmed
@@ -338,7 +339,7 @@ func (t *TipManager) WalkForOldestUnconfirmed(tipSet *TipSet) (oldestMessage Mes
 					}
 				}
 
-			}, NewMessageIDs(messageID), false)
+			}, NewMessageIDs(parent), false)
 
 			printAges(currentTangleTime, oldestUnconfirmedTime, oldestConfirmationTime, tipTangleTime)
 			// if timeSinceConfirmation > tsc_condition {

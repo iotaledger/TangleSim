@@ -1,6 +1,9 @@
 package config
 
-import "time"
+import (
+	"path"
+	"time"
+)
 
 // simulator settings
 
@@ -13,7 +16,9 @@ var (
 	MonitoredWitnessWeightPeer      = 0                                    // Peer for which we monitor Witness Weight
 	MonitoredWitnessWeightMessageID = 200                                  // A specified message ID to monitor the witness weights
 	ScriptStartTimeStr              = time.Now().Format("20060102_150405") // A string indicating the start time of a simulation started by an external script
-	SimulationDuration              = time.Duration(4) * time.Minute
+	GeneralOutputDir                = path.Join(ResultDir, ScriptStartTimeStr, "general")
+	SchedulerOutputDir              = path.Join(ResultDir, ScriptStartTimeStr, "scheduler")
+	SimulationDuration              = time.Duration(1) * time.Minute
 )
 
 // Network setup
@@ -22,7 +27,7 @@ var (
 	NodesCount        = 100                           // NodesCount is the total number of nodes simulated in the network.
 	SchedulingRate    = 100                           // Scheduler rate in units of messages per second.
 	IssuingRate       = SchedulingRate                // Total rate of issuing messages in units of messages per second.
-	CongestionPeriods = []float64{0.5, 1.5, 1.5, 0.5} //, 0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
+	CongestionPeriods = []float64{1.5, 1.5, 1.5, 1.5} //, 0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
 	ParentsCount      = 8                             // ParentsCount that a new message is selecting from the tip pool.
 	NeighbourCountWS  = 4                             // Number of neighbors node is connected to in WattsStrogatz network topology.
 	RandomnessWS      = 1.0                           // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/
@@ -31,7 +36,7 @@ var (
 	MinDelay          = 100                           // The minimum network delay in ms.
 	MaxDelay          = 100                           // The maximum network delay in ms.
 
-	SlowdownFactor = 4 // The factor to control the speed in the simulation.
+	SlowdownFactor = 1 // The factor to control the speed in the simulation.
 )
 
 // Weight setup

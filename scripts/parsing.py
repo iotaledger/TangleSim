@@ -25,6 +25,7 @@ class FileParser:
         self.colored_confirmed_like_items = c.COLORED_CONFIRMED_LIKE_ITEMS
         self.one_second = c.ONE_SEC
         self.target = c.TARGET
+        self.config_path = cd['CONFIGURATION_PATH']
 
     def parse_aw_file(self, fn, variation):
         """Parse the accumulated weight files.
@@ -40,19 +41,13 @@ class FileParser:
             x_axis: The scaled/adjusted x axis.
         """
         logging.info(f'Parsing {fn}...')
-        # Get the configuration setup of this simulation
-        # Note currently we only consider the first node
-        config_fn = re.sub('aw0', 'aw', fn)
-        config_fn = config_fn.replace('.csv', '.config')
-
         # Opening JSON file
-        with open(config_fn) as f:
+        with open(self.config_path) as f:
             c = json.load(f)
 
         v = str(c[variation])
 
         data = pd.read_csv(fn)
-
         # # Chop data before the begining time
         # data = data[data['ns since start'] >=
         #             self.x_axis_begin * float(c["SlowdownFactor"])]

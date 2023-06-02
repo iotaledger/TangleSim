@@ -20,9 +20,13 @@ class Configuration:
         # The data paths
         self.cd['MULTIVERSE_PATH'] = str(Path().absolute().parent)
         self.cd['RESULTS_PATH'] = self.cd['MULTIVERSE_PATH'] + "/results"
+        self.cd['MULTIVERSE_PATH'] + "/results"
         self.cd['SCRIPT_START_TIME'] = datetime.strftime(
             datetime.now(), "%Y%m%d_%H%M%S")
-        self.cd['FIGURE_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/figures"
+        self.cd['CONFIGURATION_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/mb.config"
+        self.cd['GENERAL_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/general"
+        self.cd['GENERAL_FIGURE_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/general/figures"
+        self.cd['SCHEDULER_FIGURE_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/scheduler/figures"
 
         #  (self.cd['MULTIVERSE_PATH'] + '/scripts/figures')
 
@@ -62,7 +66,7 @@ class Configuration:
         self.cd['COLORED_MSG_ISSUANCE_TIME'] = 2000_000_000
 
         # Flags of operations
-        self.cd['RUN_SIM'] = True
+        self.cd['RUN_SIM'] = False
         self.cd['PLOT_FIGURES'] = True
 
         # Adversary strategies

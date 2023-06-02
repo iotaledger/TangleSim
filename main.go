@@ -382,7 +382,7 @@ func dumpLocalMetrics() {
 			header := []string{"ns since start"}
 			lmHeader = append(lmHeader, header...)
 
-			file, err := createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, strings.Join([]string{name, ".csv"}, "")))
+			file, err := createFile(path.Join(config.GeneralOutputDir, strings.Join([]string{name, ".csv"}, "")))
 			if err != nil {
 				panic(err)
 			}
@@ -544,7 +544,7 @@ func monitorGlobalMetrics(net *network.Network) {
 	header := []string{"ns since start"}
 	gmHeader = append(gmHeader, header...)
 	// dissemination results
-	file, err := createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "disseminatedMessages.csv"))
+	file, err := createFile(path.Join(config.SchedulerOutputDir, "disseminatedMessages.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -552,7 +552,7 @@ func monitorGlobalMetrics(net *network.Network) {
 	if err := dissemResultsWriter.Write(gmHeader); err != nil {
 		panic(err)
 	}
-	file, err = createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "undisseminatedMessages.csv"))
+	file, err = createFile(path.Join(config.SchedulerOutputDir, "undisseminatedMessages.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -562,7 +562,7 @@ func monitorGlobalMetrics(net *network.Network) {
 	}
 
 	// confirmination results
-	file, err = createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "fullyConfirmedMessages.csv"))
+	file, err = createFile(path.Join(config.SchedulerOutputDir, "fullyConfirmedMessages.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -570,7 +570,7 @@ func monitorGlobalMetrics(net *network.Network) {
 	if err := confirmationResultsWriter.Write(gmHeader); err != nil {
 		panic(err)
 	}
-	file, err = createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "partiallyConfirmedMessages.csv"))
+	file, err = createFile(path.Join(config.SchedulerOutputDir, "partiallyConfirmedMessages.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -578,7 +578,7 @@ func monitorGlobalMetrics(net *network.Network) {
 	if err := partialConfirmationResultsWriter.Write(gmHeader); err != nil {
 		panic(err)
 	}
-	file, err = createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "unconfirmedMessages.csv"))
+	file, err = createFile(path.Join(config.SchedulerOutputDir, "unconfirmedMessages.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -606,7 +606,7 @@ func monitorGlobalMetrics(net *network.Network) {
 }
 
 func dumpFinalData(net *network.Network) {
-	file, err := createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "Traffic.csv"))
+	file, err := createFile(path.Join(config.GeneralOutputDir, "Traffic.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -643,7 +643,7 @@ func dumpFinalData(net *network.Network) {
 		writer.Flush()
 	}
 
-	file, err = createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "DisseminationLatency.csv"))
+	file, err = createFile(path.Join(config.SchedulerOutputDir, "DisseminationLatency.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -669,7 +669,7 @@ func dumpFinalData(net *network.Network) {
 		}
 		writer.Flush()
 	}
-	file, err = createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "ConfirmationLatency.csv"))
+	file, err = createFile(path.Join(config.GeneralOutputDir, "ConfirmationLatency.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -694,7 +694,7 @@ func dumpFinalData(net *network.Network) {
 		}
 		writer.Flush()
 	}
-	file, err = createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "localMetrics.csv"))
+	file, err = createFile(path.Join(config.GeneralOutputDir, "localMetrics.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -709,7 +709,7 @@ func dumpFinalData(net *network.Network) {
 
 func dumpFinalRecorder() {
 	fileName := fmt.Sprint("nd-", config.ScriptStartTimeStr, ".csv")
-	file, err := createFile(path.Join(config.ResultDir, fileName))
+	file, err := createFile(path.Join(config.GeneralOutputDir, fileName))
 	if err != nil {
 		panic(err)
 	}
@@ -801,7 +801,7 @@ func dumpConfig(filePath string) {
 }
 
 func dumpNetworkConfig(net *network.Network) {
-	file, err := createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "config.csv"))
+	file, err := createFile(path.Join(config.SchedulerOutputDir, "config.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -818,7 +818,7 @@ func dumpNetworkConfig(net *network.Network) {
 	if err := cWriter.Write(cValues); err != nil {
 		panic(err)
 	}
-	file, err = createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "networkConfig.csv"))
+	file, err = createFile(path.Join(config.SchedulerOutputDir, "networkConfig.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -827,7 +827,7 @@ func dumpNetworkConfig(net *network.Network) {
 	if err := ncWriter.Write(ncHeader); err != nil {
 		panic(err)
 	}
-	file, err = createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "burnPolicies.csv"))
+	file, err = createFile(path.Join(config.SchedulerOutputDir, "burnPolicies.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -836,7 +836,7 @@ func dumpNetworkConfig(net *network.Network) {
 	if err := bpWriter.Write(bpHeader); err != nil {
 		panic(err)
 	}
-	file, err = createFile(path.Join(config.ResultDir, config.ScriptStartTimeStr, "weights.csv"))
+	file, err = createFile(path.Join(config.SchedulerOutputDir, "weights.csv"))
 	if err != nil {
 		panic(err)
 	}
@@ -1324,7 +1324,7 @@ func writeLine(writer *csv.Writer, record []string) {
 }
 
 func createWriter(fileName string, header []string, resultsWriters *[]*csv.Writer) *csv.Writer {
-	file, err := createFile(path.Join(config.ResultDir, fileName))
+	file, err := createFile(path.Join(config.GeneralOutputDir, fileName))
 	if err != nil {
 		panic(err)
 	}

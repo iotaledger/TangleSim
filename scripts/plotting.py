@@ -25,7 +25,7 @@ class FigurePlotter:
         """Initialize the parser and the constant/configuration values.
         """
         self.parser = FileParser(cd)
-        self.figure_output_path = cd['RESULTS_PATH'] + "/" + cd["SCRIPT_START_TIME"] + "/figures"
+        self.figure_output_path = cd['GENERAL_FIGURE_OUTPUT_PATH']
         self.transparent = cd['TRANSPARENT']
         self.clr_list = c.CLR_LIST
         self.sty_list = c.STY_LIST
@@ -33,6 +33,10 @@ class FigurePlotter:
         self.ds_sty_list = c.DS_STY_LIST
         self.var_dict = c.VAR_DICT
         self.NodesCount = cd['NODES_COUNT']
+
+        if not os.path.exists(self.figure_output_path):
+            # If it doesn't exist, create it
+            os.makedirs(self.figure_output_path)
 
 
     def _distribution_boxplot(self, var, base_folder, ofn, fc, iters, title, target):
@@ -583,6 +587,7 @@ class FigurePlotter:
         variation_data = {}
         for f in glob.glob(fs):
             try:
+                print('f', f)
                 v, data, x_axis_adjust = self.parser.parse_aw_file(f, var)
             except:
                 logging.error(f'{fs}: Incomplete Data!')
@@ -614,7 +619,6 @@ class FigurePlotter:
             # variations.append(f'{v}, {thorughput[i]}')
             # variations.append(float(v)*100)
             variations.append(v)
-
         # print(data)
         plt.violinplot(data)
         # plt.xlabel('Adversary Weight (%)')

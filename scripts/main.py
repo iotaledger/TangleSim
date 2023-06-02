@@ -148,6 +148,7 @@ if __name__ == '__main__':
 
     # Run the simulation
     if config.cd['RUN_SIM']:
+        print("Run simulation ...")
         folder = base_folder
         os.makedirs(folder, exist_ok=True)
         for iter in range(repetition):
@@ -209,7 +210,8 @@ if __name__ == '__main__':
                     f"{config.cd['MULTIVERSE_PATH']}/results/{config.cd['SCRIPT_START_TIME']}/figures")
 
                 cmd = f"{exec} -scriptStartTime={config.cd['SCRIPT_START_TIME']}"
-                expire = 1020
+                expire = 250
+                # expire = 300
                 try:
                     result = subprocess.run(
                         cmd,
@@ -232,7 +234,7 @@ if __name__ == '__main__':
 
     # Plot the figures
     if config.cd['PLOT_FIGURES']:
-
+        print('Plotting figures....')
         # update the configuration dictionary
         newconfigs = parse_config(
             config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/config.csv")
@@ -254,52 +256,62 @@ if __name__ == '__main__':
         weights = parse_int_node_attributes(
             config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/weights.csv", config.cd)
         config.update('WEIGHTS', weights)
-        # plot dissemination rates
+        # # plot dissemination rates
         messages, times = parse_per_node_metrics(
             config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/disseminatedMessages.csv")
-        plot_per_node_rates(messages, times, config.cd, "Dissemination Rates")
+        # plot_per_node_rates(messages, times, config.cd, "Dissemination Rates")
         plot_total_rate(messages, times, config.cd, "Total Dissemination Rate")
-        # plot confirmation rates
-        messages, times = parse_per_node_metrics(
-            config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/fullyConfirmedMessages.csv")
-        plot_per_node_rates(messages, times, config.cd, "Confirmation Rates")
-        plot_total_rate(messages, times, config.cd, "Total Confirmation Rate")
-        plot_total_rate(messages, times, config.cd,
-                        "Total Confirmation Rate", 200)
-        # plot number of partially confirmed blocks
-        messages, times = parse_per_node_metrics(
-            config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/partiallyConfirmedMessages.csv")
-        plot_per_node_metric(messages, times, config.cd,
-                             "Partially Confirmed Blocks", "Number of Blocks")
-        # plot number of unconfirmed blocks
-        messages, times = parse_per_node_metrics(
-            config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/unconfirmedMessages.csv")
-        plot_per_node_metric(messages, times, config.cd,
-                             "Unconfirmed Blocks", "Number of Blocks")
-        # plot number of undisseminated blocks
-        messages, times = parse_per_node_metrics(
-            config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/undisseminatedMessages.csv")
-        plot_per_node_metric(messages, times, config.cd,
-                             "Undisseminated Blocks", "Number of Blocks")
-        # plot dissemination latencies
-        latencies = parse_latencies(
-            config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/DisseminationLatency.csv", config.cd)
-        plot_latency_cdf(latencies, config.cd, "Dissemination Latency")
-        # plot confirmation latencies
-        latencies = parse_latencies(
-            config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/ConfirmationLatency.csv", config.cd)
-        plot_latency_cdf(latencies, config.cd, "Confirmation Latency")
-        # plot local metrics
+        # # plot confirmation rates
+        # messages, times = parse_per_node_metrics(
+        #     config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/fullyConfirmedMessages.csv")
+        # plot_per_node_rates(messages, times, config.cd, "Confirmation Rates")
+        # plot_total_rate(messages, times, config.cd, "Total Confirmation Rate")
+        # plot_total_rate(messages, times, config.cd,
+        #                 "Total Confirmation Rate", 200)
+        # # plot number of partially confirmed blocks
+        # messages, times = parse_per_node_metrics(
+        #     config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/partiallyConfirmedMessages.csv")
+        # plot_per_node_metric(messages, times, config.cd,
+        #                      "Partially Confirmed Blocks", "Number of Blocks")
+        # # plot number of unconfirmed blocks
+        # messages, times = parse_per_node_metrics(
+        #     config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/unconfirmedMessages.csv")
+        # plot_per_node_metric(messages, times, config.cd,
+        #                      "Unconfirmed Blocks", "Number of Blocks")
+        # # plot number of undisseminated blocks
+        # messages, times = parse_per_node_metrics(
+        #     config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/undisseminatedMessages.csv")
+        # plot_per_node_metric(messages, times, config.cd,
+        #                      "Undisseminated Blocks", "Number of Blocks")
+        # # plot dissemination latencies
+        # latencies = parse_latencies(
+        #     config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/DisseminationLatency.csv", config.cd)
+        # plot_latency_cdf(latencies, config.cd, "Dissemination Latency")
+        # # plot confirmation latencies
+        # latencies = parse_latencies(
+        #     config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/ConfirmationLatency.csv", config.cd)
+        # plot_latency_cdf(latencies, config.cd, "Confirmation Latency")
+        # # plot local metrics
         localMetricNames = parse_metric_names(
             config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/localMetrics.csv")
         for name in localMetricNames:
+            if name != "RMC":
+                continue
             data, times = parse_per_node_metrics(
                 config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/" + name + ".csv")
             plot_per_node_metric(data, times, config.cd, name, "")
             plot_per_node_wo_spammer_metric(data, times, config.cd, name, "")
 
-        plot_traffic(pd.read_csv(
-            config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/Traffic.csv"), "Traffic",  config.cd)
+
+        messages, times = parse_per_node_metrics(
+            config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/disseminatedMessages.csv")
+        # plot_traffic(messages, times, "Traffic",  config.cd)
+
+        messages, times = parse_per_node_metrics(
+            config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/disseminatedMessages.csv")
+        plot_total_traffic(messages, times, config.cd, "Traffic")
+        # plot_traffic(pd.read_csv(
+        #     config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/Traffic.csv"), "Traffic",  config.cd)
 
         #readyLengths, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/readyLengths.csv")
         #plot_per_node_metric(readyLengths, times, config.cd, "Ready Lengths", "Number of Blocks")

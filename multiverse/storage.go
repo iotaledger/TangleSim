@@ -250,6 +250,10 @@ func (s *Storage) NewRMC(currentSlotIndex SlotIndex) {
 					s.rmc[currentSlotIndex+SlotIndex(i)] = s.rmc[currentSlotIndex-SlotIndex(1)]
 				}
 			}
+			// // Hacking, fixed RMC
+			// for i := 0; i < config.RMCPeriodUpdate; i++ {
+			// 	s.rmc[currentSlotIndex+SlotIndex(i)] = 1
+			// }
 		}
 	}
 }

@@ -296,6 +296,10 @@ func dumpLocalMetrics() {
 	localMetricsMutex.RLock()
 	defer localMetricsMutex.RUnlock()
 	for name := range localMetrics {
+		if name != "RMC" {
+			continue
+		}
+			
 		if _, exists := localResultsWriters[name]; !exists { // create the file and results writer if it doesn't already exist
 			lmHeader := make([]string, 0, config.NodesCount+1)
 			for i := 0; i < config.NodesCount; i++ {

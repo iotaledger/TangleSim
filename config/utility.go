@@ -19,6 +19,7 @@ func RandomArrayFromValues(seed int64, values []int, length int) []int {
 	r := rand.New(rand.NewSource(seed))
 	for i := range a {
 		a[i] = values[r.Intn(len(values))]
+		// a[i] = values[1]
 	}
 	return a
 }

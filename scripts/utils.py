@@ -339,7 +339,43 @@ def plot_total_rate(data, times, cd, title, ylim=None):
                     '/figures/'+title+'.png', bbox_inches='tight')
     plt.close()
 
-def plot_traffic(data, title, cd):
+def plot_total_traffic(data, times, cd, title, ylim=None):
+    _, ax = plt.subplots(figsize=(8, 4))
+    ax.grid(linestyle='--')
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Rate (Blocks/s)")
+    ax.title.set_text(title)
+    totals = np.sum(data, axis=0)
+    avg_window = 10
+    rate = (totals[avg_window:]-totals[:-avg_window]) * \
+        1000/(avg_window*cd['MONITOR_INTERVAL'])
+
+    plt.bar(times[avg_window:][::8], rate[::8], label='Disseminated Blocks')
+
+
+
+    eighth = 15 # len(times[avg_window:][::8]) // 4
+    # print(len(times))
+    # remainder = len(times[avg_window:][::10]) % 4
+    # print(remainder)
+    congestions = ([150] * (eighth + 1) +
+                   [50] * (eighth) +
+                   [150] * (eighth) +
+                   [50] * (eighth))
+    plt.plot(congestions, 'r', label='Congestion')
+
+    ax.set_xlim(0, times[-1])
+    if ylim is not None:
+        ax.set_ylim(0, ylim)
+        plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
+                    '/figures/'+title+str(ylim)+'.png', bbox_inches='tight')
+    else:
+        plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
+                    '/figures/'+title+'.png', bbox_inches='tight')
+    plt.close()
+
+
+def plot_traffic(messages, times, title, cd):
     plt.clf()
     # Extract data columns
     slot_ids = data['Slot ID']
@@ -355,9 +391,15 @@ def plot_traffic(data, title, cd):
     plt.title('Traffic')
 
     # Add a red line representing Congestions
-    quarter = len(slot_ids) // 4
-    congestions = [50] * quarter + [150] * \
-        quarter + [150] * quarter + [50] * quarter
+    eighth = len(slot_ids) // 8
+    congestions = ([80] * eighth +
+                   [150] * eighth +
+                   [80] * eighth +
+                   [150] * eighth +
+                   [80] * eighth +
+                   [150] * eighth +
+                   [80] * eighth +
+                   [150] * eighth)
     plt.plot(congestions, 'r', label='Congestion')
 
     # Add legend

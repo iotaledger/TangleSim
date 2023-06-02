@@ -20,8 +20,12 @@ class Configuration:
         # The data paths
         self.cd['MULTIVERSE_PATH'] = str(Path().absolute().parent)
         self.cd['RESULTS_PATH'] = self.cd['MULTIVERSE_PATH'] + "/results"
-        self.cd['SCRIPT_START_TIME'] = datetime.strftime(
-            datetime.now(), "%Y%m%d_%H%M%S")
+        self.cd['SCRIPT_START_TIME'] =  datetime.strftime(datetime.now(), "%Y%m%d_%H%M%S")
+        # datetime.strftime(datetime.now(), "%Y%m%d_%H%M%S")
+        # '20230531_091309_DisableRS_FixedRMC'
+       
+        # '20230531_073326_DisableRS_FixedRMC'
+        # datetime.strftime(datetime.now(), "%Y%m%d_%H%M%S")
         self.cd['FIGURE_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/figures"
 
         #  (self.cd['MULTIVERSE_PATH'] + '/scripts/figures')

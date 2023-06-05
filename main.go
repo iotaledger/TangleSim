@@ -1010,6 +1010,7 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 				if err := awResultsWriter.Error(); err != nil {
 					log.Fatal(err)
 				}
+				awResultsWriter.Flush()
 				csvMutex.Unlock()
 			}))
 	}

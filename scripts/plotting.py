@@ -630,8 +630,10 @@ class FigurePlotter:
         plt.xticks(ticks=list(range(1, 1 + len(variations))),
                    labels=variations)
 
-          
-        plt.ylim([0, int(max(data[0])+0.5)])
+        y_max = int(max(data[0])+0.5)
+        if y_max > 10:
+            y_max = (int((max(data[0])+5)//5.0)*5 )          
+        plt.ylim([0, y_max])
         plt.ylabel('Acceptance Time (s)')
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent, dpi=300)

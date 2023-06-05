@@ -211,8 +211,7 @@ def plot_per_node_metric(data, times, cd, title, ylab):
                  for bp in bps]
     fig.legend(ModeLines, [burnPolicyNames[cd["SchedulerType"]][i]
                for i in bps], loc="lower right")
-    plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
-                '/figures/' + title+'.png', bbox_inches='tight')
+    plt.savefig(f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}.png', bbox_inches='tight')
     plt.close()
 
 
@@ -237,8 +236,7 @@ def plot_per_node_wo_spammer_metric(data, times, cd, title, ylab):
     #              for bp in bps]
     # fig.legend(ModeLines, [burnPolicyNames[cd["SchedulerType"]][i]
     #            for i in bps], loc="lower right")
-    plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
-                '/figures/' + title+'_wo_spammer.png', bbox_inches='tight')
+    plt.savefig(f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}_wo_spammer.png', bbox_inches='tight')
     plt.close()
 
 def plot_per_node_rates(messages, times, cd, title):
@@ -315,6 +313,37 @@ def plot_latency_cdf(latencies, cd, title):
                for i in bps], loc="lower right")
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
                 '/figures/'+title+'.png', bbox_inches='tight')
+    plt.close()
+    
+def plot_total_traffic(data, times, cd, title, ylim=None):
+    _, ax = plt.subplots(figsize=(8, 4))
+    ax.grid(linestyle='--')
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Rate (Blocks/s)")
+    ax.title.set_text(title)
+    totals = np.sum(data, axis=0)
+    avg_window = 10
+    rate = (totals[avg_window:]-totals[:-avg_window]) * \
+        1000/(avg_window*cd['MONITOR_INTERVAL'])
+
+    plt.bar(times[avg_window:][::10], rate[::10], label='Disseminated Blocks')
+
+    eighth = 15
+    # remainder = len(times[avg_window:][::10]) % 4
+    # print(remainder)
+    congestions = ([50] * (eighth + 1) +
+                   [50] * (eighth) +
+                   [50] * (eighth) +
+                   [50] * (eighth))
+    plt.plot(congestions, 'r', label='Congestion')
+    print(cd["SCHEDULER_FIGURE_OUTPUT_PATH"])
+
+    ax.set_xlim(0, times[-1])
+    if ylim is not None:
+        ax.set_ylim(0, ylim)
+        plt.savefig(f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}{str(ylim)}.png', bbox_inches='tight')
+    else:
+        plt.savefig(f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}.png', bbox_inches='tight')
     plt.close()
 
 

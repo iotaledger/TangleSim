@@ -241,6 +241,31 @@ if __name__ == '__main__':
         iter_suffix = ''
         folder = config.cd['GENERAL_OUTPUT_PATH']
         plotter.confirmation_time_violinplot(n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, n)
+        
+
+        newconfigs = parse_config(f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/config.csv')
+        for k in newconfigs:
+            config.update(k, newconfigs[k])
+        burnPolicies = parse_int_node_attributes(
+            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/burnPolicies.csv', config.cd)
+        config.update('BURN_POLICIES', burnPolicies)
+        weights = parse_int_node_attributes(
+            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}//weights.csv', config.cd)
+        config.update('WEIGHTS', weights)
+        # plot dissemination rates
+        messages, times = parse_per_node_metrics(
+            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/disseminatedMessages.csv')
+
+        localMetricNames = parse_metric_names(f'{config.cd["GENERAL_OUTPUT_PATH"]}/localMetrics.csv')
+        for name in localMetricNames:
+            if name != 'RMC':
+                continue
+            data, times = parse_per_node_metrics(f'{config.cd["GENERAL_OUTPUT_PATH"]}/{name}.csv')
+            plot_per_node_metric(data, times, config.cd, name, "")
+            plot_per_node_wo_spammer_metric(data, times, config.cd, name, "")
+
+        plot_total_traffic(messages, times, config.cd, "Traffic")
+        
         sys.exit(0)
 
 

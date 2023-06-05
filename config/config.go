@@ -27,7 +27,7 @@ var (
 	NodesCount        = 100                           // NodesCount is the total number of nodes simulated in the network.
 	SchedulingRate    = 100                           // Scheduler rate in units of messages per second.
 	IssuingRate       = SchedulingRate                // Total rate of issuing messages in units of messages per second.
-	CongestionPeriods = []float64{1.5, 1.5, 1.5, 1.5} //, 0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
+	CongestionPeriods = []float64{0.5, 1.5, 0.5, 0.5} //, 0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
 	ParentsCount      = 8                             // ParentsCount that a new message is selecting from the tip pool.
 	NeighbourCountWS  = 4                             // Number of neighbors node is connected to in WattsStrogatz network topology.
 	RandomnessWS      = 1.0                           // WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/

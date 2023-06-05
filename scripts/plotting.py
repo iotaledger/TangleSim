@@ -34,9 +34,10 @@ class FigurePlotter:
         self.var_dict = c.VAR_DICT
         self.NodesCount = cd['NODES_COUNT']
 
-        if not os.path.exists(self.figure_output_path):
-            # If it doesn't exist, create it
-            os.makedirs(self.figure_output_path)
+        for path in [cd['GENERAL_FIGURE_OUTPUT_PATH'], cd['SCHEDULER_FIGURE_OUTPUT_PATH']]:
+            if not os.path.exists(path):
+                os.makedirs(path)
+
 
 
     def _distribution_boxplot(self, var, base_folder, ofn, fc, iters, title, target):
@@ -625,13 +626,13 @@ class FigurePlotter:
         # plt.xlabel('Uniform Random Network Delay (ms)')
         # plt.xlabel('Node Count, TPS')
         # plt.ylim(0, 6)
-        plt.xlabel('Mana Burn Policies')
+        plt.xlabel('Node Count')
         plt.xticks(ticks=list(range(1, 1 + len(variations))),
                    labels=variations)
 
-        # axes = plt.axes()
-        # axes.set_ylim([0, 6])
-        plt.ylabel('Confirmation Time (s)')
+          
+        plt.ylim([0, int(max(data[0])+0.5)])
+        plt.ylabel('Acceptance Time (s)')
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent, dpi=300)
         plt.close()

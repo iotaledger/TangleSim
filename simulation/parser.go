@@ -8,6 +8,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/logger"
@@ -35,8 +36,46 @@ func ParseFlags() {
 		flag.Float64("weakTipsRatio", config.WeakTipsRatio, "The ratio of weak tips")
 	tsaPtr :=
 		flag.String("tsa", config.TSA, "The tip selection algorithm")
+	monitoredAWPeers :=
+		flag.String("monitoredAWPeers", "", "Space seperated list of nodes to monitored, e.g., '0 1'")
+	monitoredWitnessWeightPeerPtr :=
+		flag.Int("monitoredWitnessWeightPeer", config.MonitoredWitnessWeightPeer, "The node for which we monitor the WW growth")
+	monitoredWitnessWeightMessageIDPtr :=
+		flag.Int("monitoredWitnessWeightMessageID", config.MonitoredWitnessWeightMessageID, "The message for which we monitor the WW growth")
+	simulationDurationPtr :=
+		flag.Duration("simulationDuration", config.SimulationDuration, "The simulation time of the experiment")
+	schedulerTypePtr :=
+		flag.String("schedulerType", config.SchedulerType, "The type of the scheduler.")
 	schedulingRate :=
 		flag.Int("schedulingRate", config.SchedulingRate, "The scheduling rate of the scheduler in message per second.")
+	maxDeficitPtr :=
+		flag.Float64("maxDeficit", config.MaxDeficit, "The maximum deficit for all nodes")
+	slotTimePtr :=
+		flag.Duration("slotTime", config.SlotTime, "The duration of a slot")
+	minCommittableAgePtr :=
+		flag.Duration("minCommittableAge", config.MinCommittableAge, "The minimum duration to create a commitment")
+	rmcTimePtr :=
+		flag.Duration("rmcTime", config.RMCTime, "The duration of a referenced mana cost")
+	initialRMCPtr :=
+		flag.Float64("initialRMC", config.InitialRMC, "The initial valud of referenced mana cost")
+	lowerRMCThresholdPtr :=
+		flag.Float64("lowerRMCThreshold", config.LowerRMCThreshold, "The lower bound of RMC threshold")
+	upperRMCThresholdPtr :=
+		flag.Float64("upperRMCThreshold", config.UpperRMCThreshold, "The upper bound of RMC threshold")
+	alphaRMCPtr :=
+		flag.Float64("alphaRMC", config.AlphaRMC, "The alpha RMC value")
+	betaRMCPtr :=
+		flag.Float64("betaRMC", config.BetaRMC, "The beta RMC value")
+	rmcMinPtr :=
+		flag.Float64("rmcMin", config.RMCmin, "The minimum RMC value")
+	rmcMaxPtr :=
+		flag.Float64("rmcMax", config.RMCmax, "The maximum RMC value")
+	rmcIncreasePtr :=
+		flag.Float64("rmcIncrease", config.RMCincrease, "The RMC value to increase")
+	rmcDecreasePtr :=
+		flag.Float64("rmcDecrease", config.RMCdecrease, "The RMC value to decrease")
+	rmcPeriodUpdatePtr :=
+		flag.Int("rmcPeriodUpdate", config.RMCPeriodUpdate, "The period to update RMC")
 	issuingRatePtr :=
 		flag.Int("issuingRate", config.IssuingRate, "the tips per seconds")
 	slowdownFactorPtr :=
@@ -53,6 +92,10 @@ func ParseFlags() {
 		flag.Int("minDelay", config.MinDelay, "The minimum network delay in ms")
 	maxDelay :=
 		flag.Int("maxDelay", config.MaxDelay, "The maximum network delay in ms")
+	congestionPeriods :=
+		flag.String("congestionPeriods", "", "Space seperated list of congestion to run, e.g., '0.5 1.2 0.5 1.2'")
+	initialMana :=
+		flag.Float64("initialMana", config.InitialMana, "The initial mana")
 	deltaURTS :=
 		flag.Float64("deltaURTS", config.DeltaURTS, "in seconds, reference: https://iota.cafe/t/orphanage-with-restricted-urts/1199")
 	simulationStopThreshold :=
@@ -116,24 +159,70 @@ func ParseFlags() {
 	config.NeighbourCountWS = *neighbourCountWS
 	config.SimulationMode = *simulationMode
 	config.SchedulingRate = *schedulingRate
+	parseMonitoredAWPeers(*monitoredAWPeers)
 	parseBurnPolicies(*burnPolicies)
+	parseCongestionPeriods(*congestionPeriods)
 	config.ScriptStartTimeStr = *scriptStartTime
 	parseAccidentalConfig(accidentalMana)
 	parseAdversaryConfig(adversaryDelays, adversaryTypes, adversaryMana, adversaryNodeCounts, adversaryInitColors, adversaryPeeringAll, adversarySpeedup)
+
+	config.MonitoredWitnessWeightPeer = *monitoredWitnessWeightPeerPtr
+	config.MonitoredWitnessWeightMessageID = *monitoredWitnessWeightMessageIDPtr
+	config.SimulationDuration = *simulationDurationPtr
+	config.SchedulerType = *schedulerTypePtr
+	config.MaxDeficit = *maxDeficitPtr
+	config.SlotTime = *slotTimePtr
+	config.MinCommittableAge = *minCommittableAgePtr
+	config.RMCTime = *rmcTimePtr
+	config.InitialMana = *initialMana
+	config.InitialRMC = *initialRMCPtr
+	config.LowerRMCThreshold = *lowerRMCThresholdPtr
+	config.UpperRMCThreshold = *upperRMCThresholdPtr
+	config.AlphaRMC = *alphaRMCPtr
+	config.BetaRMC = *betaRMCPtr
+	config.RMCmin = *rmcMinPtr
+	config.RMCmax = *rmcMaxPtr
+	config.RMCincrease = *rmcIncreasePtr
+	config.RMCdecrease = *rmcDecreasePtr
+	config.RMCPeriodUpdate = *rmcPeriodUpdatePtr
+
 	log.Info("Current configuration:")
+	log.Info("Simulation Duration: ", config.SimulationDuration)
 	log.Info("NodesCount: ", config.NodesCount)
 	log.Info("NodesTotalWeight: ", config.NodesTotalWeight)
 	log.Info("ZipfParameter: ", config.ZipfParameter)
+	log.Info("MonitoredAWPeers:", config.MonitoredAWPeers)
+	log.Info("MonitoredWitnessWeightPeer: ", config.MonitoredWitnessWeightPeer)
+	log.Info("MonitoredWitnessWeightMessageID: ", config.MonitoredWitnessWeightMessageID)
 	log.Info("ConfirmationThreshold: ", config.ConfirmationThreshold)
 	log.Info("ConfirmationThresholdAbsolute: ", config.ConfirmationThresholdAbsolute)
 	log.Info("ParentsCount: ", config.ParentsCount)
 	log.Info("WeakTipsRatio: ", config.WeakTipsRatio)
 	log.Info("TSA: ", config.TSA)
-	log.Info("SchedulingRate:", config.SchedulingRate)
+	log.Info("SchedulerType: ", config.SchedulerType)
+	log.Info("SchedulingRate: ", config.SchedulingRate)
 	log.Info("IssuingRate: ", config.IssuingRate)
+	log.Info("Congestion periods:", config.CongestionPeriods)
 	log.Info("SlowdownFactor: ", config.SlowdownFactor)
 	log.Info("ConsensusMonitorTick: ", config.ConsensusMonitorTick)
 	log.Info("RelevantValidatorWeight: ", config.RelevantValidatorWeight)
+	log.Info("Burn Policies:", config.BurnPolicies)
+	log.Info("Initial Mana:", config.InitialMana)
+	log.Info("Max Buffer size:", config.MaxBuffer)
+	log.Info("Max Deficit:", config.MaxDeficit)
+	log.Info("Slot time duration:", config.SlotTime)
+	log.Info("MinCommittableAge:", config.MinCommittableAge)
+	log.Info("RMCTime: ", config.RMCTime)
+	log.Info("InitialRMC: ", config.InitialRMC)
+	log.Info("LowerRMCThreshold: ", config.LowerRMCThreshold)
+	log.Info("UpperRMCThreshold: ", config.UpperRMCThreshold)
+	log.Info("AlphaRMC: ", config.AlphaRMC)
+	log.Info("BetaRMC: ", config.BetaRMC)
+	log.Info("RMCmin: ", config.RMCmin)
+	log.Info("RMCmax: ", config.RMCmax)
+	log.Info("RMCincrease: ", config.RMCincrease)
+	log.Info("RMCdecrease: ", config.RMCdecrease)
+	log.Info("RMCPeriodUpdate: ", config.RMCPeriodUpdate)
 	log.Info("DoubleSpendDelay: ", config.DoubleSpendDelay)
 	log.Info("PacketLoss: ", config.PacketLoss)
 	log.Info("MinDelay: ", config.MinDelay)
@@ -153,7 +242,22 @@ func ParseFlags() {
 	log.Info("AccidentalMana: ", config.AccidentalMana)
 	log.Info("AdversaryPeeringAll: ", config.AdversaryPeeringAll)
 	log.Info("AdversarySpeedup: ", config.AdversarySpeedup)
+}
 
+func parseMonitoredAWPeers(peers string) {
+	if peers == "" {
+		return
+	}
+	peersInt := parseStrToInt(peers)
+	config.MonitoredAWPeers = peersInt
+}
+
+func parseCongestionPeriods(periods string) {
+	if periods == "" {
+		return
+	}
+	periodsFloat := parseStrToFloat64(periods)
+	config.CongestionPeriods = periodsFloat
 }
 
 func parseBurnPolicies(burnPolicies string) {
@@ -257,48 +361,70 @@ func parseStrToFloat64(strList string) []float64 {
 
 func DumpConfig(fileName string) {
 	type Configuration struct {
-		NodesCount, NodesTotalWeight, ParentsCount, SchedulingRate, IssuingRate, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS, MaxBuffer int
-		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS                                                                                                                float64
-		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode, BurnPolicyNames                                                                                                            string
-		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts                                                                                                                                                      []int
-		AdversarySpeedup, AdversaryMana                                                                                                                                                                           []float64
-		AdversaryInitColor, AccidentalMana                                                                                                                                                                        []string
-		AdversaryPeeringAll, ConfEligible                                                                                                                                                                         bool
+		NodesCount, NodesTotalWeight, ParentsCount, SchedulingRate, IssuingRate, ConsensusMonitorTick, RelevantValidatorWeight, MinDelay, MaxDelay, SlowdownFactor, DoubleSpendDelay, NeighbourCountWS, MaxBuffer, MonitoredWitnessWeightPeer, MonitoredWitnessWeightMessageID, RMCPeriodUpdate int
+		ZipfParameter, WeakTipsRatio, PacketLoss, DeltaURTS, SimulationStopThreshold, RandomnessWS, MaxDeficit, InitialRMC, LowerRMCThreshold, UpperRMCThreshold, AlphaRMC, BetaRMC, RMCdecrease, RMCincrease, RMCmax, RMCmin, InitialMana                                                      float64
+		ConfirmationThreshold, TSA, ResultDir, IMIF, SimulationTarget, SimulationMode, SchedulerType, BurnPolicyNames                                                                                                                                                                           string
+		AdversaryDelays, AdversaryTypes, AdversaryNodeCounts, MonitoredAWPeers                                                                                                                                                                                                                  []int
+		AdversarySpeedup, AdversaryMana, CongestionPeriods                                                                                                                                                                                                                                      []float64
+		AdversaryInitColor, AccidentalMana                                                                                                                                                                                                                                                      []string
+		AdversaryPeeringAll, ConfEligible                                                                                                                                                                                                                                                       bool
+		SimulationDuration, SlotTime, MinCommittableAge, RMCTime                                                                                                                                                                                                                                time.Duration
 	}
 	data := Configuration{
-		NodesCount:              config.NodesCount,
-		NodesTotalWeight:        config.NodesTotalWeight,
-		ZipfParameter:           config.ZipfParameter,
-		ConfirmationThreshold:   fmt.Sprintf("%.2f-%v", config.ConfirmationThreshold, config.ConfirmationThresholdAbsolute),
-		ParentsCount:            config.ParentsCount,
-		WeakTipsRatio:           config.WeakTipsRatio,
-		TSA:                     config.TSA,
-		SchedulingRate:          config.SchedulingRate,
-		IssuingRate:             config.IssuingRate,
-		SlowdownFactor:          config.SlowdownFactor,
-		ConsensusMonitorTick:    config.ConsensusMonitorTick,
-		RelevantValidatorWeight: config.RelevantValidatorWeight,
-		DoubleSpendDelay:        config.DoubleSpendDelay,
-		PacketLoss:              config.PacketLoss,
-		MinDelay:                config.MinDelay,
-		MaxDelay:                config.MaxDelay,
-		DeltaURTS:               config.DeltaURTS,
-		SimulationStopThreshold: config.SimulationStopThreshold,
-		ResultDir:               config.ResultDir,
-		IMIF:                    config.IMIF,
-		RandomnessWS:            config.RandomnessWS,
-		NeighbourCountWS:        config.NeighbourCountWS,
-		AdversaryTypes:          config.AdversaryTypes,
-		AdversaryDelays:         config.AdversaryDelays,
-		AdversaryMana:           config.AdversaryMana,
-		AdversaryNodeCounts:     config.AdversaryNodeCounts,
-		AdversaryInitColor:      config.AdversaryInitColors,
-		SimulationMode:          config.SimulationMode,
-		AccidentalMana:          config.AccidentalMana,
-		AdversaryPeeringAll:     config.AdversaryPeeringAll,
-		AdversarySpeedup:        config.AdversarySpeedup,
-		ConfEligible:            config.ConfEligible,
-		MaxBuffer:               config.MaxBuffer,
+		NodesCount:                      config.NodesCount,
+		NodesTotalWeight:                config.NodesTotalWeight,
+		ZipfParameter:                   config.ZipfParameter,
+		ConfirmationThreshold:           fmt.Sprintf("%.2f-%v", config.ConfirmationThreshold, config.ConfirmationThresholdAbsolute),
+		ParentsCount:                    config.ParentsCount,
+		WeakTipsRatio:                   config.WeakTipsRatio,
+		TSA:                             config.TSA,
+		SchedulingRate:                  config.SchedulingRate,
+		IssuingRate:                     config.IssuingRate,
+		SlowdownFactor:                  config.SlowdownFactor,
+		ConsensusMonitorTick:            config.ConsensusMonitorTick,
+		RelevantValidatorWeight:         config.RelevantValidatorWeight,
+		DoubleSpendDelay:                config.DoubleSpendDelay,
+		PacketLoss:                      config.PacketLoss,
+		MinDelay:                        config.MinDelay,
+		MaxDelay:                        config.MaxDelay,
+		DeltaURTS:                       config.DeltaURTS,
+		SimulationStopThreshold:         config.SimulationStopThreshold,
+		ResultDir:                       config.ResultDir,
+		IMIF:                            config.IMIF,
+		RandomnessWS:                    config.RandomnessWS,
+		NeighbourCountWS:                config.NeighbourCountWS,
+		AdversaryTypes:                  config.AdversaryTypes,
+		AdversaryDelays:                 config.AdversaryDelays,
+		AdversaryMana:                   config.AdversaryMana,
+		AdversaryNodeCounts:             config.AdversaryNodeCounts,
+		AdversaryInitColor:              config.AdversaryInitColors,
+		SimulationMode:                  config.SimulationMode,
+		AccidentalMana:                  config.AccidentalMana,
+		AdversaryPeeringAll:             config.AdversaryPeeringAll,
+		AdversarySpeedup:                config.AdversarySpeedup,
+		ConfEligible:                    config.ConfEligible,
+		MaxBuffer:                       config.MaxBuffer,
+		MaxDeficit:                      config.MaxDeficit,
+		MonitoredAWPeers:                config.MonitoredAWPeers,
+		MonitoredWitnessWeightPeer:      config.MonitoredWitnessWeightPeer,
+		MonitoredWitnessWeightMessageID: config.MonitoredWitnessWeightMessageID,
+		CongestionPeriods:               config.CongestionPeriods,
+		SimulationDuration:              config.SimulationDuration,
+		SchedulerType:                   config.SchedulerType,
+		SlotTime:                        config.SlotTime,
+		MinCommittableAge:               config.MinCommittableAge,
+		RMCTime:                         config.RMCTime,
+		InitialRMC:                      config.InitialRMC,
+		InitialMana:                     config.InitialMana,
+		LowerRMCThreshold:               config.LowerRMCThreshold,
+		UpperRMCThreshold:               config.UpperRMCThreshold,
+		AlphaRMC:                        config.AlphaRMC,
+		BetaRMC:                         config.BetaRMC,
+		RMCdecrease:                     config.RMCdecrease,
+		RMCincrease:                     config.RMCincrease,
+		RMCPeriodUpdate:                 config.RMCPeriodUpdate,
+		RMCmax:                          config.RMCmax,
+		RMCmin:                          config.RMCmin,
 	}
 
 	bytes, err := json.MarshalIndent(data, "", " ")

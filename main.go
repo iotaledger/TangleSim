@@ -77,6 +77,7 @@ var (
 	confirmedMessageCounter = make(map[network.PeerID]int64)
 
 	storedMessageMap                 = make(map[multiverse.MessageID]int)
+	storedMessages                   = make(map[multiverse.MessageID]*multiverse.Message)
 	storedMessageMutex               sync.RWMutex
 	disseminatedMessageCounter       = make([]int64, config.NodesCount)
 	undisseminatedMessageCounter     = make([]int64, config.NodesCount)
@@ -490,6 +491,7 @@ func monitorGlobalMetrics(net *network.Network) {
 						panic("message stored more than once per node")
 					}
 					storedMessageMap[messageID] = numNodes + 1
+					storedMessages[messageID] = message
 				} else {
 					storedMessageMap[messageID] = 1
 					confirmedMessageMutex.Lock()
@@ -642,6 +644,55 @@ func dumpFinalData(net *network.Network) {
 		}
 		writer.Flush()
 	}
+
+	file, err = createFile(path.Join(config.GeneralOutputDir, "BlockInformation.csv"))
+	if err != nil {
+		panic(err)
+	}
+
+	// Message ID,Issuance Time (unix),Confirmation Time (ns),Weight,# of Confirmed Messages,# of Issued Messages,ns since start
+	header = []string{
+		"Issuer Burn Policy",
+		"Message ID",
+		"Issuance Time Since Start (ns)",
+		"Confirmation Time (ns)",
+	}
+
+	writer = csv.NewWriter(file)
+	if err := writer.Write(header); err != nil {
+		panic(err)
+	}
+	writer.Flush()
+	record = make([]string, len(header))
+	for messageID := range disseminatedMessages {
+		message := disseminatedMessages[messageID]
+		messageMetadata := disseminatedMessageMetadata[messageID]
+		record[0] = strconv.FormatInt(int64(config.BurnPolicies[int(message.Issuer)]), 10)
+		record[1] = strconv.FormatInt(int64(message.ID), 10)
+		record[2] = strconv.FormatInt(message.IssuanceTime.Sub(simulationStartTime).Nanoseconds(), 10)
+		t := int64(messageMetadata.ConfirmationTime().Sub(message.IssuanceTime))
+		if (t < 0) {
+			t = 0
+		}
+		record[3] = strconv.FormatInt(t, 10)
+		if err := writer.Write(record); err != nil {
+			panic(err)
+		}
+		delete (storedMessages, messageID)
+		writer.Flush()
+	}
+
+	for messageID := range storedMessages {
+		message := storedMessages[messageID]
+		record[0] = strconv.FormatInt(int64(config.BurnPolicies[int(message.Issuer)]), 10)
+		record[1] = strconv.FormatInt(int64(message.ID), 10)
+		record[2] = strconv.FormatInt(message.IssuanceTime.Sub(simulationStartTime).Nanoseconds(), 10)
+		record[3] = strconv.FormatInt(0, 10)
+		if err := writer.Write(record); err != nil {
+			panic(err)
+		}
+		writer.Flush()
+  }
 
 	file, err = createFile(path.Join(config.SchedulerOutputDir, "DisseminationLatency.csv"))
 	if err != nil {
@@ -982,37 +1033,40 @@ func monitorNetworkState(testNetwork *network.Network) (resultsWriters []*csv.Wr
 			panic(fmt.Sprintf("unknowm peer with id %d", id))
 		}
 		// Define the file name of the aw results
-		awResultsWriter := createWriter(fmt.Sprintf("aw%d-%s.csv", id, config.ScriptStartTimeStr), awHeader, &resultsWriters)
+		// awResultsWriter := createWriter(fmt.Sprintf("aw%d-%s.csv", id, config.ScriptStartTimeStr), awHeader, &resultsWriters)
 
-		awPeer.Node.(multiverse.NodeInterface).Tangle().ApprovalManager.Events.MessageConfirmed.Attach(
-			events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64, messageIDCounter int64) {
-				confirmedMessageMutex.Lock()
-				confirmedMessageCounter[awPeer.ID]++
-				confirmedMessageMutex.Unlock()
+		// awPeer.Node.(multiverse.NodeInterface).Tangle().ApprovalManager.Events.MessageConfirmed.Attach(
+		// 	events.NewClosure(func(message *multiverse.Message, messageMetadata *multiverse.MessageMetadata, weight uint64, messageIDCounter int64) {
+		// 		// if BurnPolicies[x] == 0: spammer node only
+		// 		// if BurnPolicies[x] == 1: normal node only
+		// 		if config.BurnPolicies[int(message.Issuer)] == 0 {
+		// 			confirmedMessageMutex.Lock()
+		// 			confirmedMessageCounter[awPeer.ID]++
+		// 			confirmedMessageMutex.Unlock()
+		// 			confirmedMessageMutex.RLock()
+		// 			record := []string{
+		// 				strconv.FormatInt(int64(message.ID), 10),
+		// 				strconv.FormatInt(message.IssuanceTime.Unix(), 10),
+		// 				strconv.FormatInt(int64(messageMetadata.ConfirmationTime().Sub(message.IssuanceTime)), 10),
+		// 				strconv.FormatUint(weight, 10),
+		// 				strconv.FormatInt(confirmedMessageCounter[awPeer.ID], 10),
+		// 				strconv.FormatInt(messageIDCounter, 10),
+		// 				strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
+		// 			}
+		// 			confirmedMessageMutex.RUnlock()
 
-				confirmedMessageMutex.RLock()
-				record := []string{
-					strconv.FormatInt(int64(message.ID), 10),
-					strconv.FormatInt(message.IssuanceTime.Unix(), 10),
-					strconv.FormatInt(int64(messageMetadata.ConfirmationTime().Sub(message.IssuanceTime)), 10),
-					strconv.FormatUint(weight, 10),
-					strconv.FormatInt(confirmedMessageCounter[awPeer.ID], 10),
-					strconv.FormatInt(messageIDCounter, 10),
-					strconv.FormatInt(time.Since(simulationStartTime).Nanoseconds(), 10),
-				}
-				confirmedMessageMutex.RUnlock()
+		// 			csvMutex.Lock()
+		// 			if err := awResultsWriter.Write(record); err != nil {
+		// 				log.Fatal("error writing record to csv:", err)
+		// 			}
 
-				csvMutex.Lock()
-				if err := awResultsWriter.Write(record); err != nil {
-					log.Fatal("error writing record to csv:", err)
-				}
-
-				if err := awResultsWriter.Error(); err != nil {
-					log.Fatal(err)
-				}
-				awResultsWriter.Flush()
-				csvMutex.Unlock()
-			}))
+		// 			if err := awResultsWriter.Error(); err != nil {
+		// 				log.Fatal(err)
+		// 			}
+		// 			awResultsWriter.Flush()
+		// 			csvMutex.Unlock()
+		// 		}
+		// 	}))
 	}
 
 	for _, peer := range testNetwork.Peers {

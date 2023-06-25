@@ -331,10 +331,10 @@ def plot_total_traffic(data, times, cd, title, ylim=None):
     eighth = 15
     # remainder = len(times[avg_window:][::10]) % 4
     # print(remainder)
-    congestions = ([50] * (eighth + 1) +
-                   [50] * (eighth) +
-                   [50] * (eighth) +
-                   [50] * (eighth))
+    congestions = ([120] * (eighth + 1) +
+                   [100] * (eighth) +
+                   [120] * (eighth) +
+                   [100] * (eighth))
     plt.plot(congestions, 'r', label='Congestion')
     print(cd["SCHEDULER_FIGURE_OUTPUT_PATH"])
 

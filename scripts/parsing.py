@@ -60,6 +60,57 @@ class FileParser:
         data[self.target] = data[self.target] / float(c["SlowdownFactor"])
         return v, data[self.target], x_axis
 
+    def parse_block_information_file(self, fn, variation):
+        """Parse the block information files.
+
+        Args:
+            fc: The figure count.
+
+        Returns:
+
+        Returns:
+            v: The variation value.
+            data: The target data to analyze.
+            x_axis: The scaled/adjusted x axis.
+        """
+        logging.info(f'Parsing {fn}...')
+        # Opening JSON file
+        with open(self.config_path) as f:
+            c = json.load(f)
+
+        v = str(c[variation])
+
+        data = pd.read_csv(fn)
+
+        data = data.reset_index()
+        # ns is the time scale of the block information
+        spammer_accepted_time = data[data['Issuer Burn Policy']
+                                     == 0][data[self.target] != 0]
+
+        non_spammer_accepted_time = data[data['Issuer Burn Policy']
+                                         == 1][data[self.target] != 0]
+
+        spammer_not_accepted_time = data[data['Issuer Burn Policy']
+                                         == 0][data[self.target] == 0]
+
+        non_spammer_not_accepted_time = data[data['Issuer Burn Policy']
+                                             == 1][data[self.target] == 0]
+
+        spammer_accepted_time = ((spammer_accepted_time[self.target] /
+                                  float(c["SlowdownFactor"])))
+        non_spammer_accepted_time = ((non_spammer_accepted_time[self.target] /
+                                      float(c["SlowdownFactor"])))
+        spammer_not_accepted_time = (60000000000 - ((spammer_not_accepted_time['Issuance Time Since Start (ns)'] /
+                                                     float(c["SlowdownFactor"]))))
+        non_spammer_not_accepted_time = (60000000000 - ((non_spammer_not_accepted_time['Issuance Time Since Start (ns)'] /
+                                                         float(c["SlowdownFactor"]))))
+
+        return (v,
+                spammer_accepted_time,
+                non_spammer_accepted_time,
+                spammer_not_accepted_time,
+                non_spammer_not_accepted_time)
+
     def parse_mm_file(self, fn, variation):
         """Parse the witness weight files.
 

@@ -240,9 +240,12 @@ if __name__ == '__main__':
         (n, t_confirmation, t_convergence, t_flips, t_unconfirming, t_depth) = c.FIGURE_NAMING_DICT[var]
         iter_suffix = ''
         folder = config.cd['GENERAL_OUTPUT_PATH']
-        plotter.confirmation_time_violinplot(n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, n)
+        # plotter.confirmation_time_violinplot(n, folder + '/aw0*csv', f'CT_{n}_aw0_ct{iter_suffix}.pdf', t_confirmation, n)
+        # plotter.confirmation_time_violinplot(n, folder + '/aw99*csv', f'CT_{n}_aw99_ct{iter_suffix}.pdf', t_confirmation, n)
+        plotter.acceptance_time_violinplot(
+            n, folder + '/BlockInformation.csv', f'blockInformation.pdf', t_confirmation, n)
         
-
+        # TODO: Fix bug
         newconfigs = parse_config(f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/config.csv')
         for k in newconfigs:
             config.update(k, newconfigs[k])
@@ -265,6 +268,18 @@ if __name__ == '__main__':
             plot_per_node_wo_spammer_metric(data, times, config.cd, name, "")
 
         plot_total_traffic(messages, times, config.cd, "Traffic")
+
+        # TODO: refine plotting scripts
+        # plot number of partially confirmed blocks
+        messages, times = parse_per_node_metrics(
+            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/partiallyConfirmedMessages.csv')
+        plot_per_node_metric(messages, times, config.cd,
+                             "Partially Confirmed Blocks", "Number of Blocks")
+
+        readyLengths, times = parse_per_node_metrics(f'{config.cd["GENERAL_OUTPUT_PATH"]}/Ready Lengths.csv')
+        plot_per_node_metric(readyLengths, times, config.cd, "Ready Lengths", "Number of Blocks")
+        nonReadyLengths, times = parse_per_node_metrics(f'{config.cd["GENERAL_OUTPUT_PATH"]}/Non Ready Lengths.csv')
+        plot_per_node_metric(nonReadyLengths, times, config.cd, "Non Ready Lengths", "Number of Blocks")
         
         sys.exit(0)
 
@@ -305,11 +320,11 @@ if __name__ == '__main__':
         plot_total_rate(messages, times, config.cd, "Total Confirmation Rate")
         plot_total_rate(messages, times, config.cd,
                         "Total Confirmation Rate", 200)
-        # plot number of partially confirmed blocks
-        messages, times = parse_per_node_metrics(
-            config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']+"/partiallyConfirmedMessages.csv")
-        plot_per_node_metric(messages, times, config.cd,
-                             "Partially Confirmed Blocks", "Number of Blocks")
+        # # plot number of partially confirmed blocks
+        # messages, times = parse_per_node_metrics(
+        #     config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']+"/partiallyConfirmedMessages.csv")
+        # plot_per_node_metric(messages, times, config.cd,
+        #                      "Partially Confirmed Blocks", "Number of Blocks")
         # plot number of unconfirmed blocks
         messages, times = parse_per_node_metrics(
             config.cd['GENERAL_FIGURE_OUTPUT_PATH']+"/unconfirmedMessages.csv")
@@ -340,7 +355,7 @@ if __name__ == '__main__':
         plot_traffic(pd.read_csv(
             config.cd['GENERAL_FIGURE_OUTPUT_PATH']+"/Traffic.csv"), "Traffic",  config.cd)
 
-        #readyLengths, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/readyLengths.csv")
-        #plot_per_node_metric(readyLengths, times, config.cd, "Ready Lengths", "Number of Blocks")
-        #nonReadyLengths, times = parse_per_node_metrics(config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/nonReadyLengths.csv")
-        #plot_per_node_metric(nonReadyLengths, times, config.cd, "Non Ready Lengths", "Number of Blocks")
+        readyLengths, times = parse_per_node_metrics(f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/readyLengths.csv')
+        plot_per_node_metric(readyLengths, times, config.cd, "Ready Lengths", "Number of Blocks")
+        nonReadyLengths, times = parse_per_node_metrics(f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/nonReadyLengths.csv')
+        plot_per_node_metric(nonReadyLengths, times, config.cd, "Non Ready Lengths", "Number of Blocks")

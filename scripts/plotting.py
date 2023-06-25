@@ -630,14 +630,75 @@ class FigurePlotter:
         plt.xticks(ticks=list(range(1, 1 + len(variations))),
                    labels=variations)
 
-        y_max = int(max(data[0])+0.5)
+        y_max = int(max(data[0])+0.99)
         if y_max > 10:
-            y_max = (int((max(data[0])+5)//5.0)*5 )          
+            y_max = (int((max(data[0])+5.5)//5.0)*5)          
         plt.ylim([0, y_max])
         plt.ylabel('Acceptance Time (s)')
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent, dpi=300)
         plt.close()
+
+    def acceptance_time_violinplot(self, var, fs, ofn, title, label):
+
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 14}
+        matplotlib.rc('font', **font)
+
+        plt.close('all')
+        plt.figure()
+        variation_data = {}
+        for f in glob.glob(fs):
+            try:
+                (v,
+                 spammer_accepted_time,
+                 non_spammer_accepted_time,
+                 spammer_not_accepted_time,
+                 non_spammer_not_accepted_time
+                 ) = self.parser.parse_block_information_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
+            variation_data[v] = (spammer_accepted_time,
+                                 non_spammer_accepted_time,
+                                 spammer_not_accepted_time,
+                                 non_spammer_not_accepted_time)
+        data = [[] for _ in range(4)]
+        variations = []
+        for i, (v, d) in enumerate(variation_data.items()):
+            for j, d in enumerate(d):
+                data[j] = (d*1e-9).tolist()
+            variations.append(v)
+
+        fn = ['spammer_accepted_time',
+              'non_spammer_accepted_time',
+              'spammer_not_accepted_time',
+              'non_spammer_not_accepted_time']
+        # Get y_max
+        y_max = 0
+
+        for i, d in enumerate(data):
+            # print(d)
+            y_max = max(int(max(d)+0.99), y_max)
+            if y_max > 10:
+                y_max = (int((y_max+5.5)//5.0)*5)
+        # y_max = 10
+        for i, d in enumerate(data):
+            plt.violinplot(d)
+            plt.xlabel('Node Count')
+            plt.xticks(ticks=list(range(1, 1 + len(variations))),
+                       labels=variations)
+
+            plt.ylim([0, y_max])
+            plt.ylabel('Acceptance Time (s)')
+
+            if i > 1:
+                plt.ylabel('Since Issuance (s)')
+            plt.savefig(f'{self.figure_output_path}/{fn[i]}_{ofn}',
+                        transparent=self.transparent, dpi=300)
+            plt.close()
 
     def number_of_requested_missing_messages_batch(self, var, fs, ofn, title, label):
         # Init the matplotlib config

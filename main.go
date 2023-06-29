@@ -86,6 +86,9 @@ var (
 	disseminatedMessageMetadata      = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
 	confirmedMessageMutex            sync.RWMutex
 	confirmedMessageMap              = make(map[multiverse.MessageID]int)
+	firstConfirmedTimeMap            = make(map[multiverse.MessageID]time.Time)
+	confirmedDelayInNetworkMap       = make(map[multiverse.MessageID]time.Duration)
+	confirmedDelayInNetworkMutex     sync.Mutex
 	fullyConfirmedMessageCounter     = make([]int64, config.NodesCount)
 	fullyConfirmedMessages           = make(map[multiverse.MessageID]*multiverse.Message)
 	fullyConfirmedMessageMetadata    = make(map[multiverse.MessageID]*multiverse.MessageMetadata)
@@ -404,7 +407,7 @@ func dumpLocalMetrics() {
 	}
 }
 
-func dumpGlobalMetrics(dissemResultsWriter *csv.Writer, undissemResultsWriter *csv.Writer, confirmationResultsWriter *csv.Writer, partialConfirmationResultsWriter *csv.Writer, unconfirmationResultsWriter *csv.Writer) {
+func dumpGlobalMetrics(dissemResultsWriter, undissemResultsWriter, confirmationResultsWriter, partialConfirmationResultsWriter, unconfirmationResultsWriter *csv.Writer) {
 	simulationWg.Add(1)
 	defer simulationWg.Done()
 	timeSinceStart := time.Since(simulationStartTime).Nanoseconds()
@@ -535,6 +538,19 @@ func monitorGlobalMetrics(net *network.Network) {
 					fullyConfirmedMessages[message.ID] = message
 					fullyConfirmedMessageMetadata[message.ID] = messageMetadata
 				}
+
+				// The accepted time difference between the node which first accepted it and the last node which accepted it lastly
+				confirmedDelayInNetworkMutex.Lock()
+				defer confirmedDelayInNetworkMutex.Unlock()
+				if firstAcceptedTime, exists := firstConfirmedTimeMap[message.ID]; exists {
+					if confirmedMessageMap[message.ID] == config.NodesCount {
+						confirmedDelayInNetworkMap[message.ID] = messageMetadata.ConfirmationTime().Sub(firstAcceptedTime)
+						delete(firstConfirmedTimeMap, message.ID)
+					}
+				} else {
+					firstConfirmedTimeMap[message.ID] = messageMetadata.ConfirmationTime()
+				}
+
 			}))
 	}
 	// define header with time of dump and each node ID
@@ -600,11 +616,56 @@ func monitorGlobalMetrics(net *network.Network) {
 					partialConfirmationResultsWriter,
 					unconfirmationResultsWriter)
 			case <-shutdownGlobalMetrics:
+				dumpAcceptanceLatencyAmongNodes()
 				log.Warn("Shutting down global metrics")
 				return
 			}
 		}
 	}()
+}
+
+func dumpAcceptanceLatencyAmongNodes() {
+	// accepted time latency in network
+	file, err := createFile(path.Join(config.GeneralOutputDir, "acceptanceTimeLatencyAmongNodes.csv"))
+	if err != nil {
+		panic(err)
+	}
+
+	header := []string{
+		"blockID",
+		"Accepted Time Diff",
+	}
+
+	writer := csv.NewWriter(file)
+	if err := writer.Write(header); err != nil {
+		panic(err)
+	}
+	writer.Flush()
+
+	record := make([]string, len(header))
+
+	confirmedDelayInNetworkMutex.Lock()
+	defer confirmedDelayInNetworkMutex.Unlock()
+	fmt.Println(len(confirmedDelayInNetworkMap))
+	// Extract blockIDs from confirmedDelayInNetworkMap into a slice of integers
+	var blockIDs []int
+	for blkID := range confirmedDelayInNetworkMap {
+		blockIDs = append(blockIDs, int(blkID))
+	}
+
+	// Sort the blockIDs in ascending order
+	sort.Ints(blockIDs)
+
+	// Iterate over sorted blockIDs and write data to CSV file
+	for _, blkID := range blockIDs {
+		timeDiffs := confirmedDelayInNetworkMap[multiverse.MessageID(blkID)]
+		record[0] = strconv.FormatInt(int64(blkID), 10)
+		record[1] = strconv.FormatInt(timeDiffs.Nanoseconds(), 10)
+		if err := writer.Write(record); err != nil {
+			panic(err)
+		}
+		writer.Flush()
+	}
 }
 
 func dumpFinalData(net *network.Network) {
@@ -671,14 +732,14 @@ func dumpFinalData(net *network.Network) {
 		record[1] = strconv.FormatInt(int64(message.ID), 10)
 		record[2] = strconv.FormatInt(message.IssuanceTime.Sub(simulationStartTime).Nanoseconds(), 10)
 		t := int64(messageMetadata.ConfirmationTime().Sub(message.IssuanceTime))
-		if (t < 0) {
+		if t < 0 {
 			t = 0
 		}
 		record[3] = strconv.FormatInt(t, 10)
 		if err := writer.Write(record); err != nil {
 			panic(err)
 		}
-		delete (storedMessages, messageID)
+		delete(storedMessages, messageID)
 		writer.Flush()
 	}
 
@@ -692,7 +753,7 @@ func dumpFinalData(net *network.Network) {
 			panic(err)
 		}
 		writer.Flush()
-  }
+	}
 
 	file, err = createFile(path.Join(config.SchedulerOutputDir, "DisseminationLatency.csv"))
 	if err != nil {

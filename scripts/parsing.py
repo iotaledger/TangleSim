@@ -111,6 +111,26 @@ class FileParser:
                 spammer_not_accepted_time,
                 non_spammer_not_accepted_time)
 
+    def parse_acceptance_delay_file(self, fn, variation):
+        """Parse the acceptance time latency among nodes.
+
+        Returns:
+            v: The variation value.
+            data: The target data to analyze.
+        """
+        logging.info(f'Parsing {fn}...')
+        data = pd.read_csv(fn)
+
+        # Opening JSON file
+        with open(self.config_path) as f:
+            c = json.load(f)
+        v = str(c[variation])
+        
+        # ns is the time scale of the block information
+        accepted_delay_time = (data['Accepted Time Diff']/float(c["SlowdownFactor"]))
+
+        return v, accepted_delay_time
+    
     def parse_mm_file(self, fn, variation):
         """Parse the witness weight files.
 

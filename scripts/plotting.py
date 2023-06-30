@@ -700,6 +700,48 @@ class FigurePlotter:
                         transparent=self.transparent, dpi=300)
             plt.close()
 
+    def acceptance_delay_violinplot(self, var, fs, ofn, title, label):
+
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 12}
+        matplotlib.rc('font', **font)
+
+        plt.close('all')
+        plt.figure()
+        variation_data = {}
+        for f in glob.glob(fs):
+            try:
+                v, acceptance_delay_time = self.parser.parse_acceptance_delay_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
+            variation_data[v] = acceptance_delay_time
+
+        data = []
+        variations = []
+        for i, (v, d) in enumerate(variation_data.items()):
+            data.append(d*1e-9)
+            variations.append(v)
+
+        # Get y_max
+        y_max = 0
+
+        for i, d in enumerate(data):
+            # print(d)
+            y_max = max(int(max(d)+0.99), y_max)
+            if y_max > 10:
+                y_max = (int((y_max+5.5)//5.0)*5)
+        # y_max = 10
+        plt.violinplot(data)
+        plt.ylim([0, y_max])
+        plt.ylabel('Acceptance Delay among nodes (s)')
+        plt.savefig(f'{self.figure_output_path}/{ofn}',
+                    transparent=self.transparent, dpi=300)
+        plt.close()
+
+
     def number_of_requested_missing_messages_batch(self, var, fs, ofn, title, label):
         # Init the matplotlib config
         font = {'family': 'Times New Roman',

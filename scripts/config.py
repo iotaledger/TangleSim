@@ -22,8 +22,8 @@ class Configuration:
         self.cd['RESULTS_PATH'] = self.cd['MULTIVERSE_PATH'] + "/results"
         self.cd['MULTIVERSE_PATH'] + "/results"
         self.cd['SCRIPT_START_TIME'] = datetime.strftime(
-            datetime.now(), "%Y%m%d_%H%M%S")
-        # self.cd['SCRIPT_START_TIME'] = '20230602_155235'
+            datetime.now(), "%Y%m%d_%H%M")
+        # self.cd['SCRIPT_START_TIME'] = '20230702_1704'
         self.cd['CONFIGURATION_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/mb.config"
         self.cd['GENERAL_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/general"
         self.cd['SCHEDULER_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/scheduler"

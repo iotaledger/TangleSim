@@ -867,39 +867,13 @@ func dumpConfig(filePath string) {
 }
 
 func dumpNetworkConfig(net *network.Network) {
-	file, err := createFile(path.Join(config.Params.SchedulerOutputDir, "config.Params.csv"))
-	if err != nil {
-		panic(err)
-	}
-	cHeader := []string{
-		"SchedulerType",
-	}
-	cValues := []string{
-		config.Params.SchedulerType,
-	}
-	cWriter := csv.NewWriter(file)
-	if err := cWriter.Write(cHeader); err != nil {
-		panic(err)
-	}
-	if err := cWriter.Write(cValues); err != nil {
-		panic(err)
-	}
-	file, err = createFile(path.Join(config.Params.SchedulerOutputDir, "networkConfig.csv"))
+	file, err := createFile(path.Join(config.Params.SchedulerOutputDir, "networkConfig.csv"))
 	if err != nil {
 		panic(err)
 	}
 	ncHeader := []string{"Peer ID", "Neighbor ID", "Network Delay (ns)", "Packet Loss (%)"}
 	ncWriter := csv.NewWriter(file)
 	if err := ncWriter.Write(ncHeader); err != nil {
-		panic(err)
-	}
-	file, err = createFile(path.Join(config.Params.SchedulerOutputDir, "burnPolicies.csv"))
-	if err != nil {
-		panic(err)
-	}
-	bpHeader := []string{"Peer ID", "Burn Policy"}
-	bpWriter := csv.NewWriter(file)
-	if err := bpWriter.Write(bpHeader); err != nil {
 		panic(err)
 	}
 	file, err = createFile(path.Join(config.Params.SchedulerOutputDir, "weights.csv"))
@@ -921,16 +895,12 @@ func dumpNetworkConfig(net *network.Network) {
 			}
 			writeLine(ncWriter, record)
 		}
-		writeLine(bpWriter, []string{
-			strconv.FormatInt(int64(peer.ID), 10),
-			strconv.FormatInt(int64(config.Params.BurnPolicies[peer.ID]), 10),
-		})
 		writeLine(wWriter, []string{
 			strconv.FormatInt(int64(peer.ID), 10),
 			strconv.FormatInt(int64(net.WeightDistribution.Weight(peer.ID)), 10),
 		})
 		// Flush the writers, or the data will be truncated for high node count
-		flushWriters([]*csv.Writer{cWriter, ncWriter, bpWriter, wWriter})
+		flushWriters([]*csv.Writer{ncWriter, wWriter})
 	}
 }
 

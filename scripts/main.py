@@ -5,6 +5,7 @@ import shutil
 import textwrap
 import subprocess
 import time
+import json
 
 import constant as c
 from config import Configuration
@@ -242,21 +243,22 @@ if __name__ == '__main__':
         folder = config.cd['GENERAL_OUTPUT_PATH']
         # plotter.confirmation_time_violinplot(n, folder + '/aw0*csv', f'CT_{n}_aw0_ct{iter_suffix}.pdf', t_confirmation, n)
         # plotter.confirmation_time_violinplot(n, folder + '/aw99*csv', f'CT_{n}_aw99_ct{iter_suffix}.pdf', t_confirmation, n)
-        # plotter.acceptance_time_violinplot(
-            # n, folder + '/BlockInformation.csv', f'blockInformation.pdf', t_confirmation, n)
+        plotter.acceptance_time_violinplot(
+            n, folder + '/BlockInformation.csv', f'blockInformation.pdf', t_confirmation, n)
         plotter.acceptance_delay_violinplot(
             n, folder + '/acceptanceTimeLatencyAmongNodes.csv', f'acceptanceTimeLatencyAmongNodes.pdf', t_confirmation, n)
         
         # TODO: Fix bug
-        newconfigs = parse_config(f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/config.csv')
-        for k in newconfigs:
-            config.update(k, newconfigs[k])
-        burnPolicies = parse_int_node_attributes(
-            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/burnPolicies.csv', config.cd)
-        config.update('BURN_POLICIES', burnPolicies)
+        with open(config.cd['CONFIGURATION_PATH']) as f:
+            c = json.load(f)
+
+        config.update('SchedulerType', c['SchedulerType'])
+        config.update('BURN_POLICIES', c['BurnPolicies'])
+
         weights = parse_int_node_attributes(
-            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}//weights.csv', config.cd)
+            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/weights.csv', config.cd)
         config.update('WEIGHTS', weights)
+
         # plot dissemination rates
         messages, times = parse_per_node_metrics(
             f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/disseminatedMessages.csv')

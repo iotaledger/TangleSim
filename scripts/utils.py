@@ -10,6 +10,7 @@ import networkx as nx
 import pandas as pd
 import argparse
 import logging
+import json
 import os
 import csv
 import matplotlib.colors as mcolors
@@ -182,17 +183,6 @@ def parse_int_node_attributes(file, cd):
     return attributes
 
 
-def parse_config(file):
-    with open(file, newline='') as csvfile:
-        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
-        configparams = dict()
-        row1 = next(reader)
-        row2 = next(reader)
-        for i in range(len(row1)):
-            configparams[row1[i]] = row2[i]
-    return configparams
-
-
 def plot_per_node_metric(data, times, cd, title, ylab):
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.grid(linestyle='--')
@@ -322,19 +312,24 @@ def plot_total_traffic(data, times, cd, title, ylim=None):
     ax.set_ylabel("Rate (Blocks/s)")
     ax.title.set_text(title)
     totals = np.sum(data, axis=0)
-    avg_window = 10
+
+    # read config from mb.config
+    with open(cd['CONFIGURATION_PATH']) as f:
+            c = json.load(f)
+
+    avg_window = 10* (c['SimulationDuration']*1e-9) / 60
     rate = (totals[avg_window:]-totals[:-avg_window]) * \
-        1000/(avg_window*cd['MONITOR_INTERVAL'])
+        100/(avg_window*cd['MONITOR_INTERVAL'])
 
-    plt.bar(times[avg_window:][::10], rate[::10], label='Disseminated Blocks')
+    plt.bar(times[avg_window:][::avg_window], rate[::avg_window], label='Disseminated Blocks')
 
-    eighth = 15
+    partition = 15* (c['SimulationDuration']*1e-9) / 60
     # remainder = len(times[avg_window:][::10]) % 4
     # print(remainder)
-    congestions = ([120] * (eighth + 1) +
-                   [100] * (eighth) +
-                   [120] * (eighth) +
-                   [100] * (eighth))
+    congestions = ([c['CongestionPeriods'][0]] * (partition + 1) +
+                   [c['CongestionPeriods'][1]] * (partition) +
+                   [c['CongestionPeriods'][2]] * (partition) +
+                   [c['CongestionPeriods'][3]] * (partition))
     plt.plot(congestions, 'r', label='Congestion')
     print(cd["SCHEDULER_FIGURE_OUTPUT_PATH"])
 

@@ -20,7 +20,6 @@ class Configuration:
         # The data paths
         self.cd['MULTIVERSE_PATH'] = str(Path().absolute().parent)
         self.cd['RESULTS_PATH'] = self.cd['MULTIVERSE_PATH'] + "/results"
-        self.cd['MULTIVERSE_PATH'] + "/results"
         self.cd['SCRIPT_START_TIME'] = datetime.strftime(
             datetime.now(), "%Y%m%d_%H%M")
         # self.cd['SCRIPT_START_TIME'] = '20230705_0905'

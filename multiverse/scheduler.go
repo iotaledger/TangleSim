@@ -44,29 +44,29 @@ type Scheduler interface {
 }
 
 func NewScheduler(tangle *Tangle) (s Scheduler) {
-	if config.SchedulerType == "ManaBurn" {
+	if config.Params.SchedulerType == "ManaBurn" {
 		readyHeap := &PriorityQueue{}
 		heap.Init(readyHeap)
 		s = &MBScheduler{
 			tangle:      tangle,
 			readyQueue:  readyHeap,
 			nonReadyMap: make(map[MessageID]*Message),
-			accessMana:  make(map[network.PeerID]float64, config.NodesCount),
+			accessMana:  make(map[network.PeerID]float64, config.Params.NodesCount),
 			events: &SchedulerEvents{
 				MessageScheduled: events.NewEvent(messageIDEventCaller),
 				MessageDropped:   events.NewEvent(messageIDEventCaller),
 				MessageEnqueued:  events.NewEvent(schedulerEventCaller),
 			},
 		}
-	} else if config.SchedulerType == "ICCA+" {
+	} else if config.Params.SchedulerType == "ICCA+" {
 		s = &ICCAScheduler{
 			tangle:       tangle,
 			nonReadyMap:  make(map[MessageID]*Message),
-			accessMana:   make(map[network.PeerID]float64, config.NodesCount),
-			deficits:     make(map[network.PeerID]float64, config.NodesCount),
-			quanta:       make(map[network.PeerID]float64, config.NodesCount),
-			issuerQueues: make(map[network.PeerID]*IssuerQueue, config.NodesCount),
-			roundRobin:   ring.New(config.NodesCount),
+			accessMana:   make(map[network.PeerID]float64, config.Params.NodesCount),
+			deficits:     make(map[network.PeerID]float64, config.Params.NodesCount),
+			quanta:       make(map[network.PeerID]float64, config.Params.NodesCount),
+			issuerQueues: make(map[network.PeerID]*IssuerQueue, config.Params.NodesCount),
+			roundRobin:   ring.New(config.Params.NodesCount),
 			events: &SchedulerEvents{
 				MessageScheduled: events.NewEvent(messageIDEventCaller),
 				MessageDropped:   events.NewEvent(messageIDEventCaller),

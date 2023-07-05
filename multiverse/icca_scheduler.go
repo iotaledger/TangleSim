@@ -15,7 +15,7 @@ import (
 // region ICCA Scheduler ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func (s *ICCAScheduler) initQueues() {
-	for i := 0; i < config.NodesCount; i++ {
+	for i := 0; i < config.Params.NodesCount; i++ {
 		issuerQueue := &IssuerQueue{}
 		heap.Init(issuerQueue)
 		s.issuerQueues[network.PeerID(i)] = issuerQueue
@@ -49,11 +49,11 @@ type ICCAScheduler struct {
 
 func (s *ICCAScheduler) Setup() {
 	// setup the initial AccessMana, deficits and quanta when the peer ID is created
-	for id := 0; id < config.NodesCount; id++ {
+	for id := 0; id < config.Params.NodesCount; id++ {
 		s.accessMana[network.PeerID(id)] = 0.0
 		s.deficits[network.PeerID(id)] = 0.0
 		idWeight := s.tangle.WeightDistribution.Weight(network.PeerID(id))
-		s.quanta[network.PeerID(id)] = float64(idWeight) / float64(config.NodesTotalWeight)
+		s.quanta[network.PeerID(id)] = float64(idWeight) / float64(config.Params.NodesTotalWeight)
 	}
 	// initialise the issuer queues
 	s.initQueues()
@@ -67,7 +67,7 @@ func (s *ICCAScheduler) Setup() {
 		s.tangle.Storage.MessageMetadata(messageID).SetDropTime(time.Now())
 	}))
 	s.tangle.ApprovalManager.Events.MessageConfirmed.Attach(events.NewClosure(func(message *Message, messageMetadata *MessageMetadata, weight uint64, messageIDCounter int64) {
-		if config.ConfEligible {
+		if config.Params.ConfEligible {
 			s.updateChildrenReady(message.ID)
 		}
 		s.tangle.Storage.AddToAcceptedSlot(message)
@@ -101,7 +101,7 @@ func (s *ICCAScheduler) setReady(messageID MessageID) {
 
 func (s *ICCAScheduler) IncrementAccessMana(schedulingRate float64) {
 	weights := s.tangle.WeightDistribution.Weights()
-	totalWeight := config.NodesTotalWeight
+	totalWeight := config.Params.NodesTotalWeight
 	// every time something is scheduled, we add this much mana in total\
 	mana := float64(10)
 	for id := range s.accessMana {
@@ -125,7 +125,7 @@ func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
 	s.tangle.Storage.MessageMetadata(messageID).SetEnqueueTime(time.Now())
 	m := s.tangle.Storage.Message(messageID)
 	// if this node is a spammer, skip the scheduler.
-	if m.Issuer == s.tangle.Peer.ID && config.BurnPolicies[m.Issuer] == 0 {
+	if m.Issuer == s.tangle.Peer.ID && config.Params.BurnPolicies[m.Issuer] == 0 {
 		s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
 		s.updateChildrenReady(m.ID)
 		s.events.MessageScheduled.Trigger(m.ID)
@@ -147,10 +147,10 @@ func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
 }
 
 func (s *ICCAScheduler) BufferManagement() {
-	for s.ReadyLen() > config.MaxBuffer {
+	for s.ReadyLen() > config.Params.MaxBuffer {
 		issuerID := 0
 		maxScaledLen := 0.0
-		for id := 0; id < config.NodesCount; id++ {
+		for id := 0; id < config.Params.NodesCount; id++ {
 			scaledLen := float64(s.IssuerQueueLen(network.PeerID(id))) / s.quanta[network.PeerID(id)]
 			if scaledLen >= maxScaledLen {
 				maxScaledLen = scaledLen
@@ -166,7 +166,7 @@ func (s *ICCAScheduler) ScheduleMessage() {
 	if selectedIssuerID == network.PeerID(-1) {
 		return
 	}
-	for id := 0; id < config.NodesCount; id++ {
+	for id := 0; id < config.Params.NodesCount; id++ {
 		// increment all deficits by the number of rounds needed.
 		s.incrementDeficit(network.PeerID(id), rounds*s.quanta[network.PeerID(id)])
 	}
@@ -190,7 +190,7 @@ func (s *ICCAScheduler) ScheduleMessage() {
 func (s *ICCAScheduler) selectIssuer() (rounds float64, issuerID network.PeerID) {
 	rounds = math.MaxFloat64
 	issuerID = network.PeerID(-1)
-	for i := 0; i < config.NodesCount; i++ {
+	for i := 0; i < config.Params.NodesCount; i++ {
 		if s.IssuerQueueLen(s.roundRobin.Value.(network.PeerID)) == 0 {
 			s.roundRobin = s.roundRobin.Next()
 			continue
@@ -230,7 +230,7 @@ func (s *ICCAScheduler) GetNodeAccessMana(nodeID network.PeerID) (mana float64) 
 func (s *ICCAScheduler) GetMaxManaBurn() (maxManaBurn float64) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	for id := 0; id < config.NodesCount; id++ {
+	for id := 0; id < config.Params.NodesCount; id++ {
 		q := s.issuerQueues[network.PeerID(id)]
 		if q.Len() > 0 {
 			maxManaBurn = math.Max(maxManaBurn, (*q)[0].ManaBurnValue)
@@ -270,12 +270,12 @@ func (s *ICCAScheduler) incrementDeficit(issuer network.PeerID, delta float64) {
 	defer s.mutex.Unlock()
 	s.deficits[issuer] = math.Min(
 		s.deficits[issuer]+delta,
-		config.MaxDeficit,
+		config.Params.MaxDeficit,
 	)
 }
 
 func (s *ICCAScheduler) RateSetter() bool {
-	if s.ReadyLen() == 0 || config.BurnPolicies[s.tangle.Peer.ID] == 0 {
+	if s.ReadyLen() == 0 || config.Params.BurnPolicies[s.tangle.Peer.ID] == 0 {
 		return true
 	}
 	qlen := s.IssuerQueueLen(s.tangle.Peer.ID)

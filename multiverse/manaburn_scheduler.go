@@ -22,8 +22,8 @@ type MBScheduler struct {
 
 func (s *MBScheduler) Setup() {
 	// Setup the initial AccessMana when the peer ID is created
-	for id := 0; id < config.NodesCount; id++ {
-		s.accessMana[network.PeerID(id)] = config.InitialMana
+	for id := 0; id < config.Params.NodesCount; id++ {
+		s.accessMana[network.PeerID(id)] = config.Params.InitialMana
 	}
 	s.events.MessageScheduled.Attach(events.NewClosure(func(messageID MessageID) {
 		s.tangle.Peer.GossipNetworkMessage(s.tangle.Storage.Message(messageID))
@@ -35,7 +35,7 @@ func (s *MBScheduler) Setup() {
 		s.tangle.Storage.MessageMetadata(messageID).SetDropTime(time.Now())
 	}))
 	s.tangle.ApprovalManager.Events.MessageConfirmed.Attach(events.NewClosure(func(message *Message, messageMetadata *MessageMetadata, weight uint64, messageIDCounter int64) {
-		if config.ConfEligible {
+		if config.Params.ConfEligible {
 			s.updateChildrenReady(message.ID)
 		}
 		s.tangle.Storage.AddToAcceptedSlot(message)
@@ -44,7 +44,7 @@ func (s *MBScheduler) Setup() {
 
 func (s *MBScheduler) BurnValue(issuanceTime time.Time) (burn float64, ok bool) {
 	peerID := s.tangle.Peer.ID
-	switch policy := config.BurnPolicies[peerID]; BurnPolicyType(policy) {
+	switch policy := config.Params.BurnPolicies[peerID]; BurnPolicyType(policy) {
 	case NoBurn:
 		return 0.0, true
 	case Anxious:
@@ -67,7 +67,7 @@ func (s *MBScheduler) BurnValue(issuanceTime time.Time) (burn float64, ok bool) 
 // TODO: schedulingRate is not used
 func (s *MBScheduler) IncrementAccessMana(schedulingRate float64) {
 	weights := s.tangle.WeightDistribution.Weights()
-	totalWeight := config.NodesTotalWeight
+	totalWeight := config.Params.NodesTotalWeight
 	// every time something is scheduled, we add this much mana in total\
 	mana := float64(10)
 	for id := range s.accessMana {
@@ -164,7 +164,7 @@ func (s *MBScheduler) EnqueueMessage(messageID MessageID) {
 }
 
 func (s *MBScheduler) BufferManagement() {
-	for s.readyQueue.Len() > config.MaxBuffer {
+	for s.readyQueue.Len() > config.Params.MaxBuffer {
 		tail := s.readyQueue.tail()
 		heap.Remove(s.readyQueue, tail) // remove the lowest burn value/ issuance time
 	}

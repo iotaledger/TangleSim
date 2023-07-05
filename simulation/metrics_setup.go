@@ -12,7 +12,7 @@ import (
 // SetupMetrics registers all metrics that are used in the simulation, add any new metric registration here.
 func (s *MetricsManager) SetupMetrics() {
 	// counters for double spending
-	s.ColorCounters.CreateCounter("opinions", s.uRGBColors, int64(config.NodesCount), 0, 0, 0)
+	s.ColorCounters.CreateCounter("opinions", s.uRGBColors, int64(config.Params.NodesCount), 0, 0, 0)
 	s.ColorCounters.CreateCounter("confirmedNodes", s.uRGBColors)
 	s.ColorCounters.CreateCounter("opinionsWeights", s.uRGBColors)
 	s.ColorCounters.CreateCounter("likeAccumulatedWeight", s.uRGBColors)
@@ -38,7 +38,7 @@ func (s *MetricsManager) SetupMetrics() {
 		s.ColorCounters.CreateCounter(processedCounterName, s.uRGBColors)
 	}
 	// Initialize the minConfirmedWeight to be the max value (i.e., the total weight)
-	s.PeerCounters.CreateCounter("minConfirmedAccumulatedWeight", s.allPeerIDs, int64(config.NodesTotalWeight))
+	s.PeerCounters.CreateCounter("minConfirmedAccumulatedWeight", s.allPeerIDs, int64(config.Params.NodesTotalWeight))
 	s.PeerCounters.CreateCounter("unconfirmationCount", s.allPeerIDs, 0)
 	s.PeerCounters.CreateCounter("issuedMessages", s.allPeerIDs, 0)
 	s.PeerCounters.CreateCounter("confirmedMessageCount", s.watchedPeerIDs)
@@ -136,7 +136,7 @@ func (s *MetricsManager) colorUnconfirmedCollectorFunc(unconfirmedColor multiver
 	s.ColorCounters.Add("confirmedAccumulatedWeight", -weight, unconfirmedColor)
 
 	// When the color is unconfirmed, the min confirmed accumulated weight should be reset
-	s.PeerCounters.Set("minConfirmedAccumulatedWeight", int64(config.NodesTotalWeight), peerID)
+	s.PeerCounters.Set("minConfirmedAccumulatedWeight", int64(config.Params.NodesTotalWeight), peerID)
 
 	// Accumulate the unconfirmed count for each node
 	s.PeerCounters.Add("unconfirmationCount", 1, peerID)

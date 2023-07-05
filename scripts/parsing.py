@@ -123,9 +123,9 @@ class FileParser:
 
         # Opening JSON file
         with open(self.config_path) as f:
-            c = json.load(f)
+            c = json.load(f)        
         v = str(c[variation])
-        
+        print(c, v)
         # ns is the time scale of the block information
         accepted_delay_time = (data['Accepted Time Diff']/float(c["SlowdownFactor"]))
 
@@ -358,7 +358,7 @@ class FileParser:
         v = str(c[var])
 
         # Get the confirmation threshold
-        weight_threshold = float(c['ConfirmationThreshold'].split('-')[0])
+        weight_threshold = float(c['ConfirmationThreshold'])
 
         data = pd.read_csv(fn)
 

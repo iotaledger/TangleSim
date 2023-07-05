@@ -1,10 +1,11 @@
 package singlenodeattacks
 
 import (
+	"time"
+
 	"github.com/iotaledger/hive.go/types"
 	"github.com/iotaledger/multivers-simulation/config"
 	"github.com/iotaledger/multivers-simulation/multiverse"
-	"time"
 )
 
 type BlowballNode struct {
@@ -42,7 +43,7 @@ func (n *BlowballNode) IssuePayload(payload multiverse.Color) {
 
 func (n *BlowballNode) CreateBlowBall(centerMessage *multiverse.Message, payload multiverse.Color) map[multiverse.MessageID]*multiverse.Message {
 	blowBallMessages := make(map[multiverse.MessageID]*multiverse.Message)
-	for i := 0; i < config.BlowballSize; i++ {
+	for i := 0; i < config.Params.BlowballSize; i++ {
 		m := n.CreateMessage(centerMessage.ID, payload)
 		blowBallMessages[m.ID] = m
 	}

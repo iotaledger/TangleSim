@@ -23,7 +23,7 @@ class Configuration:
         self.cd['MULTIVERSE_PATH'] + "/results"
         self.cd['SCRIPT_START_TIME'] = datetime.strftime(
             datetime.now(), "%Y%m%d_%H%M")
-        # self.cd['SCRIPT_START_TIME'] = '20230702_1704'
+        self.cd['SCRIPT_START_TIME'] = '20230705_0905'
         self.cd['CONFIGURATION_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/mb.config"
         self.cd['GENERAL_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/general"
         self.cd['SCHEDULER_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/scheduler"
@@ -41,7 +41,7 @@ class Configuration:
 
         # The variations to run
         # N, K, S, D, 'MB' (Number of nodes/parents, Zipfs, delays, manaburn policies)
-        self.cd['VARIATIONS'] = 'MB'
+        self.cd['VARIATIONS'] = 'N'
 
         # The variations value list
         # list of policies, separated by spaces
@@ -68,7 +68,7 @@ class Configuration:
         self.cd['COLORED_MSG_ISSUANCE_TIME'] = 2000_000_000
 
         # Flags of operations
-        self.cd['RUN_SIM'] = True
+        self.cd['RUN_SIM'] = False
         self.cd['PLOT_FIGURES'] = True
 
         # Adversary strategies

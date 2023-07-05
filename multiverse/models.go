@@ -124,7 +124,7 @@ func (m *MessageMetadata) Orphaned() bool {
 }
 
 func (m *MessageMetadata) Eligible() bool { // a message is ready if all parents are eligible = either scheduled or confirmed
-	return m.Scheduled() || (m.Confirmed() && config.ConfEligible)
+	return m.Scheduled() || (m.Confirmed() && config.Params.ConfEligible)
 }
 
 func (m *MessageMetadata) SetSolid(solid bool) (modified bool) {

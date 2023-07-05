@@ -160,8 +160,8 @@ func (o *OpinionManager) WeightsUpdated() {
 }
 
 func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {
-	if config.ConfirmationThresholdAbsolute {
-		return float64(o.approvalWeights[newOpinion]) > float64(config.NodesTotalWeight)*config.ConfirmationThreshold
+	if config.Params.ConfirmationThresholdAbsolute {
+		return float64(o.approvalWeights[newOpinion]) > float64(config.Params.NodesTotalWeight)*config.Params.ConfirmationThreshold
 	} else {
 		aw := make(map[Color]uint64)
 		for key, value := range o.approvalWeights {
@@ -170,7 +170,7 @@ func (o *OpinionManager) checkColorConfirmed(newOpinion Color) bool {
 			}
 		}
 		alternativeOpinion := getMaxOpinion(aw)
-		return float64(o.approvalWeights[newOpinion])-float64(o.approvalWeights[alternativeOpinion]) > float64(config.NodesTotalWeight)*config.ConfirmationThreshold
+		return float64(o.approvalWeights[newOpinion])-float64(o.approvalWeights[alternativeOpinion]) > float64(config.Params.NodesTotalWeight)*config.Params.ConfirmationThreshold
 	}
 }
 

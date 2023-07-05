@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	OptimalStrongParentsCount = int(float64(config.ParentsCount) * (1 - config.WeakTipsRatio))
-	OptimalWeakParentsCount   = int(float64(config.ParentsCount) * config.WeakTipsRatio)
+	OptimalStrongParentsCount = int(float64(config.Params.ParentsCount) * (1 - config.Params.WeakTipsRatio))
+	OptimalWeakParentsCount   = int(float64(config.Params.ParentsCount) * config.Params.WeakTipsRatio)
 )
 
 // region TipManager ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -71,7 +71,7 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	// Calculate the current tip pool size before calling AddStrongTip
 	currentTipPoolSize := tipSet.strongTips.Size()
 
-	if time.Since(message.IssuanceTime).Seconds() < config.DeltaURTS || config.TSA != "RURTS" {
+	if time.Since(message.IssuanceTime).Seconds() < config.Params.DeltaURTS || config.Params.TSA != "RURTS" {
 		addedAsStrongTip := make(map[Color]bool)
 		for color, tipSet := range t.TipSets(inheritedColor) {
 			addedAsStrongTip[color] = true
@@ -125,9 +125,9 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 		t.WalkForOldestUnconfirmed(tipSet)
 	}
 
-	strongTips = tipSet.StrongTips(config.ParentsCount, t.tsa)
+	strongTips = tipSet.StrongTips(config.Params.ParentsCount, t.tsa)
 	// In the paper we consider all strong tips
-	// weakTips = tipSet.WeakTips(config.ParentsCount-1, t.tsa)
+	// weakTips = tipSet.WeakTips(config.Params.ParentsCount-1, t.tsa)
 
 	// Remove the weakTips-related codes
 	// if len(weakTips) == 0 {
@@ -135,7 +135,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// }
 
 	// if strongParentsCount := len(strongTips); strongParentsCount < OptimalStrongParentsCount {
-	// 	fillUpCount := config.ParentsCount - strongParentsCount
+	// 	fillUpCount := config.Params.ParentsCount - strongParentsCount
 
 	// 	if fillUpCount >= len(weakTips) {
 	// 		return
@@ -146,7 +146,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// }
 
 	// if weakParentsCount := len(weakTips); weakParentsCount < OptimalWeakParentsCount {
-	// 	fillUpCount := config.ParentsCount - weakParentsCount
+	// 	fillUpCount := config.Params.ParentsCount - weakParentsCount
 
 	// 	if fillUpCount >= len(strongTips) {
 	// 		return
@@ -285,7 +285,7 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 		for _, tip := range tipsNew {
 
 			// If the time difference is greater than DeltaURTS, delete it from tips
-			if currentTime.Sub(tip.(*Message).IssuanceTime).Seconds() > config.DeltaURTS {
+			if currentTime.Sub(tip.(*Message).IssuanceTime).Seconds() > config.Params.DeltaURTS {
 				tips.Delete(tip)
 			} else {
 				// Append the valid tip to tipsToReturn and decrease the amountLeft

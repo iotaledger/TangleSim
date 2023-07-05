@@ -45,7 +45,7 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 	mod := issuingMessage.Issuer % 8
 	weight := a.tangle.WeightDistribution.Weight(issuingMessage.Issuer)
 	a.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
-		if int(a.tangle.Peer.ID) == config.MonitoredWitnessWeightPeer && messageMetadata.ID() == MessageID(config.MonitoredWitnessWeightMessageID) {
+		if int(a.tangle.Peer.ID) == config.Params.MonitoredWitnessWeightPeer && messageMetadata.ID() == MessageID(config.Params.MonitoredWitnessWeightMessageID) {
 			// log.Infof("Peer %d Message %d Witness Weight %d", a.tangle.Peer.ID, messageMetadata.id, messageMetadata.weight)
 			a.Events.MessageWitnessWeightUpdated.Trigger(message, messageMetadata.Weight())
 		}
@@ -55,7 +55,7 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 			messageMetadata.SetWeightByte(int(byteIndex), weightByte)
 			messageMetadata.AddWeight(weight)
 			a.Events.MessageWeightUpdated.Trigger(message, messageMetadata, messageMetadata.Weight())
-			if float64(messageMetadata.Weight()) >= config.ConfirmationThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) &&
+			if float64(messageMetadata.Weight()) >= config.Params.ConfirmationThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) &&
 				!messageMetadata.Confirmed() && !messageMetadata.Orphaned() {
 				// check if this should be orphaned
 				now := time.Now()

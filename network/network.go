@@ -174,20 +174,20 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 	var totalWeight float64
 	var nodeWeights []uint64
 
-	switch config.SimulationMode {
+	switch config.Params.SimulationMode {
 	case "Adversary":
 		nodesCount, totalWeight = network.AdversaryGroups.CalculateWeightTotalConfig()
 		nodeWeights = n.weightGenerator(nodesCount, totalWeight)
 		// update adversary groups and get new mana distribution with adversary nodes included
 		nodeWeights = network.AdversaryGroups.UpdateAdversaryNodes(nodeWeights)
 	case "Accidental":
-		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+		nodeWeights = n.weightGenerator(config.Params.NodesCount, float64(config.Params.NodesTotalWeight))
 	case "Blowball":
 		nodesCount, totalWeight = network.Attacker.CalculateWeightTotalConfig()
 		nodeWeights = n.weightGenerator(nodesCount, totalWeight)
 		nodeWeights = network.Attacker.UpdateAttackerWeight(nodeWeights)
 	default:
-		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+		nodeWeights = n.weightGenerator(config.Params.NodesCount, float64(config.Params.NodesTotalWeight))
 	}
 
 	return nodeWeights

@@ -80,20 +80,20 @@ func (s *MetricsManager) SetupInternalVariables() {
 	s.RGBColors = []multiverse.Color{multiverse.Red, multiverse.Green, multiverse.Blue}
 	s.uRGBColors = []multiverse.Color{multiverse.UndefinedColor, multiverse.Red, multiverse.Green, multiverse.Blue}
 	s.adversaryNodesCount = len(network.AdversaryNodeIDToGroupIDMap) // todo can we define it with config info only?
-	s.honestNodesCount = config.NodesCount - s.adversaryNodesCount
+	s.honestNodesCount = config.Params.NodesCount - s.adversaryNodesCount
 	s.highestWeightPeerID = 0 // todo make sure all simulation modes has 0 index as the highest weight peer
 	for _, peer := range s.network.Peers {
 		s.allPeerIDs = append(s.allPeerIDs, peer.ID)
 	}
 	// peers with collected more specific metrics, can be set in config
-	for _, monitoredID := range config.MonitoredAWPeers {
+	for _, monitoredID := range config.Params.MonitoredAWPeers {
 		s.watchedPeerIDs = append(s.watchedPeerIDs, network.PeerID(monitoredID))
 	}
 	s.simulationStartTime = time.Now()
 }
 
 func (s *MetricsManager) StartMetricsCollection() {
-	s.dumpingTicker = time.NewTicker(time.Duration(config.SlowdownFactor*config.ConsensusMonitorTick) * time.Millisecond)
+	s.dumpingTicker = time.NewTicker(time.Duration(config.Params.SlowdownFactor*config.Params.ConsensusMonitorTick) * time.Millisecond)
 	go func() {
 		for {
 			select {
@@ -109,7 +109,7 @@ func (s *MetricsManager) StartMetricsCollection() {
 				r, g, b := getLikesPerRGB(s.ColorCounters, "confirmedNodes")
 				aR, aG, aB := getLikesPerRGB(s.AdversaryCounters, "confirmedNodes")
 				hR, hG, hB := r-aR, g-aG, b-aB
-				if max(max(hB, hR), hG) >= int64(config.SimulationStopThreshold*float64(s.honestNodesCount)) {
+				if max(max(hB, hR), hG) >= int64(config.Params.SimulationStopThreshold*float64(s.honestNodesCount)) {
 					//shutdownSignal <- types.Void
 				}
 				s.GlobalCounters.Set("tps", 0)
@@ -162,8 +162,8 @@ func (s *MetricsManager) SetDSIssuanceTime() {
 }
 
 func allNodesHeader() []string {
-	header := make([]string, 0, config.NodesCount+1)
-	for i := 0; i < config.NodesCount; i++ {
+	header := make([]string, 0, config.Params.NodesCount+1)
+	for i := 0; i < config.Params.NodesCount; i++ {
 		header = append(header, fmt.Sprintf("Node %d", i))
 	}
 	header = append(header, "ns since start")

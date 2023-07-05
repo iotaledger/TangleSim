@@ -35,7 +35,7 @@ func (s *MetricsManager) SetupWriters() {
 					strconv.FormatInt(int64(groupID), 10),
 					network.AdversaryTypeToString(group.AdversaryType),
 					strconv.FormatInt(int64(len(group.NodeIDs)), 10),
-					strconv.FormatFloat(group.GroupMana/float64(config.NodesTotalWeight), 'f', 6, 64),
+					strconv.FormatFloat(group.GroupMana/float64(config.Params.NodesTotalWeight), 'f', 6, 64),
 					strconv.FormatInt(time.Since(s.simulationStartTime).Nanoseconds(), 10),
 				}
 				rows = append(rows, row)
@@ -151,8 +151,8 @@ func (s *MetricsManager) SetupWriters() {
 		func() <-chan []string {
 			c := make(chan []string)
 
-			wwPeer := s.network.Peers[config.MonitoredWitnessWeightPeer]
-			previousWitnessWeight := uint64(config.NodesTotalWeight)
+			wwPeer := s.network.Peers[config.Params.MonitoredWitnessWeightPeer]
+			previousWitnessWeight := uint64(config.Params.NodesTotalWeight)
 			wwPeer.Node.(multiverse.NodeInterface).Tangle().ApprovalManager.Events.MessageWitnessWeightUpdated.Attach(
 				events.NewClosure(func(message *multiverse.Message, weight uint64) {
 					if previousWitnessWeight == weight {
@@ -202,9 +202,9 @@ func (s *MetricsManager) SetupWriters() {
 	)
 	s.DumpOnTick("all-tp", allNodesHeader(),
 		func() csvRows {
-			record := make([]string, config.NodesCount+1)
+			record := make([]string, config.Params.NodesCount+1)
 			i := 0
-			for peerID := 0; peerID < config.NodesCount; peerID++ {
+			for peerID := 0; peerID < config.Params.NodesCount; peerID++ {
 				tipCounterName := fmt.Sprint("tipPoolSizes-", peerID)
 				record[i+0] = strconv.FormatInt(s.ColorCounters.Get(tipCounterName, multiverse.UndefinedColor), 10)
 				i = i + 1
@@ -216,8 +216,8 @@ func (s *MetricsManager) SetupWriters() {
 	s.DumpOnShutdown("nd",
 		[]string{"Node ID", "Adversary", "Min Confirmed Accumulated Weight", "Unconfirmation Count"},
 		func() csvRows {
-			records := make(csvRows, config.NodesCount)
-			for i := 0; i < config.NodesCount; i++ {
+			records := make(csvRows, config.Params.NodesCount)
+			for i := 0; i < config.Params.NodesCount; i++ {
 				record := []string{
 					strconv.FormatInt(int64(i), 10),
 					strconv.FormatBool(network.IsAdversary(int(i))),
@@ -304,7 +304,7 @@ func (s *MetricsManager) DumpOnShutdown(key string, header []string, collectFunc
 
 func (s *MetricsManager) createWriter(key string, header []string) *csv.Writer {
 	filename := fmt.Sprintf("%s-%s.csv", key, formatTime(s.simulationStartTime))
-	file, err := os.Create(path.Join(config.ResultDir, filename))
+	file, err := os.Create(path.Join(config.Params.ResultDir, filename))
 	if err != nil {
 		panic(err)
 	}

@@ -13,8 +13,8 @@ type SingleAttacker struct {
 }
 
 func (a SingleAttacker) CalculateWeightTotalConfig() (newNodesCount int, newTotalWeight float64) {
-	newTotalWeight = float64(config.NodesTotalWeight) - a.weight
-	newNodesCount = config.NodesCount - 1
+	newTotalWeight = float64(config.Params.NodesTotalWeight) - a.weight
+	newNodesCount = config.Params.NodesCount - 1
 	return
 }
 func insert[V constraints.Numeric](array []V, element V, i int) []V {
@@ -29,9 +29,9 @@ func (a SingleAttacker) UpdateAttackerWeight(weights []uint64) []uint64 {
 
 func NewSingleAttacker() *SingleAttacker {
 	return &SingleAttacker{
-		weight:               float64(config.BlowballMana) * float64(config.NodesTotalWeight) / 100,
-		nodeID:               config.BlowballNodeID,
-		TargetManaPercentage: config.BlowballMana,
+		weight:               float64(config.Params.BlowballMana) * float64(config.Params.NodesTotalWeight) / 100,
+		nodeID:               config.Params.BlowballNodeID,
+		TargetManaPercentage: config.Params.BlowballMana,
 		AttackerType:         Blowball,
 	}
 }
@@ -50,6 +50,6 @@ func NewSingleAttacker() *SingleAttacker {
 //}
 
 func IsAttacker(nodeID int) bool {
-	// return nodeID == config.BlowballNodeID
+	// return nodeID == config.Params.BlowballNodeID
 	return false
 }

@@ -100,9 +100,10 @@ class FileParser:
                                   float(c["SlowdownFactor"])))
         non_spammer_accepted_time = ((non_spammer_accepted_time[self.target] /
                                       float(c["SlowdownFactor"])))
-        spammer_not_accepted_time = (60000000000 - ((spammer_not_accepted_time['Issuance Time Since Start (ns)'] /
+
+        spammer_not_accepted_time = (float(c["SimulationDuration"]) - ((spammer_not_accepted_time['Issuance Time Since Start (ns)'] /
                                                      float(c["SlowdownFactor"]))))
-        non_spammer_not_accepted_time = (60000000000 - ((non_spammer_not_accepted_time['Issuance Time Since Start (ns)'] /
+        non_spammer_not_accepted_time = (float(c["SimulationDuration"]) - ((non_spammer_not_accepted_time['Issuance Time Since Start (ns)'] /
                                                          float(c["SlowdownFactor"]))))
 
         return (v,
@@ -125,7 +126,7 @@ class FileParser:
         with open(self.config_path) as f:
             c = json.load(f)        
         v = str(c[variation])
-        print(c, v)
+
         # ns is the time scale of the block information
         accepted_delay_time = (data['Accepted Time Diff']/float(c["SlowdownFactor"]))
 

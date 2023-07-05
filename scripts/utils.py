@@ -326,10 +326,11 @@ def plot_total_traffic(data, times, cd, title, ylim=None):
     partition = int(15* (c['SimulationDuration']*1e-9) / 60)
     # remainder = len(times[avg_window:][::10]) % 4
     # print(remainder)
-    congestions = ([c['CongestionPeriods'][0]] * (partition + 1) +
-                   [c['CongestionPeriods'][1]] * (partition) +
-                   [c['CongestionPeriods'][2]] * (partition) +
-                   [c['CongestionPeriods'][3]] * (partition))
+    schedulingRate = c['SchedulingRate']
+    congestions = ([int(c['CongestionPeriods'][0]*schedulingRate)] * (partition + 1) +
+                   [int(c['CongestionPeriods'][1]*schedulingRate)] * (partition) +
+                   [int(c['CongestionPeriods'][2]*schedulingRate)] * (partition) +
+                   [int(c['CongestionPeriods'][3]*schedulingRate)] * (partition))
     plt.plot(congestions, 'r', label='Congestion')
     print(cd["SCHEDULER_FIGURE_OUTPUT_PATH"])
 

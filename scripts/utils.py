@@ -317,13 +317,13 @@ def plot_total_traffic(data, times, cd, title, ylim=None):
     with open(cd['CONFIGURATION_PATH']) as f:
             c = json.load(f)
 
-    avg_window = 10* (c['SimulationDuration']*1e-9) / 60
+    avg_window = int(10* (c['SimulationDuration']*1e-9) / 60)
     rate = (totals[avg_window:]-totals[:-avg_window]) * \
         100/(avg_window*cd['MONITOR_INTERVAL'])
 
     plt.bar(times[avg_window:][::avg_window], rate[::avg_window], label='Disseminated Blocks')
 
-    partition = 15* (c['SimulationDuration']*1e-9) / 60
+    partition = int(15* (c['SimulationDuration']*1e-9) / 60)
     # remainder = len(times[avg_window:][::10]) % 4
     # print(remainder)
     congestions = ([c['CongestionPeriods'][0]] * (partition + 1) +

@@ -67,7 +67,7 @@ class Configuration:
         self.cd['COLORED_MSG_ISSUANCE_TIME'] = 2000_000_000
 
         # Flags of operations
-        self.cd['RUN_SIM'] = False
+        self.cd['RUN_SIM'] = True
         self.cd['PLOT_FIGURES'] = True
 
         # Adversary strategies

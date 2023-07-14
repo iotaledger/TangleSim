@@ -639,7 +639,7 @@ class FigurePlotter:
                     transparent=self.transparent, dpi=300)
         plt.close()
 
-    def acceptance_time_violinplot(self, var, fs, ofn, title, label):
+    def plot_varied_confirmation_latency_violinplot(self, var, fs, ofn, title, labels):
 
         # Init the matplotlib config
         font = {'family': 'Times New Roman',
@@ -650,7 +650,8 @@ class FigurePlotter:
         plt.close('all')
         plt.figure()
         variation_data = {}
-        for f in glob.glob(fs):
+
+        for i, f in enumerate(fs):
             try:
                 (v,
                  spammer_accepted_time,
@@ -659,17 +660,23 @@ class FigurePlotter:
                  non_spammer_not_accepted_time
                  ) = self.parser.parse_block_information_file(f, var)
             except:
-                logging.error(f'{fs}: Incomplete Data!')
+                logging.error(f'{f}: Incomplete Data!')
                 continue
-            variation_data[v] = (spammer_accepted_time,
+            label = ''
+            if var == '':
+                label = labels[i]
+            else:
+                label = v
+            variation_data[label] = (spammer_accepted_time,
                                  non_spammer_accepted_time,
                                  spammer_not_accepted_time,
                                  non_spammer_not_accepted_time)
+            
         data = [[] for _ in range(4)]
         variations = []
         for i, (v, d) in enumerate(variation_data.items()):
             for j, d in enumerate(d):
-                data[j] = (d*1e-9).tolist()
+                data[j].append((d*1e-9).tolist())
             variations.append(v)
 
         fn = ['spammer_accepted_time',
@@ -678,13 +685,13 @@ class FigurePlotter:
               'non_spammer_not_accepted_time']
         # Get y_max
         y_max = 0
-
-        for i, d in enumerate(data):
-            # print(d)
-            y_max = max(int(max(d)+0.99), y_max)
-            if y_max > 10:
-                y_max = (int((y_max+5.5)//5.0)*5)
+        for i, l in enumerate(data):
+            for j, d in enumerate(l):
+                y_max = max(int(max(d)+0.99), y_max)
+                if y_max > 10:
+                    y_max = (int((y_max+5.5)//5.0)*5)
         # y_max = 10
+
         for i, d in enumerate(data):
             plt.violinplot(d)
             plt.xlabel('Node Count')

@@ -243,10 +243,14 @@ if __name__ == '__main__':
         folder = config.cd['GENERAL_OUTPUT_PATH']
         # plotter.confirmation_time_violinplot(n, folder + '/aw0*csv', f'CT_{n}_aw0_ct{iter_suffix}.pdf', t_confirmation, n)
         # plotter.confirmation_time_violinplot(n, folder + '/aw99*csv', f'CT_{n}_aw99_ct{iter_suffix}.pdf', t_confirmation, n)
-        plotter.acceptance_time_violinplot(
-            n, folder + '/BlockInformation.csv', f'blockInformation.pdf', t_confirmation, n)
-        plotter.acceptance_delay_violinplot(
-            n, folder + '/acceptanceTimeLatencyAmongNodes.csv', f'acceptanceTimeLatencyAmongNodes.pdf', t_confirmation, n)
+        if config.cd['PLOT_VARIED_FIGURES']:
+             plotter.plot_varied_confirmation_latency_violinplot(
+                '', config.cd['VARIED_PATHS'], f'blockInformation.pdf', t_confirmation, config.cd['VARIED_LABELS'])
+        else:
+            plotter.plot_varied_confirmation_latency_violinplot(
+                n, [folder + '/BlockInformation.csv'], f'blockInformation.pdf', t_confirmation, n)
+            plotter.acceptance_delay_violinplot(
+                n, folder + '/acceptanceTimeLatencyAmongNodes.csv', f'acceptanceTimeLatencyAmongNodes.pdf', t_confirmation, n)
         
         # TODO: Fix bug
         with open(config.cd['CONFIGURATION_PATH']) as f:

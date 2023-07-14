@@ -78,10 +78,12 @@ class FileParser:
         with open(self.config_path) as f:
             c = json.load(f)
 
-        v = str(c[variation])
+        v = ''
+        if variation != '' :
+            v = str(c[variation])
+            print("variation", v)
 
         data = pd.read_csv(fn)
-
         data = data.reset_index()
         # ns is the time scale of the block information
         spammer_accepted_time = data[data['Issuer Burn Policy']

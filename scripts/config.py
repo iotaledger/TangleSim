@@ -73,6 +73,17 @@ class Configuration:
         # Adversary strategies
         self.cd["ADVERSARY_STRATEGY"] = "1 1"
 
+        # Plotting variation setting
+        self.cd['PLOT_VARIED_FIGURES'] = False
+        self.cd['VARIED_PATHS'] = [ ]
+        self.cd['VARIED_LABELS'] = [
+            # '15.07low',
+            # '32.47low',
+            # # '15.56high',
+            # # '29.68high',
+            # # '32.47low_opt'
+        ]
+
     def update(self, k, v):
         """Update the key/value pair of the configuration.
 

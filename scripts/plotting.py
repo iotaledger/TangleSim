@@ -639,7 +639,7 @@ class FigurePlotter:
                     transparent=self.transparent, dpi=300)
         plt.close()
 
-    def plot_varied_confirmation_latency_violinplot(self, var, fs, ofn, title, labels):
+    def plot_varied_block_information_violinplot(self, var, fs, ofn, title, labels):
 
         # Init the matplotlib config
         font = {'family': 'Times New Roman',

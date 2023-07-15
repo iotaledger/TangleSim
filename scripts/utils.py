@@ -319,9 +319,10 @@ def plot_total_traffic(data, times, cd, title, ylim=None):
 
     avg_window = int(10* (c['SimulationDuration']*1e-9) / 60)
     rate = (totals[avg_window:]-totals[:-avg_window]) * \
-        100/(avg_window*cd['MONITOR_INTERVAL'])
+        100/(avg_window*cd['MONITOR_INTERVAL']) * \
+        ((c['SimulationDuration']*1e-9) / 60)
 
-    plt.bar(times[avg_window:][::avg_window], rate[::avg_window], label='Disseminated Blocks')
+    plt.bar(times[avg_window:][::avg_window], rate[::avg_window], 10, label='Disseminated Blocks')
 
     partition = int(15* (c['SimulationDuration']*1e-9) / 60)
     # remainder = len(times[avg_window:][::10]) % 4

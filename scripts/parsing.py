@@ -126,8 +126,12 @@ class FileParser:
 
         # Opening JSON file
         with open(self.config_path) as f:
-            c = json.load(f)        
-        v = str(c[variation])
+            c = json.load(f)      
+
+        v = ''
+        if variation != '' :
+            v = str(c[variation])
+            print("variation", v)
 
         # ns is the time scale of the block information
         accepted_delay_time = (data['Accepted Time Diff']/float(c["SlowdownFactor"]))

@@ -253,6 +253,8 @@ if __name__ == '__main__':
                 n, [folder + '/BlockInformation.csv'], f'blockInformation.pdf', t_confirmation, n)
             plotter.plot_varied_acceptance_latency_violinplot(
                 n, [folder + '/acceptanceTimeLatencyAmongNodes.csv'], f'acceptanceTimeLatencyAmongNodes.pdf', t_confirmation, n)
+            plotter.plot_confirmation_threshold(
+                n, folder + '/confirmationThreshold.csv', f'confirmationThreshold.pdf', 'Time (s)', n)
         
         # TODO: Fix bug
         with open(config.cd['CONFIGURATION_PATH']) as f:

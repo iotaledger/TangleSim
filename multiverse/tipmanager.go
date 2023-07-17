@@ -1,7 +1,11 @@
 package multiverse
 
 import (
+	"encoding/csv"
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -25,6 +29,8 @@ type TipManager struct {
 	tsa                 TipSelector
 	tipSets             map[Color]*TipSet
 	msgProcessedCounter map[Color]uint64
+
+	confirmationWriter *csv.Writer
 }
 
 func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
@@ -54,6 +60,7 @@ func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
 		tsa:                 tsa,
 		tipSets:             make(map[Color]*TipSet),
 		msgProcessedCounter: msgProcessedCounter,
+		confirmationWriter:  NewConfirmationWriter(),
 	}
 }
 
@@ -344,7 +351,7 @@ func (t *TipManager) WalkForOldestUnconfirmed(tipSet *TipSet) (oldestMessage Mes
 
 			}, NewMessageIDs(parent), false)
 
-			printAges(hasConfirmedParents, currentTangleTime, oldestUnconfirmedTime, oldestConfirmationTime, tipTangleTime)
+			t.dumpAges(hasConfirmedParents, currentTangleTime, oldestUnconfirmedTime, oldestConfirmationTime, tipTangleTime)
 			// if timeSinceConfirmation > tsc_condition {
 			// 	oldTips[tip.(*Message).ID] = void{}
 			// 	fmt.Printf("Prune %d\n", tip.(*Message).ID)
@@ -354,22 +361,22 @@ func (t *TipManager) WalkForOldestUnconfirmed(tipSet *TipSet) (oldestMessage Mes
 	return 0
 }
 
-func printAges(hasConfirmedParents bool, currentTangleTime time.Time, oldestUnconfirmedTime time.Time, oldestConfirmationTime time.Time, tipTangleTime time.Time) {
+func (t *TipManager) dumpAges(hasConfirmedParents bool, currentTangleTime time.Time, oldestUnconfirmedTime time.Time, oldestConfirmationTime time.Time, tipTangleTime time.Time) {
 	// Distance between (Now, Issuance Time of the oldest UNCONFIRMED block that has confirmed parents)
-	fmt.Printf("UnconfirmationAge %f\n", currentTangleTime.Sub(oldestUnconfirmedTime).Seconds())
+	t.confirmationWriter.Write([]string{"UnconfirmationAge", fmt.Sprintf("%f", currentTangleTime.Sub(oldestUnconfirmedTime).Seconds())})
 
 	// Distance between (Issuance Time of the tip, Issuance Time of the oldest UNCONFIRMED block that has confirmed parents)
-	fmt.Printf("UnconfirmationAgeSinceTip %f\n", tipTangleTime.Sub(oldestUnconfirmedTime).Seconds())
+	t.confirmationWriter.Write([]string{"UnconfirmationAgeSinceTip", fmt.Sprintf("%f", tipTangleTime.Sub(oldestUnconfirmedTime).Seconds())})
 
 	if hasConfirmedParents {
 		// Distance between (Issuance Time of the tip, Issuance Time of the oldest CONFIRMED block that has no confirmed children)
-		fmt.Printf("ConfirmationAgeSinceTip %f\n", tipTangleTime.Sub(oldestConfirmationTime).Seconds())
+		t.confirmationWriter.Write([]string{"ConfirmationAgeSinceTip", fmt.Sprintf("%f", tipTangleTime.Sub(oldestConfirmationTime).Seconds())})
 
 		// Distance between (Now, Issuance Time of the oldest CONFIRMED block that has no confirmed children)
-		fmt.Printf("ConfirmationAge %f\n", currentTangleTime.Sub(oldestConfirmationTime).Seconds())
+		t.confirmationWriter.Write([]string{"ConfirmationAge", fmt.Sprintf("%f", currentTangleTime.Sub(oldestConfirmationTime).Seconds())})
 
 	}
-
+	t.confirmationWriter.Flush()
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -385,3 +392,27 @@ func messageProcessedHandler(handler interface{}, params ...interface{}) {
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func NewConfirmationWriter() *csv.Writer {
+	// define header with time of dump and each node ID
+	gmHeader := []string{
+		"Title",
+		"Time (s)",
+	}
+
+	path := path.Join(config.Params.GeneralOutputDir, "confirmationThreshold.csv")
+	if err := os.MkdirAll(filepath.Dir(path), 0770); err != nil {
+		panic(err)
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		panic(err)
+	}
+
+	confirmationWriter := csv.NewWriter(file)
+	if err := confirmationWriter.Write(gmHeader); err != nil {
+		panic(err)
+	}
+
+	return confirmationWriter
+}

@@ -77,7 +77,7 @@ class FileParser:
         # Opening JSON file
         with open(self.config_path) as f:
             c = json.load(f)
-
+        print("target:", self.target)
         v = ''
         if variation != '' :
             v = str(c[variation])
@@ -137,6 +137,55 @@ class FileParser:
         accepted_delay_time = (data['Accepted Time Diff']/float(c["SlowdownFactor"]))
 
         return v, accepted_delay_time
+    
+    def parse_confirmation_threshold_file(self, fn, variation):
+        """Parse the acceptance time latency among nodes.
+
+        Returns:
+            v: The variation value.
+            data: The target data to analyze.
+        """
+        logging.info(f'Parsing {fn}...')
+        data = pd.read_csv(fn)
+
+        # Opening JSON file
+        with open(self.config_path) as f:
+            c = json.load(f)      
+
+        v = str(c[variation])
+        print("variation", v)
+
+        target = 'Time (s)'
+        # ns is the time scale of the block information
+        unconfirmation_age = data[data['Title']
+                                     == 'UnconfirmationAge'][target]
+
+        unconfirmation_age_since_tip = data[data['Title']
+                                     == 'UnconfirmationAgeSinceTip'][target]
+        
+        confirmation_age = data[data['Title']
+                                     == 'ConfirmationAge'][target]
+        
+        confirmation_age_since_tip = data[data['Title']
+                                     == 'ConfirmationAgeSinceTip'][target]
+        
+        unconfirmation_age = ((unconfirmation_age /
+                                  float(c["SlowdownFactor"])))
+        
+        unconfirmation_age_since_tip = ((unconfirmation_age_since_tip /
+                                  float(c["SlowdownFactor"])))
+        
+        confirmation_age = ((confirmation_age /
+                                  float(c["SlowdownFactor"])))
+        
+        confirmation_age_since_tip = ((confirmation_age_since_tip /
+                                  float(c["SlowdownFactor"])))
+
+        return (v,
+                unconfirmation_age,
+                unconfirmation_age_since_tip,
+                confirmation_age,
+                confirmation_age_since_tip)
     
     def parse_mm_file(self, fn, variation):
         """Parse the witness weight files.

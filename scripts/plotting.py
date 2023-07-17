@@ -759,6 +759,58 @@ class FigurePlotter:
         plt.close()
 
 
+    def plot_confirmation_threshold(self, var, fs, ofn, title, labels):
+
+        # Init the matplotlib config
+        font = {'family': 'Times New Roman',
+                'weight': 'bold',
+                'size': 12}
+        matplotlib.rc('font', **font)
+
+        plt.close('all')
+        plt.figure()
+
+        variation_data = {}
+        for f in glob.glob(fs):
+            try:
+                (v,
+                unconfirmation_age,
+                unconfirmation_age_since_tip,
+                confirmation_age,
+                confirmation_age_since_tip) = self.parser.parse_confirmation_threshold_file(f, var)
+            except:
+                logging.error(f'{fs}: Incomplete Data!')
+                continue
+            variation_data[v] = (unconfirmation_age,
+                                 unconfirmation_age_since_tip,
+                                 confirmation_age,
+                                 confirmation_age_since_tip)
+
+        data = [[] for _ in range(4)]
+        for i, (v, d) in enumerate(variation_data.items()):
+            for j, d in enumerate(d):
+                data[j] = d.tolist()
+
+        fn = ['Unconfirmation Age',
+              'Unconfirmation Age Since Tip',
+              'Confirmation Age',
+              'Confirmation Age Since Tip']
+        # Get x_max
+        x_max = 0
+        for i, d in enumerate(data):
+            x_max = max(int(max(d)+0.99), x_max)
+            if x_max > 10:
+                x_max = (int((x_max+5.5)//5.0)*5)
+
+        for i, d in enumerate(data):
+            plt.hist(d, weights=np.ones(len(d))/len(d),
+                bins=10, label="Data")
+            plt.xlim(0, x_max)
+            plt.ylabel("Probability")
+            plt.xlabel(f'{fn[i]} (s)')
+            plt.savefig(f'{self.figure_output_path}/{fn[i]}_{ofn}', transparent=self.transparent, dpi=300)
+            plt.close()
+
     def number_of_requested_missing_messages_batch(self, var, fs, ofn, title, label):
         # Init the matplotlib config
         font = {'family': 'Times New Roman',

@@ -336,9 +336,10 @@ func shutdownSimulation(net *network.Network) {
 }
 
 func monitorLocalMetrics(peer *network.Peer) {
+	localMetricsMutex.Lock()
+	defer localMetricsMutex.Unlock()
+
 	if len(localMetrics) != 0 {
-		localMetricsMutex.Lock()
-		defer localMetricsMutex.Unlock()
 		localMetrics["Ready Lengths"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ReadyLen())
 		localMetrics["Non Ready Lengths"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.NonReadyLen())
 		localMetrics["Own Mana"][peer.ID] = float64(peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.GetNodeAccessMana(peer.ID))

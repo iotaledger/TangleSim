@@ -258,7 +258,7 @@ class FigurePlotter:
 
         data = []
         variations = []
-        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item))):
             data.append(d)
             variations.append(v)
 
@@ -624,7 +624,7 @@ class FigurePlotter:
         plt.violinplot(data)
         # plt.xlabel('Adversary Weight (%)')
         # plt.xlabel('Uniform Random Network Delay (ms)')
-        # plt.xlabel('Node Count, TPS')
+        plt.xlabel('Node Count')
         # plt.ylim(0, 6)
         plt.xlabel('Node Count')
         plt.xticks(ticks=list(range(1, 1 + len(variations))),

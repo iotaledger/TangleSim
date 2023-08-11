@@ -66,7 +66,7 @@ func (n *Node) HandleNetworkMessage(networkMessage interface{}) {
 		n.tangle.ProcessMessage(receivedNetworkMessage)
 	case Color:
 		// create own message
-		if message, ok := n.tangle.MessageFactory.CreateMessage(receivedNetworkMessage); ok {
+		if message, ok := n.tangle.MessageFactory.CreateMessage(false, receivedNetworkMessage); ok {
 			n.tangle.ProcessMessage(message)
 		}
 	}

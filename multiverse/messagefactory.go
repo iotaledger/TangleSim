@@ -20,8 +20,8 @@ func NewMessageFactory(tangle *Tangle, numberOfNodes uint64) (messageFactory *Me
 	}
 }
 
-func (m *MessageFactory) CreateMessage(payload Color) (*Message, bool) {
-	strongParents, weakParents := m.tangle.TipManager.Tips()
+func (m *MessageFactory) CreateMessage(validation bool, payload Color) (*Message, bool) {
+	strongParents, weakParents := m.tangle.TipManager.Tips(validation)
 	issuanceTime := time.Now()
 	if burn, ok := m.tangle.Scheduler.BurnValue(issuanceTime); ok {
 		m.tangle.Scheduler.DecreaseNodeAccessMana(m.tangle.Peer.ID, burn) // decrease the nodes own Mana when the message is created

@@ -184,6 +184,10 @@ func processMessages(peer *network.Peer) {
 	ticker := time.NewTicker(pace)
 	defer ticker.Stop()
 
+	validatorPace := time.Duration((float64(time.Second) * float64(config.Params.SlowdownFactor)) / float64(config.Params.ValidatorBPS))
+	validatorTicker := time.NewTicker(validatorPace)
+	defer validatorTicker.Stop()
+
 	for {
 		select {
 		case <-peer.ShutdownProcessing:
@@ -197,6 +201,12 @@ func processMessages(peer *network.Peer) {
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.Params.SchedulingRate))
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
 			monitorLocalMetrics(peer)
+		case <-validatorTicker.C:
+			if int(peer.ID) <= config.Params.ValidatorCount {
+				if message, ok := peer.Node.(multiverse.NodeInterface).Tangle().MessageFactory.CreateMessage(true, multiverse.UndefinedColor); ok {
+					peer.Node.(multiverse.NodeInterface).Tangle().ProcessMessage(message)
+				}
+			}
 		}
 	}
 }

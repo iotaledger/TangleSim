@@ -1,7 +1,6 @@
 package multiverse
 
 import (
-	"github.com/iotaledger/hive.go/datastructure/walker"
 	"github.com/iotaledger/hive.go/events"
 )
 
@@ -23,28 +22,33 @@ func NewSolidifier(tangle *Tangle) *Solidifier {
 }
 
 func (s *Solidifier) Setup() {
-	s.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(s.Solidify))
+	s.tangle.Storage.Events.MessageStored.Attach(events.NewClosure(func(messageID MessageID, message *Message, messageMetadata *MessageMetadata) {
+		s.Solidify(messageID)
+	}))
 }
 
 func (s *Solidifier) Solidify(messageID MessageID) {
-	s.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
-		if !s.messageSolid(message) {
-			return
-		}
+	message := s.tangle.Storage.Message(messageID)
+	// if message is not solid, nothing more to do
+	if !s.messageSolid(message) {
+		return
+	}
+	messageMetadata := s.tangle.Storage.MessageMetadata(messageID)
+	// if message was already solid, nothing more to do
+	if !messageMetadata.SetSolid(true) {
+		return
+	}
+	// if message was not already solid, make sure future cone is solid too.
+	s.Events.MessageSolid.Trigger(message.ID)
+	strongChildrenIDs := s.tangle.Storage.StrongChildren(message.ID)
+	for strongChildID := range strongChildrenIDs {
+		s.Solidify(strongChildID)
+	}
+	weakChildrenIDs := s.tangle.Storage.WeakChildren(message.ID)
+	for weakChildID := range weakChildrenIDs {
+		s.Solidify(weakChildID)
+	}
 
-		if !messageMetadata.SetSolid(true) {
-			return
-		}
-
-		s.Events.MessageSolid.Trigger(message.ID)
-
-		for strongChildID := range s.tangle.Storage.StrongChildren(message.ID) {
-			walker.Push(strongChildID)
-		}
-		for weakChildID := range s.tangle.Storage.WeakChildren(message.ID) {
-			walker.Push(weakChildID)
-		}
-	}, NewMessageIDs(messageID), true)
 }
 
 func (s *Solidifier) messageSolid(message *Message) (isSolid bool) {
@@ -69,7 +73,7 @@ func (s *Solidifier) parentsSolid(parentMessageIDs MessageIDs) (parentsSolid boo
 		parentMessageMetadata := s.tangle.Storage.MessageMetadata(parentMessageID)
 		if parentMessageMetadata == nil {
 			s.Events.MessageMissing.Trigger(parentMessageID)
-
+			log.Debug("Solidification request sent.")
 			parentsSolid = false
 			continue
 		}

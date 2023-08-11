@@ -1,7 +1,11 @@
 """The simulation script to run multiverse-simulation in batch.
 """
 import sys
+import shutil
 import textwrap
+import subprocess
+import time
+import json
 
 import constant as c
 from config import Configuration
@@ -52,9 +56,9 @@ def parse_arg():
     parser.add_argument("-rp", "--RESULTS_PATH", type=str,
                         help="The path to save the simulation results",
                         default=config.cd['RESULTS_PATH'])
-    parser.add_argument("-fop", "--FIGURE_OUTPUT_PATH", type=str,
+    parser.add_argument("-fop", "--GENERAL_FIGURE_OUTPUT_PATH", type=str,
                         help="The path to output the figures",
-                        default=config.cd['FIGURE_OUTPUT_PATH'])
+                        default=config.cd['GENERAL_FIGURE_OUTPUT_PATH'])
     parser.add_argument("-st", "--SIMULATION_TARGET", type=str,
                         help="The simulation target, CT (confirmation time) or DS (double spending)",
                         default=config.cd['SIMULATION_TARGET'])
@@ -91,6 +95,9 @@ def parse_arg():
     parser.add_argument("-as", "--ADVERSARY_STRATEGY", dest='ADVERSARY_STRATEGY',
                         help="Adversary types",
                         default=config.cd['ADVERSARY_STRATEGY'])
+    parser.add_argument("-nc", "--NODES_COUNT", dest='NODES_COUNT',
+                        help="Nodes count",
+                        default=config.cd['NODES_COUNT'])
 
     # Update the che configuration dictionary
     args = parser.parse_args()
@@ -138,9 +145,10 @@ if __name__ == '__main__':
 
     # Generate the folders if they don't exist
     os.makedirs(result_path, exist_ok=True)
-    os.makedirs(config.cd['FIGURE_OUTPUT_PATH'], exist_ok=True)
+    # os.makedirs(config.cd['FIGURE_OUTPUT_PATH'], exist_ok=True)
 
     # Run the simulation
+    print(config.cd)
     if config.cd['RUN_SIM']:
         folder = base_folder
         os.makedirs(folder, exist_ok=True)
@@ -159,7 +167,8 @@ if __name__ == '__main__':
                     else:
                         v = int(v)
                     os.system(
-                        f'{exec} --simulationTarget={target} --{vn}={v} --slowdownFactor={df[i]}')
+                        # f'{exec} --simulationTarget={target} --{vn}={v} --slowdownFactor={df[i]}')
+                        f'{exec} --{vn}={v} --slowdownFactor={df[i]}')
             elif var == 'D':
                 for i, v in enumerate(vv):
                     os.system(
@@ -195,65 +204,170 @@ if __name__ == '__main__':
                 for i, v in enumerate(vv):
                     os.system(
                         f'{exec} --simulationTarget={target}  -simulationMode=Adversary -adversarySpeedup="{v} {v}" -slowdownFactor={df[i]}')
+            elif var == 'MB':
+                post_fix = f'_{str(vv[0])}'
+                # TODO: Fix the hacking codes
+                config.cd['SCRIPT_START_TIME'] += post_fix
+                config.cd['GENERAL_FIGURE_OUTPUT_PATH'] = (
+                    f"{config.cd['MULTIVERSE_PATH']}/results/{config.cd['SCRIPT_START_TIME']}/general/figures")
+
+                cmd = f"{exec} -scriptStartTime={config.cd['SCRIPT_START_TIME']}"
+                expire = 1020
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        shell=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        timeout=expire  # 17 minutes
+                    )
+                    print(result.stdout)
+                except subprocess.TimeoutExpired:
+                    print(f"Process timed out after {expire} seconds. Terminating simulation process.")
+
+                # os.system(
+                #     f"{exec} -scriptStartTime={config.cd['SCRIPT_START_TIME']}")
             else:
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)
 
-            move_results(sim_result_path, folder)
+    #move_results(sim_result_path, folder)
 
     # Plot the figures
     if config.cd['PLOT_FIGURES']:
+
+        # New ADDED
         plotter = FigurePlotter(config.cd)
-
-        # (The variation name in the configuration file, the confirmation time figure title,
-        #  the convergence time figure title, the flips title, the unconfirming count title,
-        #  the confirmation weight depth figure title)
-        (n, t_confirmation, t_convergence, t_flips,
-         t_unconfirming, t_depth) = c.FIGURE_NAMING_DICT[var]
-
-        folder = base_folder
+        (n, t_confirmation, t_convergence, t_flips, t_unconfirming, t_depth) = c.FIGURE_NAMING_DICT[var]
         iter_suffix = ''
-        for iter in range(repetition):
+        folder = config.cd['GENERAL_OUTPUT_PATH']
+        # plotter.confirmation_time_violinplot(n, folder + '/aw0*csv', f'CT_{n}_aw0_ct{iter_suffix}.pdf', t_confirmation, n)
+        # plotter.confirmation_time_violinplot(n, folder + '/aw99*csv', f'CT_{n}_aw99_ct{iter_suffix}.pdf', t_confirmation, n)
+        if config.cd['PLOT_VARIED_FIGURES']:
+             plotter.plot_varied_block_information_violinplot(
+                '', [folder + '/BlockInformation.csv' for folder in config.cd['VARIED_PATHS']], f'blockInformation.pdf', t_confirmation, config.cd['VARIED_LABELS'])
+             plotter.plot_varied_acceptance_latency_violinplot(
+                '', [folder + '/acceptanceTimeLatencyAmongNodes.csv' for folder in config.cd['VARIED_PATHS']], f'acceptanceTimeLatencyAmongNodes.pdf', t_confirmation, config.cd['VARIED_LABELS'])
+        else:
+            plotter.plot_varied_block_information_violinplot(
+                n, [folder + '/BlockInformation.csv'], f'blockInformation.pdf', t_confirmation, n)
+            plotter.plot_varied_acceptance_latency_violinplot(
+                n, [folder + '/acceptanceTimeLatencyAmongNodes.csv'], f'acceptanceTimeLatencyAmongNodes.pdf', t_confirmation, n)
+            plotter.plot_confirmation_threshold(
+                n, folder + '/confirmationThreshold.csv', f'confirmationThreshold.pdf', 'Time (s)', n)
+        
+        # TODO: Fix bug
+        with open(config.cd['CONFIGURATION_PATH']) as f:
+            c = json.load(f)
 
-            if repetition != 1:
-                folder = base_folder + f'/iter_{iter}'
-                iter_suffix = f'_iter_{iter}'
-            if target == 'CT':
-                if repetition != 1 and iter == 0:
-                    plotter.number_of_requested_missing_messages_batch(
-                        n, base_folder + '/*/mm*csv', f'CT_{n}_mm.pdf', t_confirmation, n)
-            # if target == 'DS':
-            #     if repetition != 1 and iter == 0:
-            #         # The distribution plots of multiple iterations are ran only one time.
-            #         plotter.convergence_time_distribution_plot(
-            #             n, base_folder, f'DS_{n}_cv.png', len(vv), repetition, title=t_convergence)
+        config.update('SchedulerType', c['SchedulerType'])
+        config.update('BURN_POLICIES', c['BurnPolicies'])
 
-            #         plotter.flips_distribution_plot(
-            #             n, base_folder, f'DS_{n}_fl.png', len(vv), repetition, title=t_flips)
+        weights = parse_int_node_attributes(
+            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/weights.csv', config.cd)
+        config.update('WEIGHTS', weights)
 
-            #         plotter.unconfirmed_count_distribution_plot(
-            #             n, base_folder, f'DS_{n}_uc.png', len(vv), repetition, title=t_unconfirming)
+        # plot dissemination rates
+        messages, times = parse_per_node_metrics(
+            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/disseminatedMessages.csv')
 
-            #         plotter.confirmation_depth_distribution_plot(
-            #             n, base_folder, f'DP_{n}_cd.png', len(vv), repetition, title=t_depth)
+        localMetricNames = parse_metric_names(f'{config.cd["GENERAL_OUTPUT_PATH"]}/localMetrics.csv')
+        for name in localMetricNames:
+            if name != 'RMC':
+                continue
+            data, times = parse_per_node_metrics(f'{config.cd["GENERAL_OUTPUT_PATH"]}/{name}.csv')
+            plot_per_node_metric(data, times, config.cd, name, "")
+            plot_per_node_wo_spammer_metric(data, times, config.cd, name, "")
 
-            #     plotter.confirmed_like_color_plot(
-            #         n, folder + '/cc*csv', f'DS_{n}_cc{iter_suffix}.png', len(vv))
+        plot_total_traffic(messages, times, config.cd, "Traffic")
 
-            # plotter.confirmation_time_plot(
-            #     n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.png', t_confirmation, c.VAR_DICT[n])
+        # TODO: refine plotting scripts
+        # plot number of partially confirmed blocks
+        messages, times = parse_per_node_metrics(
+            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/partiallyConfirmedMessages.csv')
+        plot_per_node_metric(messages, times, config.cd,
+                             "Partially Confirmed Blocks", "Number of Blocks")
 
-            plotter.confirmation_time_violinplot(
-                n, folder + '/aw*csv', f'CT_{n}_ct{iter_suffix}.pdf', t_confirmation, n)
+        readyLengths, times = parse_per_node_metrics(f'{config.cd["GENERAL_OUTPUT_PATH"]}/Ready Lengths.csv')
+        plot_per_node_metric(readyLengths, times, config.cd, "Ready Lengths", "Number of Blocks")
+        nonReadyLengths, times = parse_per_node_metrics(f'{config.cd["GENERAL_OUTPUT_PATH"]}/Non Ready Lengths.csv')
+        plot_per_node_metric(nonReadyLengths, times, config.cd, "Non Ready Lengths", "Number of Blocks")
+        
+        sys.exit(0)
 
-            # plotter.number_of_requested_missing_messages(
-            #     n, folder + '/mm*csv', f'CT_{n}_mm{iter_suffix}.pdf', t_confirmation, n)
 
-            # plotter.throughput_plot(n, folder + '/tp*csv',
-            #                         f'CT_{n}_tp{iter_suffix}.png', len(vv))
+        # update the configuration dictionary
+        newconfigs = parse_config(
+            config.cd['RESULTS_PATH']+"/"+config.cd['SCRIPT_START_TIME']+"/config.csv")
 
-            # plotter.throughput_all_plot(n, folder + '/all-tp*csv',
-            #                             f'CT_{n}_all_tp{iter_suffix}.pdf', len(vv))
+        # copy the config.go file
+        source_path = "./config/config.go"
+        destination_dir = os.path.join(config.cd['RESULTS_PATH'], config.cd['SCRIPT_START_TIME'])
+        destination_path = os.path.join(destination_dir, "config.go")
+        shutil.copyfile(source_path, destination_path)
 
-            # plotter.witness_weight_plot(
-            #     n, folder, f'CT_{n}_ww{iter_suffix}.pdf', c.VAR_DICT[n], repetition)
+        os.makedirs(config.cd['GENERAL_FIGURE_OUTPUT_PATH'], exist_ok=True)
+        print(f"Generating figures to {config.cd['GENERAL_FIGURE_OUTPUT_PATH']}")
+
+        os.makedirs(config.cd['SCHEDULER_FIGURE_OUTPUT_PATH'], exist_ok=True)
+        print(f"Generating figures to {config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']}")
+
+        for k in newconfigs:
+            config.update(k, newconfigs[k])
+        burnPolicies = parse_int_node_attributes(
+            config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']+"/burnPolicies.csv", config.cd)
+        config.update('BURN_POLICIES', burnPolicies)
+        weights = parse_int_node_attributes(
+            config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']+"/weights.csv", config.cd)
+        config.update('WEIGHTS', weights)
+        # plot dissemination rates
+        messages, times = parse_per_node_metrics(
+            config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']+"/disseminatedMessages.csv")
+        plot_per_node_rates(messages, times, config.cd, "Dissemination Rates")
+        plot_total_rate(messages, times, config.cd, "Total Dissemination Rate")
+        # plot confirmation rates
+        messages, times = parse_per_node_metrics(
+            config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']+"/fullyConfirmedMessages.csv")
+        plot_per_node_rates(messages, times, config.cd, "Confirmation Rates")
+        plot_total_rate(messages, times, config.cd, "Total Confirmation Rate")
+        plot_total_rate(messages, times, config.cd,
+                        "Total Confirmation Rate", 200)
+        # # plot number of partially confirmed blocks
+        # messages, times = parse_per_node_metrics(
+        #     config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']+"/partiallyConfirmedMessages.csv")
+        # plot_per_node_metric(messages, times, config.cd,
+        #                      "Partially Confirmed Blocks", "Number of Blocks")
+        # plot number of unconfirmed blocks
+        messages, times = parse_per_node_metrics(
+            config.cd['GENERAL_FIGURE_OUTPUT_PATH']+"/unconfirmedMessages.csv")
+        plot_per_node_metric(messages, times, config.cd,
+                             "Unconfirmed Blocks", "Number of Blocks")
+        # plot number of undisseminated blocks
+        messages, times = parse_per_node_metrics(
+            config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']+"/undisseminatedMessages.csv")
+        plot_per_node_metric(messages, times, config.cd,
+                             "Undisseminated Blocks", "Number of Blocks")
+        # plot dissemination latencies
+        latencies = parse_latencies(
+            config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']+"/DisseminationLatency.csv", config.cd)
+        plot_latency_cdf(latencies, config.cd, "Dissemination Latency")
+        # plot confirmation latencies
+        latencies = parse_latencies(
+            config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']+"/ConfirmationLatency.csv", config.cd)
+        plot_latency_cdf(latencies, config.cd, "Confirmation Latency")
+        # plot local metrics
+        localMetricNames = parse_metric_names(
+            config.cd['GENERAL_FIGURE_OUTPUT_PATH']+"/localMetrics.csv")
+        for name in localMetricNames:
+            data, times = parse_per_node_metrics(
+                config.cd['GENERAL_FIGURE_OUTPUT_PATH']+"/" + name + ".csv")
+            plot_per_node_metric(data, times, config.cd, name, "")
+            plot_per_node_wo_spammer_metric(data, times, config.cd, name, "")
+
+        plot_traffic(pd.read_csv(
+            config.cd['GENERAL_FIGURE_OUTPUT_PATH']+"/Traffic.csv"), "Traffic",  config.cd)
+
+        readyLengths, times = parse_per_node_metrics(f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/readyLengths.csv')
+        plot_per_node_metric(readyLengths, times, config.cd, "Ready Lengths", "Number of Blocks")
+        nonReadyLengths, times = parse_per_node_metrics(f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/nonReadyLengths.csv')
+        plot_per_node_metric(nonReadyLengths, times, config.cd, "Non Ready Lengths", "Number of Blocks")

@@ -1,8 +1,10 @@
 package network
 
+import "time"
+
 // region Node /////////////////////////////////////////////////////////////////////////////////////////////////////////
 type Node interface {
-	Setup(peer *Peer, weightDistribution *ConsensusWeightDistribution)
+	Setup(peer *Peer, weightDistribution *ConsensusWeightDistribution, genesisTime time.Time)
 	HandleNetworkMessage(networkMessage interface{})
 }
 

@@ -40,25 +40,31 @@ func (a *ApprovalManager) Setup() {
 
 func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 
-	issuingMessage := a.tangle.Storage.messageDB[messageID]
+	issuingMessage := a.tangle.Storage.Message(messageID)
 	byteIndex := issuingMessage.Issuer / 8
 	mod := issuingMessage.Issuer % 8
 	weight := a.tangle.WeightDistribution.Weight(issuingMessage.Issuer)
 	a.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
-		if int(a.tangle.Peer.ID) == config.MonitoredWitnessWeightPeer && messageMetadata.id == MessageID(config.MonitoredWitnessWeightMessageID) {
+		if int(a.tangle.Peer.ID) == config.Params.MonitoredWitnessWeightPeer && messageMetadata.ID() == MessageID(config.Params.MonitoredWitnessWeightMessageID) {
 			// log.Infof("Peer %d Message %d Witness Weight %d", a.tangle.Peer.ID, messageMetadata.id, messageMetadata.weight)
-			a.Events.MessageWitnessWeightUpdated.Trigger(message, messageMetadata.weight)
+			a.Events.MessageWitnessWeightUpdated.Trigger(message, messageMetadata.Weight())
 		}
-		weightByte := messageMetadata.weightSlice[int(byteIndex)]
+		weightByte := messageMetadata.WeightByte(int(byteIndex))
 		if weightByte&(1<<mod) == 0 {
 			weightByte |= 1 << mod
-			messageMetadata.weightSlice[int(byteIndex)] = weightByte
-			messageMetadata.weight += weight
-			a.Events.MessageWeightUpdated.Trigger(message, messageMetadata, messageMetadata.weight)
-			if float64(messageMetadata.weight) >= config.ConfirmationThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) &&
-				messageMetadata.confirmationTime.IsZero() {
-				messageMetadata.confirmationTime = time.Now()
-				a.Events.MessageConfirmed.Trigger(message, messageMetadata, messageMetadata.weight, messageIDCounter)
+			messageMetadata.SetWeightByte(int(byteIndex), weightByte)
+			messageMetadata.AddWeight(weight)
+			a.Events.MessageWeightUpdated.Trigger(message, messageMetadata, messageMetadata.Weight())
+			if float64(messageMetadata.Weight()) >= config.Params.ConfirmationThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) &&
+				!messageMetadata.Confirmed() && !messageMetadata.Orphaned() {
+				// check if this should be orphaned
+				now := time.Now()
+				if a.tangle.Storage.TooOld(message) {
+					messageMetadata.SetOrphanTime(now)
+				} else {
+					messageMetadata.SetConfirmationTime(now)
+					a.Events.MessageConfirmed.Trigger(message, messageMetadata, messageMetadata.Weight(), messageIDCounter)
+				}
 			}
 
 			for strongParentID := range message.StrongParents {

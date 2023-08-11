@@ -18,6 +18,7 @@ const (
 	ShiftOpinion
 	TheSameOpinion
 	NoGossip
+	Blowball
 )
 
 func ToAdversaryType(adv int) AdversaryType {
@@ -28,9 +29,10 @@ func ToAdversaryType(adv int) AdversaryType {
 		return TheSameOpinion
 	case int(NoGossip):
 		return NoGossip
-	default:
-		return HonestNode
+	case int(Blowball):
+		return Blowball
 	}
+	return HonestNode
 }
 
 func AdversaryTypeToString(adv AdversaryType) string {
@@ -43,6 +45,8 @@ func AdversaryTypeToString(adv AdversaryType) string {
 		return "TheSameOpinion"
 	case NoGossip:
 		return "NoGossip"
+	case Blowball:
+		return "Blowball"
 	}
 	return ""
 }
@@ -76,26 +80,26 @@ func (g *AdversaryGroup) AddNodeID(id, groupId int) {
 type AdversaryGroups []*AdversaryGroup
 
 func NewAdversaryGroups() (groups AdversaryGroups) {
-	groups = make(AdversaryGroups, 0, len(config.AdversaryTypes))
-	for i, configAdvType := range config.AdversaryTypes {
+	groups = make(AdversaryGroups, 0, len(config.Params.AdversaryTypes))
+	for i, configAdvType := range config.Params.AdversaryTypes {
 		targetMana := float64(1)
-		delay := config.MinDelay
+		delay := config.Params.MinDelay
 		color := ""
 		nCount := 1
 
-		if len(config.AdversaryMana) > 0 {
-			targetMana = config.AdversaryMana[i]
+		if len(config.Params.AdversaryMana) > 0 {
+			targetMana = config.Params.AdversaryMana[i]
 		}
 
-		if len(config.AdversaryDelays) > 0 {
-			delay = config.AdversaryDelays[i]
+		if len(config.Params.AdversaryDelays) > 0 {
+			delay = config.Params.AdversaryDelays[i]
 		}
 
-		if len(config.AdversaryNodeCounts) > 0 {
-			nCount = config.AdversaryNodeCounts[i]
+		if len(config.Params.AdversaryNodeCounts) > 0 {
+			nCount = config.Params.AdversaryNodeCounts[i]
 		}
 
-		color = config.AdversaryInitColors[i]
+		color = config.Params.AdversaryInitColors[i]
 		group := &AdversaryGroup{
 			NodeIDs:              make([]int, 0, nCount),
 			TargetManaPercentage: targetMana,
@@ -120,8 +124,8 @@ func (g *AdversaryGroups) CalculateWeightTotalConfig() (int, float64) {
 		totalAdv += group.NodeCount
 		totalAdvManaPercentage += group.TargetManaPercentage
 	}
-	totalCount := config.NodesCount - totalAdv
-	totalWeight := float64(config.NodesTotalWeight) * (1 - totalAdvManaPercentage/100)
+	totalCount := config.Params.NodesCount - totalAdv
+	totalWeight := float64(config.Params.NodesTotalWeight) * (1 - totalAdvManaPercentage/100)
 	return totalCount, totalWeight
 }
 
@@ -152,7 +156,7 @@ func (g *AdversaryGroups) updateAdvIDAndWeights(advIndex int, newWeights []uint6
 
 func (g *AdversaryGroups) updateGroupMana() {
 	for _, group := range *g {
-		group.GroupMana = group.TargetManaPercentage * float64(config.NodesTotalWeight) / 100.0
+		group.GroupMana = group.TargetManaPercentage * float64(config.Params.NodesTotalWeight) / 100.0
 	}
 }
 
@@ -200,8 +204,8 @@ func randomWeightIndex(weights []uint64, count int) (randomWeights []int) {
 func GetAccidentalIssuers(network *Network) []*Peer {
 	peers := make([]*Peer, 0)
 	randomCount := 0
-	for i := 0; i < len(config.AccidentalMana); i++ {
-		switch config.AccidentalMana[i] {
+	for i := 0; i < len(config.Params.AccidentalMana); i++ {
+		switch config.Params.AccidentalMana[i] {
 		case "max":
 			peers = append(peers, network.Peer(0))
 		case "min":
@@ -209,9 +213,9 @@ func GetAccidentalIssuers(network *Network) []*Peer {
 		case "random":
 			randomCount++
 		default:
-			customId, err := strconv.Atoi(config.AccidentalMana[i])
-			if err != nil || config.NodesCount-1 < customId || customId < 0 {
-				log.Warnf("AccidentalMana parameter: %s is incorrect, so not processed", config.AccidentalMana[i])
+			customId, err := strconv.Atoi(config.Params.AccidentalMana[i])
+			if err != nil || config.Params.NodesCount-1 < customId || customId < 0 {
+				log.Warnf("AccidentalMana parameter: %s is incorrect, so not processed", config.Params.AccidentalMana[i])
 			} else {
 				peers = append(peers, network.Peer(customId))
 			}

@@ -1,17 +1,23 @@
 package multiverse
 
 import (
+	"encoding/csv"
+	"fmt"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/iotaledger/hive.go/datastructure/randommap"
+	"github.com/iotaledger/hive.go/datastructure/walker"
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/multivers-simulation/config"
 )
 
 var (
-	OptimalStrongParentsCount = int(float64(config.ParentsCount) * (1 - config.WeakTipsRatio))
-	OptimalWeakParentsCount   = int(float64(config.ParentsCount) * config.WeakTipsRatio)
+	OptimalStrongParentsCount = int(float64(config.Params.ParentsCount) * (1 - config.Params.WeakTipsRatio))
+	OptimalWeakParentsCount   = int(float64(config.Params.ParentsCount) * config.Params.WeakTipsRatio)
 )
 
 // region TipManager ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -23,6 +29,8 @@ type TipManager struct {
 	tsa                 TipSelector
 	tipSets             map[Color]*TipSet
 	msgProcessedCounter map[Color]uint64
+
+	confirmationWriter *csv.Writer
 }
 
 func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
@@ -52,11 +60,14 @@ func NewTipManager(tangle *Tangle, tsaString string) (tipManager *TipManager) {
 		tsa:                 tsa,
 		tipSets:             make(map[Color]*TipSet),
 		msgProcessedCounter: msgProcessedCounter,
+		confirmationWriter:  NewConfirmationWriter(),
 	}
 }
 
 func (t *TipManager) Setup() {
-	t.tangle.OpinionManager.Events().OpinionFormed.Attach(events.NewClosure(t.AnalyzeMessage))
+	//t.tangle.OpinionManager.Events().OpinionFormed.Attach(events.NewClosure(t.AnalyzeMessage))
+	// Try "analysing" on scheduling instead of on opinion formation.
+	t.tangle.Scheduler.Events().MessageScheduled.Attach(events.NewClosure(t.AnalyzeMessage))
 }
 
 func (t *TipManager) AnalyzeMessage(messageID MessageID) {
@@ -67,11 +78,13 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 	// Calculate the current tip pool size before calling AddStrongTip
 	currentTipPoolSize := tipSet.strongTips.Size()
 
-	addedAsStrongTip := make(map[Color]bool)
-	for color, tipSet := range t.TipSets(inheritedColor) {
-		addedAsStrongTip[color] = true
-		tipSet.AddStrongTip(message)
-		t.msgProcessedCounter[color] += 1
+	if time.Since(message.IssuanceTime).Seconds() < config.Params.DeltaURTS || config.Params.TSA != "RURTS" {
+		addedAsStrongTip := make(map[Color]bool)
+		for color, tipSet := range t.TipSets(inheritedColor) {
+			addedAsStrongTip[color] = true
+			tipSet.AddStrongTip(message)
+			t.msgProcessedCounter[color] += 1
+		}
 	}
 
 	// Color, tips pool count, processed messages issued messages
@@ -114,9 +127,14 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
-	strongTips = tipSet.StrongTips(config.ParentsCount, t.tsa)
+	peerID := t.tangle.Peer.ID
+	if peerID == 99 {
+		t.WalkForOldestUnconfirmed(tipSet)
+	}
+
+	strongTips = tipSet.StrongTips(config.Params.ParentsCount, t.tsa)
 	// In the paper we consider all strong tips
-	// weakTips = tipSet.WeakTips(config.ParentsCount-1, t.tsa)
+	// weakTips = tipSet.WeakTips(config.Params.ParentsCount-1, t.tsa)
 
 	// Remove the weakTips-related codes
 	// if len(weakTips) == 0 {
@@ -124,7 +142,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// }
 
 	// if strongParentsCount := len(strongTips); strongParentsCount < OptimalStrongParentsCount {
-	// 	fillUpCount := config.ParentsCount - strongParentsCount
+	// 	fillUpCount := config.Params.ParentsCount - strongParentsCount
 
 	// 	if fillUpCount >= len(weakTips) {
 	// 		return
@@ -135,7 +153,7 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 	// }
 
 	// if weakParentsCount := len(weakTips); weakParentsCount < OptimalWeakParentsCount {
-	// 	fillUpCount := config.ParentsCount - weakParentsCount
+	// 	fillUpCount := config.Params.ParentsCount - weakParentsCount
 
 	// 	if fillUpCount >= len(strongTips) {
 	// 		return
@@ -187,6 +205,10 @@ func (t *TipSet) AddStrongTip(message *Message) {
 	for weakParent := range message.WeakParents {
 		t.weakTips.Delete(weakParent)
 	}
+}
+
+func (t *TipSet) Size() int {
+	return t.strongTips.Size()
 }
 
 func (t *TipSet) AddWeakTip(message *Message) {
@@ -270,7 +292,7 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 		for _, tip := range tipsNew {
 
 			// If the time difference is greater than DeltaURTS, delete it from tips
-			if currentTime.Sub(tip.(*Message).IssuanceTime).Seconds() > config.DeltaURTS {
+			if currentTime.Sub(tip.(*Message).IssuanceTime).Seconds() > config.Params.DeltaURTS {
 				tips.Delete(tip)
 			} else {
 				// Append the valid tip to tipsToReturn and decrease the amountLeft
@@ -289,6 +311,74 @@ func (RURTS) TipSelect(tips *randommap.RandomMap, maxAmount int) []interface{} {
 
 }
 
+func (t *TipManager) WalkForOldestUnconfirmed(tipSet *TipSet) (oldestMessage MessageID) {
+	strongKeys := tipSet.strongTips.Keys()
+
+	for _, tip := range strongKeys {
+		messageID := tip.(MessageID)
+		currentTangleTime := time.Now()
+		tipTangleTime := t.tangle.Storage.Message(messageID).IssuanceTime
+		hasConfirmedParents := false
+
+		for parent := range t.tangle.Storage.Message(messageID).StrongParents {
+			if parent == Genesis {
+				continue
+			}
+
+			oldestUnconfirmedTime := currentTangleTime
+			oldestConfirmationTime := currentTangleTime
+
+			// Walk through the past cone to find the oldest unconfirmed blocks
+			t.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
+				issuanceTime := message.IssuanceTime
+				// Reaches the confirmed blocks, stop traversing
+				if messageMetadata.Confirmed() {
+					hasConfirmedParents = true
+					// Use the issuance time of the youngest confirmed block
+					if issuanceTime.Before(oldestConfirmationTime) {
+						oldestConfirmationTime = issuanceTime
+					}
+				} else {
+					if issuanceTime.Before(oldestUnconfirmedTime) {
+						oldestUnconfirmedTime = issuanceTime
+						oldestMessage = message.ID
+					}
+					// Only continue the BFS when the current block is unconfirmed
+					for strongChildID := range message.StrongParents {
+						walker.Push(strongChildID)
+					}
+				}
+
+			}, NewMessageIDs(parent), false)
+
+			t.dumpAges(hasConfirmedParents, currentTangleTime, oldestUnconfirmedTime, oldestConfirmationTime, tipTangleTime)
+			// if timeSinceConfirmation > tsc_condition {
+			// 	oldTips[tip.(*Message).ID] = void{}
+			// 	fmt.Printf("Prune %d\n", tip.(*Message).ID)
+			// }
+		}
+	}
+	return 0
+}
+
+func (t *TipManager) dumpAges(hasConfirmedParents bool, currentTangleTime time.Time, oldestUnconfirmedTime time.Time, oldestConfirmationTime time.Time, tipTangleTime time.Time) {
+	// Distance between (Now, Issuance Time of the oldest UNCONFIRMED block that has confirmed parents)
+	t.confirmationWriter.Write([]string{"UnconfirmationAge", fmt.Sprintf("%f", currentTangleTime.Sub(oldestUnconfirmedTime).Seconds())})
+
+	// Distance between (Issuance Time of the tip, Issuance Time of the oldest UNCONFIRMED block that has confirmed parents)
+	t.confirmationWriter.Write([]string{"UnconfirmationAgeSinceTip", fmt.Sprintf("%f", tipTangleTime.Sub(oldestUnconfirmedTime).Seconds())})
+
+	if hasConfirmedParents {
+		// Distance between (Issuance Time of the tip, Issuance Time of the oldest CONFIRMED block that has no confirmed children)
+		t.confirmationWriter.Write([]string{"ConfirmationAgeSinceTip", fmt.Sprintf("%f", tipTangleTime.Sub(oldestConfirmationTime).Seconds())})
+
+		// Distance between (Now, Issuance Time of the oldest CONFIRMED block that has no confirmed children)
+		t.confirmationWriter.Write([]string{"ConfirmationAge", fmt.Sprintf("%f", currentTangleTime.Sub(oldestConfirmationTime).Seconds())})
+
+	}
+	t.confirmationWriter.Flush()
+}
+
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // region TipManagerEvents /////////////////////////////////////////////////////////////////////////////////////////
@@ -302,3 +392,27 @@ func messageProcessedHandler(handler interface{}, params ...interface{}) {
 }
 
 // endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func NewConfirmationWriter() *csv.Writer {
+	// define header with time of dump and each node ID
+	gmHeader := []string{
+		"Title",
+		"Time (s)",
+	}
+
+	path := path.Join(config.Params.GeneralOutputDir, "confirmationThreshold.csv")
+	if err := os.MkdirAll(filepath.Dir(path), 0770); err != nil {
+		panic(err)
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		panic(err)
+	}
+
+	confirmationWriter := csv.NewWriter(file)
+	if err := confirmationWriter.Write(gmHeader); err != nil {
+		panic(err)
+	}
+
+	return confirmationWriter
+}

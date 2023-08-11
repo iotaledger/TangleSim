@@ -23,6 +23,7 @@ testNodes/*
 
 # Project files
 .idea
+.vscode/
 
 # Database directory
 mainnetdb/
@@ -35,6 +36,21 @@ goshimmer
 
 config.json
 .env
-results
 /scripts/log.txt
 /multiverse_sim
+*.pyc
+
+## Binary files
+multivers-simulation
+
+# Debugging related files
+results/
+result/
+figures/
+debug/
+result_remote/
+paper_figs/
+BYLin.md
+debug*
+*.sh
+

@@ -19,6 +19,7 @@ type Network struct {
 	Peers              []*Peer
 	WeightDistribution *ConsensusWeightDistribution
 	AdversaryGroups    AdversaryGroups
+	Attacker           *SingleAttacker
 }
 
 func New(option ...Option) (network *Network) {
@@ -28,6 +29,7 @@ func New(option ...Option) (network *Network) {
 	network = &Network{
 		Peers:           make([]*Peer, 0),
 		AdversaryGroups: NewAdversaryGroups(),
+		Attacker:        NewSingleAttacker(),
 	}
 
 	configuration := NewConfiguration(option...)
@@ -46,12 +48,6 @@ func (n *Network) RandomPeers(count int) (randomPeers []*Peer) {
 	}
 
 	return
-}
-
-func (n *Network) Start() {
-	for _, peer := range n.Peers {
-		peer.Start()
-	}
 }
 
 func (n *Network) Shutdown() {
@@ -77,6 +73,7 @@ type Configuration struct {
 	peeringStrategy     PeeringStrategy
 	adversaryPeeringAll bool
 	adversarySpeedup    []float64
+	genesisTime         time.Time
 }
 
 func NewConfiguration(options ...Option) (configuration *Configuration) {
@@ -117,6 +114,9 @@ func (c *Configuration) CreatePeers(network *Network) {
 				nodeType = network.AdversaryGroups[groupIndex].AdversaryType
 				speedupFactor = c.adversarySpeedup[groupIndex]
 			}
+			if IsAttacker(i) {
+				nodeType = Blowball
+			}
 			nodeFactory := nodesSpecification.nodeFactories[nodeType]
 
 			peer := NewPeer(nodeFactory())
@@ -125,7 +125,10 @@ func (c *Configuration) CreatePeers(network *Network) {
 			log.Debugf("Created %s ... [DONE]", peer)
 
 			network.WeightDistribution.SetWeight(peer.ID, nodeWeights[i])
-			peer.SetupNode(network.WeightDistribution)
+		}
+		for _, peer := range network.Peers {
+			peer.SetupNode(network.WeightDistribution, c.genesisTime)
+			log.Debugf("Setup %s ... [DONE]", peer)
 		}
 	}
 }
@@ -171,18 +174,20 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 	var totalWeight float64
 	var nodeWeights []uint64
 
-	if len(config.AdversaryTypes) > 0 || config.SimulationTarget == "DS" {
-		switch config.SimulationMode {
-		case "Adversary":
-			nodesCount, totalWeight = network.AdversaryGroups.CalculateWeightTotalConfig()
-			nodeWeights = n.weightGenerator(nodesCount, totalWeight)
-			// update adversary groups and get new mana distribution with adversary nodes included
-			nodeWeights = network.AdversaryGroups.UpdateAdversaryNodes(nodeWeights)
-		case "Accidental":
-			nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
-		}
-	} else {
-		nodeWeights = n.weightGenerator(config.NodesCount, float64(config.NodesTotalWeight))
+	switch config.Params.SimulationMode {
+	case "Adversary":
+		nodesCount, totalWeight = network.AdversaryGroups.CalculateWeightTotalConfig()
+		nodeWeights = n.weightGenerator(nodesCount, totalWeight)
+		// update adversary groups and get new mana distribution with adversary nodes included
+		nodeWeights = network.AdversaryGroups.UpdateAdversaryNodes(nodeWeights)
+	case "Accidental":
+		nodeWeights = n.weightGenerator(config.Params.NodesCount, float64(config.Params.NodesTotalWeight))
+	case "Blowball":
+		nodesCount, totalWeight = network.Attacker.CalculateWeightTotalConfig()
+		nodeWeights = n.weightGenerator(nodesCount, totalWeight)
+		nodeWeights = network.Attacker.UpdateAttackerWeight(nodeWeights)
+	default:
+		nodeWeights = n.weightGenerator(config.Params.NodesCount, float64(config.Params.NodesTotalWeight))
 	}
 
 	return nodeWeights
@@ -217,6 +222,12 @@ func AdversaryPeeringAll(adversaryPeeringAll bool) Option {
 func AdversarySpeedup(adversarySpeedupFactors []float64) Option {
 	return func(config *Configuration) {
 		config.adversarySpeedup = adversarySpeedupFactors
+	}
+}
+
+func GenesisTime(genesisTime time.Time) Option {
+	return func(config *Configuration) {
+		config.genesisTime = genesisTime
 	}
 }
 

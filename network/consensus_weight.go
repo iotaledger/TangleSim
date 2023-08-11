@@ -70,6 +70,10 @@ func (c *ConsensusWeightDistribution) Weight(peerID PeerID) uint64 {
 	return c.weights[peerID]
 }
 
+func (c *ConsensusWeightDistribution) Weights() map[PeerID]uint64 {
+	return c.weights
+}
+
 func (c *ConsensusWeightDistribution) TotalWeight() uint64 {
 	return c.totalWeight
 }

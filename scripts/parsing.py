@@ -25,6 +25,7 @@ class FileParser:
         self.colored_confirmed_like_items = c.COLORED_CONFIRMED_LIKE_ITEMS
         self.one_second = c.ONE_SEC
         self.target = c.TARGET
+        self.config_path = cd['CONFIGURATION_PATH']
 
     def parse_aw_file(self, fn, variation):
         """Parse the accumulated weight files.
@@ -40,19 +41,13 @@ class FileParser:
             x_axis: The scaled/adjusted x axis.
         """
         logging.info(f'Parsing {fn}...')
-        # Get the configuration setup of this simulation
-        # Note currently we only consider the first node
-        config_fn = re.sub('aw0', 'aw', fn)
-        config_fn = config_fn.replace('.csv', '.config')
-
         # Opening JSON file
-        with open(config_fn) as f:
+        with open(self.config_path) as f:
             c = json.load(f)
 
         v = str(c[variation])
 
         data = pd.read_csv(fn)
-
         # # Chop data before the begining time
         # data = data[data['ns since start'] >=
         #             self.x_axis_begin * float(c["SlowdownFactor"])]
@@ -65,6 +60,133 @@ class FileParser:
         data[self.target] = data[self.target] / float(c["SlowdownFactor"])
         return v, data[self.target], x_axis
 
+    def parse_block_information_file(self, fn, variation):
+        """Parse the block information files.
+
+        Args:
+            fc: The figure count.
+
+        Returns:
+
+        Returns:
+            v: The variation value.
+            data: The target data to analyze.
+            x_axis: The scaled/adjusted x axis.
+        """
+        logging.info(f'Parsing {fn}...')
+        # Opening JSON file
+        with open(self.config_path) as f:
+            c = json.load(f)
+        print("target:", self.target)
+        v = ''
+        if variation != '' :
+            v = str(c[variation])
+            print("variation", v)
+
+        data = pd.read_csv(fn)
+        data = data.reset_index()
+        # ns is the time scale of the block information
+        spammer_accepted_time = data[data['Issuer Burn Policy']
+                                     == 0][data[self.target] != 0]
+
+        non_spammer_accepted_time = data[data['Issuer Burn Policy']
+                                         == 1][data[self.target] != 0]
+
+        spammer_not_accepted_time = data[data['Issuer Burn Policy']
+                                         == 0][data[self.target] == 0]
+
+        non_spammer_not_accepted_time = data[data['Issuer Burn Policy']
+                                             == 1][data[self.target] == 0]
+
+        spammer_accepted_time = ((spammer_accepted_time[self.target] /
+                                  float(c["SlowdownFactor"])))
+        non_spammer_accepted_time = ((non_spammer_accepted_time[self.target] /
+                                      float(c["SlowdownFactor"])))
+
+        spammer_not_accepted_time = (float(c["SimulationDuration"]) - ((spammer_not_accepted_time['Issuance Time Since Start (ns)'] /
+                                                     float(c["SlowdownFactor"]))))
+        non_spammer_not_accepted_time = (float(c["SimulationDuration"]) - ((non_spammer_not_accepted_time['Issuance Time Since Start (ns)'] /
+                                                         float(c["SlowdownFactor"]))))
+
+        return (v,
+                spammer_accepted_time,
+                non_spammer_accepted_time,
+                spammer_not_accepted_time,
+                non_spammer_not_accepted_time)
+
+    def parse_acceptance_delay_file(self, fn, variation):
+        """Parse the acceptance time latency among nodes.
+
+        Returns:
+            v: The variation value.
+            data: The target data to analyze.
+        """
+        logging.info(f'Parsing {fn}...')
+        data = pd.read_csv(fn)
+
+        # Opening JSON file
+        with open(self.config_path) as f:
+            c = json.load(f)      
+
+        v = ''
+        if variation != '' :
+            v = str(c[variation])
+            print("variation", v)
+
+        # ns is the time scale of the block information
+        accepted_delay_time = (data['Accepted Time Diff']/float(c["SlowdownFactor"]))
+
+        return v, accepted_delay_time
+    
+    def parse_confirmation_threshold_file(self, fn, variation):
+        """Parse the acceptance time latency among nodes.
+
+        Returns:
+            v: The variation value.
+            data: The target data to analyze.
+        """
+        logging.info(f'Parsing {fn}...')
+        data = pd.read_csv(fn)
+
+        # Opening JSON file
+        with open(self.config_path) as f:
+            c = json.load(f)      
+
+        v = str(c[variation])
+        print("variation", v)
+
+        target = 'Time (s)'
+        # ns is the time scale of the block information
+        unconfirmation_age = data[data['Title']
+                                     == 'UnconfirmationAge'][target]
+
+        unconfirmation_age_since_tip = data[data['Title']
+                                     == 'UnconfirmationAgeSinceTip'][target]
+        
+        confirmation_age = data[data['Title']
+                                     == 'ConfirmationAge'][target]
+        
+        confirmation_age_since_tip = data[data['Title']
+                                     == 'ConfirmationAgeSinceTip'][target]
+        
+        unconfirmation_age = ((unconfirmation_age /
+                                  float(c["SlowdownFactor"])))
+        
+        unconfirmation_age_since_tip = ((unconfirmation_age_since_tip /
+                                  float(c["SlowdownFactor"])))
+        
+        confirmation_age = ((confirmation_age /
+                                  float(c["SlowdownFactor"])))
+        
+        confirmation_age_since_tip = ((confirmation_age_since_tip /
+                                  float(c["SlowdownFactor"])))
+
+        return (v,
+                unconfirmation_age,
+                unconfirmation_age_since_tip,
+                confirmation_age,
+                confirmation_age_since_tip)
+    
     def parse_mm_file(self, fn, variation):
         """Parse the witness weight files.
 
@@ -292,7 +414,7 @@ class FileParser:
         v = str(c[var])
 
         # Get the confirmation threshold
-        weight_threshold = float(c['ConfirmationThreshold'].split('-')[0])
+        weight_threshold = float(c['ConfirmationThreshold'])
 
         data = pd.read_csv(fn)
 

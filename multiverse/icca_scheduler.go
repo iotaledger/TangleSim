@@ -124,6 +124,14 @@ func (s *ICCAScheduler) BurnValue(issuanceTime time.Time) (float64, bool) {
 func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
 	s.tangle.Storage.MessageMetadata(messageID).SetEnqueueTime(time.Now())
 	m := s.tangle.Storage.Message(messageID)
+
+	// if this message is a validation block, skip the scheduler.
+	if m.Validation {
+		s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
+		s.updateChildrenReady(m.ID)
+		s.events.MessageScheduled.Trigger(m.ID)
+	}
+
 	// if this node is a spammer, skip the scheduler.
 	if m.Issuer == s.tangle.Peer.ID && config.Params.BurnPolicies[m.Issuer] == 0 {
 		s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())

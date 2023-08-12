@@ -14,7 +14,7 @@ var (
 
 	NodesCount = 100
 
-	SchedulingRate = 100
+	SchedulingRate = 200
 
 	SlotTime          = time.Duration(1 * float64(time.Second))
 	MinCommittableAge = time.Duration(4 * float64(time.Second))
@@ -36,22 +36,22 @@ var Params = &Config{
 		SimulationDuration:              time.Duration(1) * time.Minute,
 	},
 	NetworkSettings: &NetworkSettings{
-		CommitteeWeight:   0.5,
-		NodesCount:        NodesCount,
-		SchedulingRate:    SchedulingRate,
-		IssuingRate:       SchedulingRate,
-		CongestionPeriods: []float64{1.2, 1.0, 1.2, 1.0},
-		ValidatorCount:    20,
-		ValidatorBPS:      1,
-		ParentsCount:      8,
-		ParentCountVB:     2,
-		ParentCountNVB:    38,
-		NeighbourCountWS:  4,
-		RandomnessWS:      1.0,
-		IMIF:              "poisson",
-		PacketLoss:        0.0,
-		MinDelay:          100,
-		MaxDelay:          100,
+		CommitteeBandwidth: 0.5,
+		NodesCount:         NodesCount,
+		SchedulingRate:     SchedulingRate,
+		IssuingRate:        SchedulingRate,
+		CongestionPeriods:  []float64{1.2, 1.0, 1.2, 1.0},
+		ValidatorCount:     20,
+		ValidatorBPS:       1,
+		ParentsCount:       8,
+		ParentCountVB:      2,
+		ParentCountNVB:     38,
+		NeighbourCountWS:   4,
+		RandomnessWS:       1.0,
+		IMIF:               "poisson",
+		PacketLoss:         0.0,
+		MinDelay:           100,
+		MaxDelay:           100,
 
 		SlowdownFactor: 1,
 	},

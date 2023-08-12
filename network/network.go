@@ -16,10 +16,11 @@ var log = logger.New("Network")
 // region Network //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Network struct {
-	Peers              []*Peer
-	WeightDistribution *ConsensusWeightDistribution
-	AdversaryGroups    AdversaryGroups
-	Attacker           *SingleAttacker
+	Peers                 []*Peer
+	WeightDistribution    *ConsensusWeightDistribution
+	BandwidthDistribution *BandwidthDistribution
+	AdversaryGroups       AdversaryGroups
+	Attacker              *SingleAttacker
 }
 
 func New(option ...Option) (network *Network) {
@@ -102,9 +103,11 @@ func (c *Configuration) CreatePeers(network *Network) {
 	defer log.Info("Creating peers ... [DONE]")
 
 	network.WeightDistribution = NewConsensusWeightDistribution()
+	network.BandwidthDistribution = NewBandwidthDistribution()
 
 	for _, nodesSpecification := range c.nodes {
 		nodeWeights := nodesSpecification.ConfigureWeights(network)
+		nodeBandwidth := nodesSpecification.ConfigureBandwidth(network)
 
 		for i := 0; i < nodesSpecification.nodeCount; i++ {
 			nodeType := HonestNode
@@ -125,10 +128,15 @@ func (c *Configuration) CreatePeers(network *Network) {
 			log.Debugf("Created %s ... [DONE]", peer)
 
 			network.WeightDistribution.SetWeight(peer.ID, nodeWeights[i])
+			network.BandwidthDistribution.SetBandwidth(peer.ID, nodeBandwidth[i])
 		}
 		for _, peer := range network.Peers {
 			peer.SetupNode(network.WeightDistribution, c.genesisTime)
 			log.Debugf("Setup %s ... [DONE]", peer)
+			log.Debugf("%s weight %d bandwidth %f",
+				peer,
+				network.WeightDistribution.Weight(peer.ID),
+				network.BandwidthDistribution.Bandwidth(peer.ID))
 		}
 	}
 }
@@ -151,11 +159,16 @@ func (c *Configuration) ConnectPeers(network *Network) {
 
 type Option func(*Configuration)
 
-func Nodes(nodeCount int, nodeFactories map[AdversaryType]NodeFactory, weightGenerator WeightGenerator) Option {
+func Nodes(nodeCount int,
+	nodeFactories map[AdversaryType]NodeFactory,
+	weightGenerator WeightGenerator,
+	bandwidthGenerator BandwidthGenerator,
+) Option {
 	nodeSpecs := &NodesSpecification{
-		nodeCount:       nodeCount,
-		nodeFactories:   nodeFactories,
-		weightGenerator: weightGenerator,
+		nodeCount:          nodeCount,
+		nodeFactories:      nodeFactories,
+		weightGenerator:    weightGenerator,
+		bandwidthGenerator: bandwidthGenerator,
 	}
 
 	return func(config *Configuration) {
@@ -164,9 +177,10 @@ func Nodes(nodeCount int, nodeFactories map[AdversaryType]NodeFactory, weightGen
 }
 
 type NodesSpecification struct {
-	nodeCount       int
-	nodeFactories   map[AdversaryType]NodeFactory
-	weightGenerator WeightGenerator
+	nodeCount          int
+	nodeFactories      map[AdversaryType]NodeFactory
+	weightGenerator    WeightGenerator
+	bandwidthGenerator BandwidthGenerator
 }
 
 func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
@@ -187,10 +201,29 @@ func (n *NodesSpecification) ConfigureWeights(network *Network) []uint64 {
 		nodeWeights = n.weightGenerator(nodesCount, totalWeight)
 		nodeWeights = network.Attacker.UpdateAttackerWeight(nodeWeights)
 	default:
-		nodeWeights = n.weightGenerator(config.Params.NodesCount, float64(config.Params.NodesTotalWeight))
+		// nodeWeights = n.weightGenerator(config.Params.NodesCount, float64(config.Params.NodesTotalWeight))
+		nodeWeights = EqualDistribution(
+			config.Params.ValidatorCount,
+			config.Params.NodesCount-config.Params.ValidatorCount,
+			config.Params.NodesTotalWeight,
+		)
 	}
 
 	return nodeWeights
+}
+
+func (n *NodesSpecification) ConfigureBandwidth(network *Network) []float64 {
+	var nodeBandwidth []float64
+
+	switch config.Params.SimulationMode {
+	default:
+		nodeBandwidth = n.bandwidthGenerator(
+			config.Params.ValidatorCount,
+			config.Params.NodesCount-config.Params.ValidatorCount,
+			float64(float64(config.Params.SchedulingRate)*(config.Params.CommitteeBandwidth)),
+			float64(float64(config.Params.SchedulingRate)*(1-config.Params.CommitteeBandwidth)))
+	}
+	return nodeBandwidth
 }
 
 func Delay(minDelay time.Duration, maxDelay time.Duration) Option {

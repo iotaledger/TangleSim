@@ -41,12 +41,12 @@ type NetworkSettings struct {
 	NodesCount int `default:"100"`
 	// ValidatorCount is the total number of nodes simulated in the network.
 	ValidatorCount int `default:"20"`
-	// CommitteeWeight is the weight of the committee in the network.
-	CommitteeWeight float64 `default:"0.5"`
-	// ValidatorBPS is the rate of validation blocks simulated in the network.
+	// CommitteeBandwidth is the total bandwidth of the committee in the network.
+	CommitteeBandwidth float64 `default:"0.5"`
+	// ValidatorBPS is the rate of validation blocks simulated in the network per validator node.
 	ValidatorBPS int `default:"1"`
 	// Scheduler rate in units of messages per second.
-	SchedulingRate int `default:"100"`
+	SchedulingRate int `default:"200"`
 	// Total rate of issuing messages in units of messages per second.
 	IssuingRate int `default:"100"`
 	//, 0.5, 1.5, 1.5, 0.5} // congested/uncongested periods

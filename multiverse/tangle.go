@@ -8,19 +8,20 @@ import (
 )
 
 type Tangle struct {
-	Peer               *network.Peer
-	WeightDistribution *network.ConsensusWeightDistribution
-	GenesisTime        time.Time
-	Storage            *Storage
-	Solidifier         *Solidifier
-	ApprovalManager    *ApprovalManager
-	Requester          *Requester
-	Booker             *Booker
-	OpinionManager     OpinionManagerInterface
-	TipManager         *TipManager
-	MessageFactory     *MessageFactory
-	Utils              *Utils
-	Scheduler          Scheduler
+	Peer                  *network.Peer
+	WeightDistribution    *network.ConsensusWeightDistribution
+	BandwidthDistribution *network.BandwidthDistribution
+	GenesisTime           time.Time
+	Storage               *Storage
+	Solidifier            *Solidifier
+	ApprovalManager       *ApprovalManager
+	Requester             *Requester
+	Booker                *Booker
+	OpinionManager        OpinionManagerInterface
+	TipManager            *TipManager
+	MessageFactory        *MessageFactory
+	Utils                 *Utils
+	Scheduler             Scheduler
 }
 
 func NewTangle() (tangle *Tangle) {

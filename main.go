@@ -117,8 +117,10 @@ func main() {
 	// The simulation start time
 	simulationStartTime = time.Now()
 	testNetwork := network.New(
-		network.Nodes(config.Params.NodesCount, nodeFactories, network.ZIPFDistribution(
-			config.Params.ZipfParameter)),
+		network.Nodes(config.Params.NodesCount,
+			nodeFactories,
+			network.ZIPFDistribution(config.Params.ZipfParameter),
+			network.MixedZIPFDistribution(config.Params.ZipfParameter)),
 		network.Delay(time.Duration(config.Params.SlowdownFactor)*time.Duration(config.Params.MinDelay)*time.Millisecond,
 			time.Duration(config.Params.SlowdownFactor)*time.Duration(config.Params.MaxDelay)*time.Millisecond),
 		network.PacketLoss(config.Params.PacketLoss, config.Params.PacketLoss),
@@ -274,7 +276,9 @@ func startIssuingMessages(testNetwork *network.Network) {
 		// MetricsMgr.GlobalCounters.Add("relevantValidators", 1)
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
-		band := peer.AdversarySpeedup * weightOfPeer * float64(config.Params.IssuingRate) / nodeTotalWeight
+		// band := peer.AdversarySpeedup * weightOfPeer * float64(config.Params.IssuingRate) / nodeTotalWeight
+		band := peer.AdversarySpeedup * float64(testNetwork.BandwidthDistribution.Bandwidth(peer.ID))
+		// log.Debugf("startIssuingMessages... Peer ID: %d, Bandwidth: %f", peer.ID, band)
 		// fmt.Println(peer.AdversarySpeedup, weightOfPeer, config.Params.IssuingRate, nodeTotalWeight)
 		//fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
 		go issueMessages(peer, band)

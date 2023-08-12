@@ -683,7 +683,10 @@ class FigurePlotter:
               'non_spammer_not_accepted_time']
         # Get y_max
         y_max = 0
+        # print(data)
         for i, l in enumerate(data):
+            if len(l[0]) == 0:
+                continue
             for j, d in enumerate(l):
                 y_max = max(int(max(d)+0.99), y_max)
                 if y_max > 10:
@@ -691,6 +694,8 @@ class FigurePlotter:
         # y_max = 10
 
         for i, d in enumerate(data):
+            if len(d[0]) == 0:
+                continue
             plt.violinplot(d)
             # plt.xlabel('Node Count')
             # plt.xticks(ticks=list(range(1, 1 + len(variations))),

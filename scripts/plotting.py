@@ -741,7 +741,8 @@ class FigurePlotter:
         y_max = 0
 
         for i, d in enumerate(data):
-            # print(d)
+            if len(d) == 0:
+                continue
             y_max = max(int(max(d)+0.99), y_max)
             if y_max > 10:
                 y_max = (int((y_max+5.5)//5.0)*5)

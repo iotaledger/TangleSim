@@ -201,7 +201,8 @@ def plot_per_node_metric(data, times, cd, title, ylab):
                  for bp in bps]
     fig.legend(ModeLines, [burnPolicyNames[cd["SchedulerType"]][i]
                for i in bps], loc="lower right")
-    plt.savefig(f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}.png', bbox_inches='tight')
+    plt.savefig(
+        f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}.png', bbox_inches='tight')
     plt.close()
 
 
@@ -226,8 +227,10 @@ def plot_per_node_wo_spammer_metric(data, times, cd, title, ylab):
     #              for bp in bps]
     # fig.legend(ModeLines, [burnPolicyNames[cd["SchedulerType"]][i]
     #            for i in bps], loc="lower right")
-    plt.savefig(f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}_wo_spammer.png', bbox_inches='tight')
+    plt.savefig(
+        f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}_wo_spammer.png', bbox_inches='tight')
     plt.close()
+
 
 def plot_per_node_rates(messages, times, cd, title):
     fig, ax = plt.subplots(2, 1, sharex=True, figsize=(8, 8))
@@ -304,7 +307,8 @@ def plot_latency_cdf(latencies, cd, title):
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
                 '/figures/'+title+'.png', bbox_inches='tight')
     plt.close()
-    
+
+
 def plot_total_traffic(data, times, cd, title, ylim=None):
     _, ax = plt.subplots(figsize=(8, 4))
     ax.grid(linestyle='--')
@@ -315,16 +319,20 @@ def plot_total_traffic(data, times, cd, title, ylim=None):
 
     # read config from mb.config
     with open(cd['CONFIGURATION_PATH']) as f:
-            c = json.load(f)
+        c = json.load(f)
 
-    avg_window = int(10* (c['SimulationDuration']*1e-9) / 60)
+    totals = np.sum(data, axis=0)
+    scalar = 1  # (c['SimulationDuration']*1e-9) / 60
+    print(scalar)
+    avg_window = int(10 * scalar)
     rate = (totals[avg_window:]-totals[:-avg_window]) * \
-        100/(avg_window*cd['MONITOR_INTERVAL']) * \
-        ((c['SimulationDuration']*1e-9) / 60)
+        1000/(avg_window*cd['MONITOR_INTERVAL'])
+    print(rate)
 
-    plt.bar(times[avg_window:][::avg_window], rate[::avg_window], 10, label='Disseminated Blocks')
+    plt.bar(times[avg_window:][::avg_window],
+            rate[::avg_window], 1, label='Disseminated Blocks')
 
-    partition = int(15* (c['SimulationDuration']*1e-9) / 60)
+    partition = int(15 * (c['SimulationDuration']*1e-9) / 60)
     # remainder = len(times[avg_window:][::10]) % 4
     # print(remainder)
     schedulingRate = c['SchedulingRate']
@@ -338,9 +346,11 @@ def plot_total_traffic(data, times, cd, title, ylim=None):
     ax.set_xlim(0, times[-1])
     if ylim is not None:
         ax.set_ylim(0, ylim)
-        plt.savefig(f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}{str(ylim)}.png', bbox_inches='tight')
+        plt.savefig(
+            f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}{str(ylim)}.png', bbox_inches='tight')
     else:
-        plt.savefig(f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}.png', bbox_inches='tight')
+        plt.savefig(
+            f'{cd["SCHEDULER_FIGURE_OUTPUT_PATH"]}/{title}.png', bbox_inches='tight')
     plt.close()
 
 
@@ -364,6 +374,7 @@ def plot_total_rate(data, times, cd, title, ylim=None):
         plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
                     '/figures/'+title+'.png', bbox_inches='tight')
     plt.close()
+
 
 def plot_traffic(data, title, cd):
     plt.clf()
@@ -392,6 +403,7 @@ def plot_traffic(data, title, cd):
     plt.savefig(cd['RESULTS_PATH']+'/'+cd['SCRIPT_START_TIME'] +
                 '/figures/'+title+'.png', bbox_inches='tight')
     plt.close()
+
 
 def plot_latency(latencies, times, cd, title):
     fig, ax = plt.subplots(figsize=(8, 4))

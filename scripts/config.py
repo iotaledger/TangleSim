@@ -22,7 +22,7 @@ class Configuration:
         self.cd['RESULTS_PATH'] = self.cd['MULTIVERSE_PATH'] + "/results"
         self.cd['SCRIPT_START_TIME'] = datetime.strftime(
             datetime.now(), "%Y%m%d_%H%M")
-        # self.cd['SCRIPT_START_TIME'] = '20230705_0905'
+        # self.cd['SCRIPT_START_TIME'] = '20230715_0555'
         self.cd['CONFIGURATION_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/mb.config"
         self.cd['GENERAL_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/general"
         self.cd['SCHEDULER_OUTPUT_PATH'] = f"{self.cd['MULTIVERSE_PATH']}/results/{self.cd['SCRIPT_START_TIME']}/scheduler"
@@ -75,7 +75,7 @@ class Configuration:
 
         # Plotting variation setting
         self.cd['PLOT_VARIED_FIGURES'] = False
-        self.cd['VARIED_PATHS'] = [ ]
+        self.cd['VARIED_PATHS'] = []
         self.cd['VARIED_LABELS'] = [
             # '15.07low',
             # '32.47low',

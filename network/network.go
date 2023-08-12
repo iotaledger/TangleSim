@@ -131,7 +131,7 @@ func (c *Configuration) CreatePeers(network *Network) {
 			network.BandwidthDistribution.SetBandwidth(peer.ID, nodeBandwidth[i])
 		}
 		for _, peer := range network.Peers {
-			peer.SetupNode(network.WeightDistribution, c.genesisTime)
+			peer.SetupNode(network.WeightDistribution, network.BandwidthDistribution, c.genesisTime)
 			log.Debugf("Setup %s ... [DONE]", peer)
 			log.Debugf("%s weight %d bandwidth %f",
 				peer,

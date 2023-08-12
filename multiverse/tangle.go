@@ -40,9 +40,15 @@ func NewTangle() (tangle *Tangle) {
 	return
 }
 
-func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution, genesisTime time.Time) {
+func (t *Tangle) Setup(
+	peer *network.Peer,
+	weightDistribution *network.ConsensusWeightDistribution,
+	bandwidthDistribution *network.BandwidthDistribution,
+	genesisTime time.Time,
+) {
 	t.Peer = peer
 	t.WeightDistribution = weightDistribution
+	t.BandwidthDistribution = bandwidthDistribution
 
 	t.Storage.Setup(genesisTime)
 	t.Solidifier.Setup()

@@ -37,11 +37,11 @@ func (n *Node) Tangle() *Tangle {
 	return n.tangle
 }
 
-func (n *Node) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution, genesisTime time.Time) {
+func (n *Node) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution, bandwidthDistribution *network.BandwidthDistribution, genesisTime time.Time) {
 	defer log.Debugf("%s: Setting up Multiverse ... [DONE]", peer)
 
 	n.peer = peer
-	n.tangle.Setup(peer, weightDistribution, genesisTime)
+	n.tangle.Setup(peer, weightDistribution, bandwidthDistribution, genesisTime)
 	n.tangle.Requester.Events.Request.Attach(events.NewClosure(func(messageID MessageID) {
 		n.peer.GossipNetworkMessage(&MessageRequest{MessageID: messageID, Issuer: n.peer.ID})
 	}))

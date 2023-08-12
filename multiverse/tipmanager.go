@@ -134,10 +134,10 @@ func (t *TipManager) Tips(validation bool) (strongTips MessageIDs, weakTips Mess
 	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
-	peerID := t.tangle.Peer.ID
-	if peerID == 99 {
-		t.WalkForOldestUnconfirmed(tipSet)
-	}
+	// peerID := t.tangle.Peer.ID
+	// if peerID == 99 {
+	// 	t.WalkForOldestUnconfirmed(tipSet)
+	// }
 
 	strongTips = tipSet.StrongTips(config.Params.ParentsCount, t.tsa)
 	// In the paper we consider all strong tips

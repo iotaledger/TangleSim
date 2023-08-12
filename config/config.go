@@ -17,7 +17,8 @@ var (
 	SchedulingRate = 200
 
 	SlotTime          = time.Duration(1 * float64(time.Second))
-	MinCommittableAge = time.Duration(4 * float64(time.Second))
+	MinCommittableAge = time.Duration(30 * float64(time.Second))
+	RMCmin            = 500000.0 // 0.25
 )
 
 // simulator settings
@@ -40,7 +41,7 @@ var Params = &Config{
 		NodesCount:         NodesCount,
 		SchedulingRate:     SchedulingRate,
 		IssuingRate:        SchedulingRate,
-		CongestionPeriods:  []float64{1.2, 1.0, 1.2, 1.0},
+		CongestionPeriods:  []float64{1.0, 1.0, 1.0, 1.0},
 		ValidatorCount:     20,
 		ValidatorBPS:       1,
 		ParentsCount:       8,
@@ -64,7 +65,7 @@ var Params = &Config{
 	},
 	TipSelectionAlgorithmSettings: &TipSelectionAlgorithmSettings{
 		TSA:           "RURTS",
-		DeltaURTS:     5.0,
+		DeltaURTS:     30.0,
 		WeakTipsRatio: 0.0,
 	},
 	CongestionControlSettings: &CongestionControlSettings{
@@ -77,16 +78,16 @@ var Params = &Config{
 		SlotTime:          time.Duration(1 * float64(time.Second)),
 		MinCommittableAge: MinCommittableAge,
 		RMCTime:           MinCommittableAge,
-		InitialRMC:        1.0,
 		LowerRMCThreshold: 0.5 * float64(SchedulingRate) * SlotTime.Seconds(),
 		UpperRMCThreshold: 0.75 * float64(SchedulingRate) * SlotTime.Seconds(),
 		AlphaRMC:          0.8,
 		BetaRMC:           1.2,
-		RMCmin:            0.25,
-		RMCmax:            2.0,
-		RMCincrease:       1.0,
-		RMCdecrease:       0.5,
-		RMCPeriodUpdate:   5,
+		RMCmin:            RMCmin, // 0.25
+		InitialRMC:        RMCmin,
+		RMCmax:            5000000.0, //2.0
+		RMCincrease:       1000000.0, // 1.0
+		RMCdecrease:       500000.0,  // 0.5
+		RMCPeriodUpdate:   30,
 	},
 	AdversarySettings: &AdversarySettings{
 		SimulationMode:   "None",

@@ -18,8 +18,7 @@ type SlotIndex int
 // region Message //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type Message struct {
-	Validation bool
-
+	Validation     bool
 	ID             MessageID
 	StrongParents  MessageIDs
 	WeakParents    MessageIDs

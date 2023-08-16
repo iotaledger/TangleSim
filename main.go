@@ -344,6 +344,7 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 func shutdownSimulation(net *network.Network) {
 	net.Shutdown()
 	close(shutdownGlobalMetrics)
+	dumpAcceptanceLatencyAmongNodes()
 	dumpFinalData(net)
 	simulationWg.Wait()
 	//dumpAllMessageMetaData(net.Peers[0].Node.(multiverse.NodeInterface).Tangle().Storage)
@@ -631,7 +632,6 @@ func monitorGlobalMetrics(net *network.Network) {
 					partialConfirmationResultsWriter,
 					unconfirmationResultsWriter)
 			case <-shutdownGlobalMetrics:
-				dumpAcceptanceLatencyAmongNodes()
 				log.Warn("Shutting down global metrics")
 				return
 			}

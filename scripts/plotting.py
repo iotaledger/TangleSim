@@ -685,7 +685,7 @@ class FigurePlotter:
         y_max = 0
         # print(data)
         for i, l in enumerate(data):
-            if len(l[0]) == 0:
+            if len(l) == 0 or len(l[0]) == 0:
                 continue
             for j, d in enumerate(l):
                 y_max = max(int(max(d)+0.99), y_max)
@@ -747,13 +747,14 @@ class FigurePlotter:
             if y_max > 10:
                 y_max = (int((y_max+5.5)//5.0)*5)
         # y_max = 10
-        plt.violinplot(data)
-        plt.ylim([0, y_max])
-        plt.ylabel('Pre-Acceptance Delay (s)')
-        plt.xticks([])
-        plt.savefig(f'{self.figure_output_path}/{ofn}',
-                    transparent=self.transparent, dpi=300)
-        plt.close()
+        if len(data[0]):
+            plt.violinplot(data)
+            plt.ylim([0, y_max])
+            plt.ylabel('Pre-Acceptance Delay (s)')
+            plt.xticks([])
+            plt.savefig(f'{self.figure_output_path}/{ofn}',
+                        transparent=self.transparent, dpi=300)
+            plt.close()
 
     def number_of_requested_missing_messages_batch(self, var, fs, ofn, title, label):
         # Init the matplotlib config

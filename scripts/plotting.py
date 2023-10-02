@@ -38,8 +38,6 @@ class FigurePlotter:
             if not os.path.exists(path):
                 os.makedirs(path)
 
-
-
     def _distribution_boxplot(self, var, base_folder, ofn, fc, iters, title, target):
         """The basic function of generating the distribution boxplot figures.
         Args:
@@ -258,7 +256,7 @@ class FigurePlotter:
 
         data = []
         variations = []
-        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item))):
+        for i, (v, d) in enumerate(sorted(variation_data.items(), key=lambda item: eval(item[0]))):
             data.append(d)
             variations.append(v)
 
@@ -624,7 +622,7 @@ class FigurePlotter:
         plt.violinplot(data)
         # plt.xlabel('Adversary Weight (%)')
         # plt.xlabel('Uniform Random Network Delay (ms)')
-        plt.xlabel('Node Count')
+        # plt.xlabel('Node Count, TPS')
         # plt.ylim(0, 6)
         plt.xlabel('Node Count')
         plt.xticks(ticks=list(range(1, 1 + len(variations))),
@@ -632,9 +630,9 @@ class FigurePlotter:
 
         y_max = int(max(data[0])+0.99)
         if y_max > 10:
-            y_max = (int((max(data[0])+5.5)//5.0)*5)          
+            y_max = (int((max(data[0])+5.5)//5.0)*5)
         plt.ylim([0, y_max])
-        plt.ylabel('Acceptance Time (s)')
+        plt.ylabel('Pre-Acceptance Time (s)')
         plt.savefig(f'{self.figure_output_path}/{ofn}',
                     transparent=self.transparent, dpi=300)
         plt.close()
@@ -668,10 +666,10 @@ class FigurePlotter:
             else:
                 label = v
             variation_data[label] = (spammer_accepted_time,
-                                 non_spammer_accepted_time,
-                                 spammer_not_accepted_time,
-                                 non_spammer_not_accepted_time)
-            
+                                     non_spammer_accepted_time,
+                                     spammer_not_accepted_time,
+                                     non_spammer_not_accepted_time)
+
         data = [[] for _ in range(4)]
         variations = []
         for i, (v, d) in enumerate(variation_data.items()):
@@ -685,7 +683,10 @@ class FigurePlotter:
               'non_spammer_not_accepted_time']
         # Get y_max
         y_max = 0
+        # print(data)
         for i, l in enumerate(data):
+            if len(l) == 0 or len(l[0]) == 0:
+                continue
             for j, d in enumerate(l):
                 y_max = max(int(max(d)+0.99), y_max)
                 if y_max > 10:
@@ -693,13 +694,16 @@ class FigurePlotter:
         # y_max = 10
 
         for i, d in enumerate(data):
+            if len(d[0]) == 0:
+                continue
             plt.violinplot(d)
-            plt.xlabel('Node Count')
-            plt.xticks(ticks=list(range(1, 1 + len(variations))),
-                       labels=variations)
+            # plt.xlabel('Node Count')
+            # plt.xticks(ticks=list(range(1, 1 + len(variations))),
+            #            labels=variations)
+            plt.xticks([])
 
             plt.ylim([0, y_max])
-            plt.ylabel('Acceptance Time (s)')
+            plt.ylabel('Pre-Acceptance Time (s)')
 
             if i > 1:
                 plt.ylabel('Since Issuance (s)')
@@ -707,8 +711,7 @@ class FigurePlotter:
                         transparent=self.transparent, dpi=300)
             plt.close()
 
-    # the latency of first node accepts a block and the last node accpets the same block.
-    def plot_varied_acceptance_latency_violinplot(self, var, fs, ofn, title, labels):
+    def acceptance_delay_violinplot(self, var, fs, ofn, title, label):
 
         # Init the matplotlib config
         font = {'family': 'Times New Roman',
@@ -719,96 +722,38 @@ class FigurePlotter:
         plt.close('all')
         plt.figure()
         variation_data = {}
-        for i, f in enumerate(fs):
+        for f in glob.glob(fs):
             try:
-                v, acceptance_delay_time = self.parser.parse_acceptance_delay_file(f, var)
+                v, acceptance_delay_time = self.parser.parse_acceptance_delay_file(
+                    f, var)
             except:
                 logging.error(f'{fs}: Incomplete Data!')
                 continue
-            label = ''
-            if var == '':
-                label = labels[i]
-            else:
-                label = v
-            variation_data[label] = acceptance_delay_time
+            variation_data[v] = acceptance_delay_time
 
         data = []
         variations = []
         for i, (v, d) in enumerate(variation_data.items()):
-            print(v)
-            data.append((d*1e-9).tolist())
+            data.append(d*1e-9)
             variations.append(v)
 
         # Get y_max
         y_max = 0
 
         for i, d in enumerate(data):
+            if len(d) == 0:
+                continue
             y_max = max(int(max(d)+0.99), y_max)
             if y_max > 10:
                 y_max = (int((y_max+5.5)//5.0)*5)
-        
         # y_max = 10
-        plt.violinplot(data)
-        plt.ylim([0, y_max])
-        plt.ylabel('Acceptance Delay among nodes (s)')
-        plt.xticks(ticks=list(range(1, 1 + len(variations))),
-                       labels=variations)
-
-        plt.savefig(f'{self.figure_output_path}/{ofn}',
-                    transparent=self.transparent, dpi=300)
-        plt.close()
-
-
-    def plot_confirmation_threshold(self, var, fs, ofn, title, labels):
-
-        # Init the matplotlib config
-        font = {'family': 'Times New Roman',
-                'weight': 'bold',
-                'size': 12}
-        matplotlib.rc('font', **font)
-
-        plt.close('all')
-        plt.figure()
-
-        variation_data = {}
-        for f in glob.glob(fs):
-            try:
-                (v,
-                unconfirmation_age,
-                unconfirmation_age_since_tip,
-                confirmation_age,
-                confirmation_age_since_tip) = self.parser.parse_confirmation_threshold_file(f, var)
-            except:
-                logging.error(f'{fs}: Incomplete Data!')
-                continue
-            variation_data[v] = (unconfirmation_age,
-                                 unconfirmation_age_since_tip,
-                                 confirmation_age,
-                                 confirmation_age_since_tip)
-
-        data = [[] for _ in range(4)]
-        for i, (v, d) in enumerate(variation_data.items()):
-            for j, d in enumerate(d):
-                data[j] = d.tolist()
-
-        fn = ['Unconfirmation Age',
-              'Unconfirmation Age Since Tip',
-              'Confirmation Age',
-              'Confirmation Age Since Tip']
-        # Get x_max
-        x_max = 0
-        for i, d in enumerate(data):
-            x_max = max(int(max(d)+0.99), x_max)
-            if x_max > 10:
-                x_max = (int((x_max+5.5)//5.0)*5)
-
-        for i, d in enumerate(data):
-            plt.hist(d, weights=np.ones(len(d))/len(d),
-                bins=10, label="Data")
-            plt.xlim(0, x_max)
-            plt.ylabel("Probability")
-            plt.xlabel(f'{fn[i]} (s)')
-            plt.savefig(f'{self.figure_output_path}/{fn[i]}_{ofn}', transparent=self.transparent, dpi=300)
+        if len(data[0]):
+            plt.violinplot(data)
+            plt.ylim([0, y_max])
+            plt.ylabel('Pre-Acceptance Delay (s)')
+            plt.xticks([])
+            plt.savefig(f'{self.figure_output_path}/{ofn}',
+                        transparent=self.transparent, dpi=300)
             plt.close()
 
     def number_of_requested_missing_messages_batch(self, var, fs, ofn, title, label):

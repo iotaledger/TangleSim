@@ -39,14 +39,24 @@ type SimulatorSettings struct {
 type NetworkSettings struct {
 	// NodesCount is the total number of nodes simulated in the network.
 	NodesCount int `default:"100"`
+	// ValidatorCount is the total number of nodes simulated in the network.
+	ValidatorCount int `default:"20"`
+	// CommitteeBandwidth is the total bandwidth of the committee in the network.
+	CommitteeBandwidth float64 `default:"0.5"`
+	// ValidatorBPS is the rate of validation blocks simulated in the network per validator node.
+	ValidatorBPS int `default:"1"`
 	// Scheduler rate in units of messages per second.
-	SchedulingRate int `default:"100"`
+	SchedulingRate int `default:"200"`
 	// Total rate of issuing messages in units of messages per second.
 	IssuingRate int `default:"100"`
 	//, 0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
 	CongestionPeriods []float64
 	// ParentsCount that a new message is selecting from the tip pool.
 	ParentsCount int `default:"8"`
+	// ParentCountVB is the number of validation block parents for validation block tsa.
+	ParentCountVB int `default:"2"`
+	// ParentCountNVB is the number of non-validation block parents for validation block tsa.
+	ParentCountNVB int `default:"38"`
 	// Number of neighbors node is connected to in WattsStrogatz network topology.
 	NeighbourCountWS int `default:"4"`
 	// WattsStrogatz randomness parameter, gamma parameter described in https://blog.iota.org/the-fast-probabilistic-consensus-simulator-d5963c558b6e/

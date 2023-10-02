@@ -1,39 +1,7 @@
 package network
 
-import (
-	"math"
-)
-
 type WeightGenerator func(nodeCount int, nodeTotalWeight float64) []uint64
-
-// region ZIPFDistribution /////////////////////////////////////////////////////////////////////////////////////////////
-
-func ZIPFDistribution(s float64) WeightGenerator {
-	return func(nodeCount int, totalWeight float64) (result []uint64) {
-		rawTotalWeight := uint64(0)
-		rawWeights := make([]uint64, nodeCount)
-		for i := 0; i < nodeCount; i++ {
-			weight := uint64(math.Pow(float64(i+1), -s) * totalWeight)
-			rawWeights[i] = weight
-			rawTotalWeight += weight
-		}
-
-		normalizedTotalWeight := uint64(0)
-		result = make([]uint64, nodeCount)
-		for i := 0; i < nodeCount; i++ {
-			normalizedWeight := uint64((float64(rawWeights[i]) / float64(rawTotalWeight)) * totalWeight)
-
-			result[i] = normalizedWeight
-			normalizedTotalWeight += normalizedWeight
-		}
-
-		result[0] += uint64(totalWeight) - normalizedTotalWeight
-
-		return
-	}
-}
-
-// endregion ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+type EqualWeightGenerator func(validatorNodeCount int, nonValidatorNodeCount int, totalWeight int) []uint64
 
 // region ConsensusWeightDistribution //////////////////////////////////////////////////////////////////////////////////
 

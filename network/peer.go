@@ -38,8 +38,8 @@ func NewPeer(node Node) (peer *Peer) {
 	return
 }
 
-func (p *Peer) SetupNode(consensusWeightDistribution *ConsensusWeightDistribution, genesisTime time.Time) {
-	p.Node.Setup(p, consensusWeightDistribution, genesisTime)
+func (p *Peer) SetupNode(consensusWeightDistribution *ConsensusWeightDistribution, bandwidthDistribution *BandwidthDistribution, genesisTime time.Time) {
+	p.Node.Setup(p, consensusWeightDistribution, bandwidthDistribution, genesisTime)
 }
 
 func (p *Peer) Shutdown() {

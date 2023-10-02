@@ -52,8 +52,8 @@ func (s *ICCAScheduler) Setup() {
 	for id := 0; id < config.Params.NodesCount; id++ {
 		s.accessMana[network.PeerID(id)] = 0.0
 		s.deficits[network.PeerID(id)] = 0.0
-		idWeight := s.tangle.WeightDistribution.Weight(network.PeerID(id))
-		s.quanta[network.PeerID(id)] = float64(idWeight) / float64(config.Params.NodesTotalWeight)
+		idBandwidth := s.tangle.BandwidthDistribution.Bandwidth(network.PeerID(id))
+		s.quanta[network.PeerID(id)] = float64(idBandwidth) / float64(config.Params.SchedulingRate)
 	}
 	// initialise the issuer queues
 	s.initQueues()
@@ -100,12 +100,12 @@ func (s *ICCAScheduler) setReady(messageID MessageID) {
 }
 
 func (s *ICCAScheduler) IncrementAccessMana(schedulingRate float64) {
-	weights := s.tangle.WeightDistribution.Weights()
-	totalWeight := config.Params.NodesTotalWeight
+	bandwidth := s.tangle.BandwidthDistribution.Bandwidths()
+	totalBandwidth := config.Params.SchedulingRate
 	// every time something is scheduled, we add this much mana in total\
 	mana := float64(10)
 	for id := range s.accessMana {
-		s.accessMana[id] += mana * float64(weights[id]) / float64(totalWeight)
+		s.accessMana[id] += mana * float64(bandwidth[id]) / float64(totalBandwidth)
 	}
 }
 
@@ -124,6 +124,14 @@ func (s *ICCAScheduler) BurnValue(issuanceTime time.Time) (float64, bool) {
 func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
 	s.tangle.Storage.MessageMetadata(messageID).SetEnqueueTime(time.Now())
 	m := s.tangle.Storage.Message(messageID)
+
+	// if this message is a validation block, skip the scheduler.
+	if m.Validation {
+		s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
+		s.updateChildrenReady(m.ID)
+		s.events.MessageScheduled.Trigger(m.ID)
+	}
+
 	// if this node is a spammer, skip the scheduler.
 	if m.Issuer == s.tangle.Peer.ID && config.Params.BurnPolicies[m.Issuer] == 0 {
 		s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())

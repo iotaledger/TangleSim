@@ -223,7 +223,8 @@ if __name__ == '__main__':
                     )
                     print(result.stdout)
                 except subprocess.TimeoutExpired:
-                    print(f"Process timed out after {expire} seconds. Terminating simulation process.")
+                    print(
+                        f"Process timed out after {expire} seconds. Terminating simulation process.")
 
                 # os.system(
                 #     f"{exec} -scriptStartTime={config.cd['SCRIPT_START_TIME']}")
@@ -231,31 +232,28 @@ if __name__ == '__main__':
                 logging.error(f'The VARIATIONS {var} is not supported!')
                 sys.exit(2)
 
-    #move_results(sim_result_path, folder)
+    # move_results(sim_result_path, folder)
 
     # Plot the figures
     if config.cd['PLOT_FIGURES']:
 
         # New ADDED
         plotter = FigurePlotter(config.cd)
-        (n, t_confirmation, t_convergence, t_flips, t_unconfirming, t_depth) = c.FIGURE_NAMING_DICT[var]
+        (n, t_confirmation, t_convergence, t_flips,
+         t_unconfirming, t_depth) = c.FIGURE_NAMING_DICT[var]
         iter_suffix = ''
         folder = config.cd['GENERAL_OUTPUT_PATH']
         # plotter.confirmation_time_violinplot(n, folder + '/aw0*csv', f'CT_{n}_aw0_ct{iter_suffix}.pdf', t_confirmation, n)
         # plotter.confirmation_time_violinplot(n, folder + '/aw99*csv', f'CT_{n}_aw99_ct{iter_suffix}.pdf', t_confirmation, n)
         if config.cd['PLOT_VARIED_FIGURES']:
-             plotter.plot_varied_block_information_violinplot(
-                '', [folder + '/BlockInformation.csv' for folder in config.cd['VARIED_PATHS']], f'blockInformation.pdf', t_confirmation, config.cd['VARIED_LABELS'])
-             plotter.plot_varied_acceptance_latency_violinplot(
-                '', [folder + '/acceptanceTimeLatencyAmongNodes.csv' for folder in config.cd['VARIED_PATHS']], f'acceptanceTimeLatencyAmongNodes.pdf', t_confirmation, config.cd['VARIED_LABELS'])
+            plotter.plot_varied_block_information_violinplot(
+                '', config.cd['VARIED_PATHS'], f'blockInformation.pdf', t_confirmation, config.cd['VARIED_LABELS'])
         else:
             plotter.plot_varied_block_information_violinplot(
                 n, [folder + '/BlockInformation.csv'], f'blockInformation.pdf', t_confirmation, n)
-            plotter.plot_varied_acceptance_latency_violinplot(
-                n, [folder + '/acceptanceTimeLatencyAmongNodes.csv'], f'acceptanceTimeLatencyAmongNodes.pdf', t_confirmation, n)
-            plotter.plot_confirmation_threshold(
-                n, folder + '/confirmationThreshold.csv', f'confirmationThreshold.pdf', 'Time (s)', n)
-        
+            plotter.acceptance_delay_violinplot(
+                n, folder + '/acceptanceTimeLatencyAmongNodes.csv', f'acceptanceTimeLatencyAmongNodes.pdf', t_confirmation, n)
+
         # TODO: Fix bug
         with open(config.cd['CONFIGURATION_PATH']) as f:
             c = json.load(f)
@@ -267,17 +265,19 @@ if __name__ == '__main__':
             f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/weights.csv', config.cd)
         config.update('WEIGHTS', weights)
 
-        # plot dissemination rates
-        messages, times = parse_per_node_metrics(
-            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/disseminatedMessages.csv')
-
-        localMetricNames = parse_metric_names(f'{config.cd["GENERAL_OUTPUT_PATH"]}/localMetrics.csv')
+        localMetricNames = parse_metric_names(
+            f'{config.cd["GENERAL_OUTPUT_PATH"]}/localMetrics.csv')
         for name in localMetricNames:
             if name != 'RMC':
                 continue
-            data, times = parse_per_node_metrics(f'{config.cd["GENERAL_OUTPUT_PATH"]}/{name}.csv')
+            data, times = parse_per_node_metrics(
+                f'{config.cd["GENERAL_OUTPUT_PATH"]}/{name}.csv')
             plot_per_node_metric(data, times, config.cd, name, "")
             plot_per_node_wo_spammer_metric(data, times, config.cd, name, "")
+
+        # plot dissemination rates
+        messages, times = parse_per_node_metrics(
+            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/disseminatedMessages.csv')
 
         plot_total_traffic(messages, times, config.cd, "Traffic")
 
@@ -288,13 +288,16 @@ if __name__ == '__main__':
         plot_per_node_metric(messages, times, config.cd,
                              "Partially Confirmed Blocks", "Number of Blocks")
 
-        readyLengths, times = parse_per_node_metrics(f'{config.cd["GENERAL_OUTPUT_PATH"]}/Ready Lengths.csv')
-        plot_per_node_metric(readyLengths, times, config.cd, "Ready Lengths", "Number of Blocks")
-        nonReadyLengths, times = parse_per_node_metrics(f'{config.cd["GENERAL_OUTPUT_PATH"]}/Non Ready Lengths.csv')
-        plot_per_node_metric(nonReadyLengths, times, config.cd, "Non Ready Lengths", "Number of Blocks")
-        
-        sys.exit(0)
+        readyLengths, times = parse_per_node_metrics(
+            f'{config.cd["GENERAL_OUTPUT_PATH"]}/Ready Lengths.csv')
+        plot_per_node_metric(readyLengths, times, config.cd,
+                             "Ready Lengths", "Number of Blocks")
+        nonReadyLengths, times = parse_per_node_metrics(
+            f'{config.cd["GENERAL_OUTPUT_PATH"]}/Non Ready Lengths.csv')
+        plot_per_node_metric(nonReadyLengths, times, config.cd,
+                             "Non Ready Lengths", "Number of Blocks")
 
+        sys.exit(0)
 
         # update the configuration dictionary
         newconfigs = parse_config(
@@ -302,15 +305,18 @@ if __name__ == '__main__':
 
         # copy the config.go file
         source_path = "./config/config.go"
-        destination_dir = os.path.join(config.cd['RESULTS_PATH'], config.cd['SCRIPT_START_TIME'])
+        destination_dir = os.path.join(
+            config.cd['RESULTS_PATH'], config.cd['SCRIPT_START_TIME'])
         destination_path = os.path.join(destination_dir, "config.go")
         shutil.copyfile(source_path, destination_path)
 
         os.makedirs(config.cd['GENERAL_FIGURE_OUTPUT_PATH'], exist_ok=True)
-        print(f"Generating figures to {config.cd['GENERAL_FIGURE_OUTPUT_PATH']}")
+        print(
+            f"Generating figures to {config.cd['GENERAL_FIGURE_OUTPUT_PATH']}")
 
         os.makedirs(config.cd['SCHEDULER_FIGURE_OUTPUT_PATH'], exist_ok=True)
-        print(f"Generating figures to {config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']}")
+        print(
+            f"Generating figures to {config.cd['SCHEDULER_FIGURE_OUTPUT_PATH']}")
 
         for k in newconfigs:
             config.update(k, newconfigs[k])
@@ -367,7 +373,11 @@ if __name__ == '__main__':
         plot_traffic(pd.read_csv(
             config.cd['GENERAL_FIGURE_OUTPUT_PATH']+"/Traffic.csv"), "Traffic",  config.cd)
 
-        readyLengths, times = parse_per_node_metrics(f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/readyLengths.csv')
-        plot_per_node_metric(readyLengths, times, config.cd, "Ready Lengths", "Number of Blocks")
-        nonReadyLengths, times = parse_per_node_metrics(f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/nonReadyLengths.csv')
-        plot_per_node_metric(nonReadyLengths, times, config.cd, "Non Ready Lengths", "Number of Blocks")
+        readyLengths, times = parse_per_node_metrics(
+            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/readyLengths.csv')
+        plot_per_node_metric(readyLengths, times, config.cd,
+                             "Ready Lengths", "Number of Blocks")
+        nonReadyLengths, times = parse_per_node_metrics(
+            f'{config.cd["SCHEDULER_OUTPUT_PATH"]}/nonReadyLengths.csv')
+        plot_per_node_metric(nonReadyLengths, times, config.cd,
+                             "Non Ready Lengths", "Number of Blocks")

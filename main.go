@@ -117,8 +117,10 @@ func main() {
 	// The simulation start time
 	simulationStartTime = time.Now()
 	testNetwork := network.New(
-		network.Nodes(config.Params.NodesCount, nodeFactories, network.ZIPFDistribution(
-			config.Params.ZipfParameter)),
+		network.Nodes(config.Params.NodesCount,
+			nodeFactories,
+			network.ZIPFDistribution(config.Params.ZipfParameter),
+			network.MixedZIPFDistribution(config.Params.ZipfParameter)),
 		network.Delay(time.Duration(config.Params.SlowdownFactor)*time.Duration(config.Params.MinDelay)*time.Millisecond,
 			time.Duration(config.Params.SlowdownFactor)*time.Duration(config.Params.MaxDelay)*time.Millisecond),
 		network.PacketLoss(config.Params.PacketLoss, config.Params.PacketLoss),
@@ -184,6 +186,10 @@ func processMessages(peer *network.Peer) {
 	ticker := time.NewTicker(pace)
 	defer ticker.Stop()
 
+	validatorPace := time.Duration((float64(time.Second) * float64(config.Params.SlowdownFactor)) / float64(config.Params.ValidatorBPS))
+	validatorTicker := time.NewTicker(validatorPace)
+	defer validatorTicker.Stop()
+
 	for {
 		select {
 		case <-peer.ShutdownProcessing:
@@ -197,6 +203,12 @@ func processMessages(peer *network.Peer) {
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.IncrementAccessMana(float64(config.Params.SchedulingRate))
 			peer.Node.(multiverse.NodeInterface).Tangle().Scheduler.ScheduleMessage()
 			monitorLocalMetrics(peer)
+		case <-validatorTicker.C:
+			if int(peer.ID) <= config.Params.ValidatorCount {
+				if message, ok := peer.Node.(multiverse.NodeInterface).Tangle().MessageFactory.CreateMessage(true, multiverse.UndefinedColor); ok {
+					peer.Node.(multiverse.NodeInterface).Tangle().ProcessMessage(message)
+				}
+			}
 		}
 	}
 }
@@ -264,7 +276,9 @@ func startIssuingMessages(testNetwork *network.Network) {
 		// MetricsMgr.GlobalCounters.Add("relevantValidators", 1)
 
 		// peer.AdversarySpeedup=1 for honest nodes and can have different values from adversary nodes
-		band := peer.AdversarySpeedup * weightOfPeer * float64(config.Params.IssuingRate) / nodeTotalWeight
+		// band := peer.AdversarySpeedup * weightOfPeer * float64(config.Params.IssuingRate) / nodeTotalWeight
+		band := peer.AdversarySpeedup * float64(testNetwork.BandwidthDistribution.Bandwidth(peer.ID))
+		// log.Debugf("startIssuingMessages... Peer ID: %d, Bandwidth: %f", peer.ID, band)
 		// fmt.Println(peer.AdversarySpeedup, weightOfPeer, config.Params.IssuingRate, nodeTotalWeight)
 		//fmt.Printf("speedup %f band %f\n", peer.AdversarySpeedup, band)
 		go issueMessages(peer, band)
@@ -330,6 +344,7 @@ func sendMessage(peer *network.Peer, optionalColor ...multiverse.Color) {
 func shutdownSimulation(net *network.Network) {
 	net.Shutdown()
 	close(shutdownGlobalMetrics)
+	dumpAcceptanceLatencyAmongNodes()
 	dumpFinalData(net)
 	simulationWg.Wait()
 	//dumpAllMessageMetaData(net.Peers[0].Node.(multiverse.NodeInterface).Tangle().Storage)
@@ -617,7 +632,6 @@ func monitorGlobalMetrics(net *network.Network) {
 					partialConfirmationResultsWriter,
 					unconfirmationResultsWriter)
 			case <-shutdownGlobalMetrics:
-				dumpAcceptanceLatencyAmongNodes()
 				log.Warn("Shutting down global metrics")
 				return
 			}

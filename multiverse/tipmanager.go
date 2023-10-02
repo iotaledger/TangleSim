@@ -83,6 +83,13 @@ func (t *TipManager) AnalyzeMessage(messageID MessageID) {
 		for color, tipSet := range t.TipSets(inheritedColor) {
 			addedAsStrongTip[color] = true
 			tipSet.AddStrongTip(message)
+
+			if message.Validation {
+				tipSet.AddValidatorValidationTip(message)
+			} else {
+				tipSet.AddValidatorStrongTip(message)
+			}
+
 			t.msgProcessedCounter[color] += 1
 		}
 	}
@@ -123,16 +130,20 @@ func (t *TipManager) TipSet(color Color) (tipSet *TipSet) {
 	return
 }
 
-func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
+func (t *TipManager) Tips(validation bool) (strongTips MessageIDs, weakTips MessageIDs) {
 	// The tips is selected form the tipSet of the current ownOpinion
 	tipSet := t.TipSet(t.tangle.OpinionManager.Opinion())
 
-	peerID := t.tangle.Peer.ID
-	if peerID == 99 {
-		t.WalkForOldestUnconfirmed(tipSet)
-	}
+	// peerID := t.tangle.Peer.ID
+	// if peerID == 99 {
+	// 	t.WalkForOldestUnconfirmed(tipSet)
+	// }
 
-	strongTips = tipSet.StrongTips(config.Params.ParentsCount, t.tsa)
+	if !validation {
+		strongTips = tipSet.StrongTips(config.Params.ParentsCount, t.tsa)
+	} else {
+		strongTips = tipSet.ValidationTips(config.Params.ParentCountVB, config.Params.ParentCountNVB, t.tsa)
+	}
 	// In the paper we consider all strong tips
 	// weakTips = tipSet.WeakTips(config.Params.ParentsCount-1, t.tsa)
 
@@ -174,22 +185,39 @@ func (t *TipManager) Tips() (strongTips MessageIDs, weakTips MessageIDs) {
 // region TipSet ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type TipSet struct {
+	// for non-validation block
 	strongTips *randommap.RandomMap
 	weakTips   *randommap.RandomMap
+
+	// for validation block
+	validatorStrongTips     *randommap.RandomMap
+	validatorValidationTips *randommap.RandomMap
+	validatorWeakTips       *randommap.RandomMap
 }
 
 func NewTipSet(tipsToInherit *TipSet) (tipSet *TipSet) {
 	tipSet = &TipSet{
-		strongTips: randommap.New(),
-		weakTips:   randommap.New(),
+		strongTips:              randommap.New(),
+		weakTips:                randommap.New(),
+		validatorStrongTips:     randommap.New(),
+		validatorWeakTips:       randommap.New(),
+		validatorValidationTips: randommap.New(),
 	}
 
 	if tipsToInherit != nil {
 		tipsToInherit.strongTips.ForEach(func(key interface{}, value interface{}) {
 			tipSet.strongTips.Set(key, value)
+
+			msg := value.(*Message)
+			if msg.Validation {
+				tipSet.validatorValidationTips.Set(key, value)
+			} else {
+				tipSet.validatorStrongTips.Set(key, value)
+			}
 		})
 		tipsToInherit.weakTips.ForEach(func(key interface{}, value interface{}) {
 			tipSet.weakTips.Set(key, value)
+			tipSet.validatorWeakTips.Set(key, value)
 		})
 	}
 
@@ -205,6 +233,33 @@ func (t *TipSet) AddStrongTip(message *Message) {
 	for weakParent := range message.WeakParents {
 		t.weakTips.Delete(weakParent)
 	}
+}
+
+func (t *TipSet) AddValidatorStrongTip(message *Message) {
+	t.validatorStrongTips.Set(message.ID, message)
+	for strongParent := range message.StrongParents {
+		t.validatorStrongTips.Delete(strongParent)
+	}
+
+	for weakParent := range message.WeakParents {
+		t.validatorWeakTips.Delete(weakParent)
+	}
+}
+
+func (t *TipSet) AddValidatorValidationTip(message *Message) {
+	if !message.Validation {
+		fmt.Println("AddValidatorValidationTip: message is not validation block", message.ID)
+		return
+	}
+
+	t.validatorValidationTips.Set(message.ID, message)
+	for strongParent := range message.StrongParents {
+		t.validatorValidationTips.Delete(strongParent)
+	}
+}
+
+func (t *TipSet) AddValidatorWeakTip(message *Message) {
+	t.validatorWeakTips.Set(message.ID, message)
 }
 
 func (t *TipSet) Size() int {
@@ -237,6 +292,24 @@ func (t *TipSet) WeakTips(maxAmount int, tsa TipSelector) (weakTips MessageIDs) 
 	weakTips = make(MessageIDs)
 	for _, weakTip := range tsa.TipSelect(t.weakTips, maxAmount) {
 		weakTips.Add(weakTip.(*Message).ID)
+	}
+
+	return
+}
+
+func (t *TipSet) ValidationTips(maxVBAmount, maxNVBAmount int, tsa TipSelector) (validationTips MessageIDs) {
+	if t.validatorValidationTips.Size() == 0 && t.validatorStrongTips.Size() == 0 {
+		validationTips = NewMessageIDs(Genesis)
+		return
+	}
+
+	validationTips = make(MessageIDs)
+	for _, strongTip := range tsa.TipSelect(t.validatorValidationTips, maxVBAmount) {
+		validationTips.Add(strongTip.(*Message).ID)
+	}
+
+	for _, strongTip := range tsa.TipSelect(t.validatorStrongTips, maxNVBAmount) {
+		validationTips.Add(strongTip.(*Message).ID)
 	}
 
 	return

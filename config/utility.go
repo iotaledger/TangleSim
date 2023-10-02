@@ -26,16 +26,17 @@ func RandomArrayFromValues(seed int64, values []int, length int) []int {
 		// value = 1: normal;
 		// a[i] = values[r.Intn(len(values))]
 
-		begin := 24
-		a[i] = 1
-		if (i >= begin) {
-			a[i] = 0
-		}
+		// begin := 24
+		// a[i] = 1
+		// if (i >= begin) {
+		// 	a[i] = 0
+		// }
 		// end := 9
 		// if (i > end) {
 		// 	a[i] = 0
 		// }
 		// a[i] = values[r.Intn(len(values))]
+		a[i] = 1 // normal
 	}
 	return a
 }

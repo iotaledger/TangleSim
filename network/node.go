@@ -4,7 +4,7 @@ import "time"
 
 // region Node /////////////////////////////////////////////////////////////////////////////////////////////////////////
 type Node interface {
-	Setup(peer *Peer, weightDistribution *ConsensusWeightDistribution, genesisTime time.Time)
+	Setup(peer *Peer, weightDistribution *ConsensusWeightDistribution, bandwidthDistribution *BandwidthDistribution, genesisTime time.Time)
 	HandleNetworkMessage(networkMessage interface{})
 }
 

@@ -43,6 +43,11 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 	issuingMessage := a.tangle.Storage.Message(messageID)
 	byteIndex := issuingMessage.Issuer / 8
 	mod := issuingMessage.Issuer % 8
+
+	if !issuingMessage.Validation {
+		return
+	}
+
 	weight := a.tangle.WeightDistribution.Weight(issuingMessage.Issuer)
 	a.tangle.Utils.WalkMessagesAndMetadata(func(message *Message, messageMetadata *MessageMetadata, walker *walker.Walker) {
 		if int(a.tangle.Peer.ID) == config.Params.MonitoredWitnessWeightPeer && messageMetadata.ID() == MessageID(config.Params.MonitoredWitnessWeightMessageID) {

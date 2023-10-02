@@ -8,19 +8,20 @@ import (
 )
 
 type Tangle struct {
-	Peer               *network.Peer
-	WeightDistribution *network.ConsensusWeightDistribution
-	GenesisTime        time.Time
-	Storage            *Storage
-	Solidifier         *Solidifier
-	ApprovalManager    *ApprovalManager
-	Requester          *Requester
-	Booker             *Booker
-	OpinionManager     OpinionManagerInterface
-	TipManager         *TipManager
-	MessageFactory     *MessageFactory
-	Utils              *Utils
-	Scheduler          Scheduler
+	Peer                  *network.Peer
+	WeightDistribution    *network.ConsensusWeightDistribution
+	BandwidthDistribution *network.BandwidthDistribution
+	GenesisTime           time.Time
+	Storage               *Storage
+	Solidifier            *Solidifier
+	ApprovalManager       *ApprovalManager
+	Requester             *Requester
+	Booker                *Booker
+	OpinionManager        OpinionManagerInterface
+	TipManager            *TipManager
+	MessageFactory        *MessageFactory
+	Utils                 *Utils
+	Scheduler             Scheduler
 }
 
 func NewTangle() (tangle *Tangle) {
@@ -39,9 +40,15 @@ func NewTangle() (tangle *Tangle) {
 	return
 }
 
-func (t *Tangle) Setup(peer *network.Peer, weightDistribution *network.ConsensusWeightDistribution, genesisTime time.Time) {
+func (t *Tangle) Setup(
+	peer *network.Peer,
+	weightDistribution *network.ConsensusWeightDistribution,
+	bandwidthDistribution *network.BandwidthDistribution,
+	genesisTime time.Time,
+) {
 	t.Peer = peer
 	t.WeightDistribution = weightDistribution
+	t.BandwidthDistribution = bandwidthDistribution
 
 	t.Storage.Setup(genesisTime)
 	t.Solidifier.Setup()

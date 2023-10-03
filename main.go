@@ -558,6 +558,7 @@ func monitorGlobalMetrics(net *network.Network) {
 				// The accepted time difference between the node which first accepted it and the last node which accepted it lastly
 				confirmedDelayInNetworkMutex.Lock()
 				defer confirmedDelayInNetworkMutex.Unlock()
+				// TODO (confirmation): monitor PreAcceptedTime, AcceptedTime, PreConfirmationTime, ConfirmationTime
 				if firstAcceptedTime, exists := firstConfirmedTimeMap[message.ID]; exists {
 					if confirmedMessageMap[message.ID] == config.Params.NodesCount {
 						confirmedDelayInNetworkMap[message.ID] = messageMetadata.ConfirmationTime().Sub(firstAcceptedTime)
@@ -746,6 +747,7 @@ func dumpFinalData(net *network.Network) {
 		record[0] = strconv.FormatInt(int64(config.Params.BurnPolicies[int(message.Issuer)]), 10)
 		record[1] = strconv.FormatInt(int64(message.ID), 10)
 		record[2] = strconv.FormatInt(message.IssuanceTime.Sub(simulationStartTime).Nanoseconds(), 10)
+		// TODO (confirmation): monitor PreAcceptedTime, AcceptedTime, PreConfirmationTime, ConfirmationTime
 		t := int64(messageMetadata.ConfirmationTime().Sub(message.IssuanceTime))
 		if t < 0 {
 			t = 0
@@ -814,6 +816,7 @@ func dumpFinalData(net *network.Network) {
 		message := fullyConfirmedMessages[messageID]
 		messageMetadata := fullyConfirmedMessageMetadata[messageID]
 		record[0] = strconv.FormatInt(int64(message.Issuer), 10)
+		// TODO (confirmation): monitor PreAcceptedTime, AcceptedTime, PreConfirmationTime, ConfirmationTime
 		record[1] = strconv.FormatInt(int64(messageMetadata.ConfirmationTime().Sub(simulationStartTime).Nanoseconds()), 10)
 		record[2] = strconv.FormatInt(int64(messageMetadata.ConfirmationTime().Sub(message.IssuanceTime).Nanoseconds()), 10)
 		if err := writer.Write(record); err != nil {

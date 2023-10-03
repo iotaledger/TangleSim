@@ -34,12 +34,27 @@ type Message struct {
 // region MessageMetadata //////////////////////////////////////////////////////////////////////////////////////////////
 
 type MessageMetadata struct {
-	id               MessageID
-	solid            bool
-	ready            bool
-	inheritedColor   Color
-	weightSlice      []byte
-	weight           uint64
+	id    MessageID
+	solid bool
+	ready bool
+	// TODO (confirmation): add 1) preAccepted    bool
+	// TODO (confirmation): add 2) Accepted       bool
+	// TODO (confirmation): add 3) preConfirmation bool
+	// TODO (confirmation): add 4) Confirmation    bool
+	inheritedColor Color
+	// TODO (confirmation): rename weightSlice to be 1) nodePreAcceptanceBitmap
+	// TODO (confirmation): add 2) nodeAcceptanceBitmap
+	// TODO (confirmation): add 3) nodePreConfirmationBitmap
+	// TODO (confirmation): add 4) nodeConfirmationBitmap
+	// TODO (confirmation): add the corresponding setter/getter functions for each
+	weightSlice []byte
+
+	weight uint64
+	// TODO (confirmation): rename confirmationTime to be 1) acceptanceTime
+	// TODO (confirmation): add 2) preAcceptanceTime
+	// TODO (confirmation): add 3) preConfirmationTime
+	// TODO (confirmation): add 4) confirmationTime
+	// TODO (confirmation): add the corresponding setter/getter functions for each
 	confirmationTime time.Time
 	orphanTime       time.Time
 	arrivalTime      time.Time

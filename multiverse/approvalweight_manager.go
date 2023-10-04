@@ -78,10 +78,10 @@ func (a *ApprovalManager) ApproveMessages(messageID MessageID) {
 		//               the 3rd bit in Byte 0 is for node 2
 		//               the 4th bit in Byte 0 is for node 3
 		//                ...
-		weightByte := messageMetadata.WeightByte(int(byteIndex))
+		weightByte := messageMetadata.PreAcceptedBitmapByte(int(byteIndex))
 		if weightByte&(1<<mod) == 0 {
 			weightByte |= 1 << mod
-			messageMetadata.SetWeightByte(int(byteIndex), weightByte)
+			messageMetadata.SetPreAcceptedBitmapByte(int(byteIndex), weightByte)
 			messageMetadata.AddWeight(weight)
 			a.Events.MessageWeightUpdated.Trigger(message, messageMetadata, messageMetadata.Weight())
 			if float64(messageMetadata.Weight()) >= config.Params.ConfirmationThreshold*float64(a.tangle.WeightDistribution.TotalWeight()) &&

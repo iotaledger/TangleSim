@@ -70,10 +70,13 @@ func (s *Storage) Store(message *Message) (*MessageMetadata, bool) {
 	// store message and metadata
 	s.messageDB[message.ID] = message
 	messageMetadata := &MessageMetadata{
-		id:          message.ID,
-		weightSlice: make([]byte, int(math.Ceil(float64(config.Params.NodesCount)/8.0))),
-		arrivalTime: time.Now(),
-		ready:       false,
+		id:                        message.ID,
+		nodePreAcceptanceBitmap:   make([]byte, int(math.Ceil(float64(config.Params.NodesCount)/8.0))),
+		nodeAcceptanceBitmap:      make([]byte, int(math.Ceil(float64(config.Params.NodesCount)/8.0))),
+		nodePreConfirmationBitmap: make([]byte, int(math.Ceil(float64(config.Params.NodesCount)/8.0))),
+		nodeConfirmationBitmap:    make([]byte, int(math.Ceil(float64(config.Params.NodesCount)/8.0))),
+		arrivalTime:               time.Now(),
+		ready:                     false,
 	}
 	// check if this should be orphaned
 	if s.TooOld(message) {

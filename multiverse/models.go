@@ -34,49 +34,84 @@ type Message struct {
 // region MessageMetadata //////////////////////////////////////////////////////////////////////////////////////////////
 
 type MessageMetadata struct {
-	id    MessageID
-	solid bool
-	ready bool
-	// TODO (confirmation): add 1) preAccepted    bool
-	// TODO (confirmation): add 2) Accepted       bool
-	// TODO (confirmation): add 3) preConfirmation bool
-	// TODO (confirmation): add 4) Confirmation    bool
+	id           MessageID
+	solid        bool
+	ready        bool
+	preAccepted  bool
+	accepted     bool
+	preConfirmed bool
+	confirmed    bool
+
 	inheritedColor Color
-	// TODO (confirmation): rename weightSlice to be 1) nodePreAcceptanceBitmap
-	// TODO (confirmation): add 2) nodeAcceptanceBitmap
-	// TODO (confirmation): add 3) nodePreConfirmationBitmap
-	// TODO (confirmation): add 4) nodeConfirmationBitmap
-	// TODO (confirmation): add the corresponding setter/getter functions for each
-	weightSlice []byte
+
+	nodePreAcceptanceBitmap   []byte
+	nodeAcceptanceBitmap      []byte
+	nodePreConfirmationBitmap []byte
+	nodeConfirmationBitmap    []byte
 
 	weight uint64
-	// TODO (confirmation): rename confirmationTime to be 1) acceptanceTime
-	// TODO (confirmation): add 2) preAcceptanceTime
-	// TODO (confirmation): add 3) preConfirmationTime
-	// TODO (confirmation): add 4) confirmationTime
-	// TODO (confirmation): add the corresponding setter/getter functions for each
-	confirmationTime time.Time
-	orphanTime       time.Time
-	arrivalTime      time.Time
-	enqueueTime      time.Time
-	scheduleTime     time.Time
-	dropTime         time.Time
+
+	acceptanceTime      time.Time
+	preAcceptanceTime   time.Time
+	preConfirmationTime time.Time
+	confirmationTime    time.Time
+	orphanTime          time.Time
+	arrivalTime         time.Time
+	enqueueTime         time.Time
+	scheduleTime        time.Time
+	dropTime            time.Time
 }
 
 func (m *MessageMetadata) ArrivalTime() time.Time {
 	return m.arrivalTime
 }
 
-func (m *MessageMetadata) WeightByte(index int) byte {
-	return m.weightSlice[index]
+func (m *MessageMetadata) PreAcceptedBitmapByte(index int) byte {
+	return m.nodePreAcceptanceBitmap[index]
 }
 
-func (m *MessageMetadata) SetWeightByte(index int, weight byte) {
-	m.weightSlice[index] = weight
+func (m *MessageMetadata) SetPreAcceptedBitmapByte(index int, weight byte) {
+	m.nodePreAcceptanceBitmap[index] = weight
 }
 
-func (m *MessageMetadata) SetWeightSlice(weightSlice []byte) {
-	m.weightSlice = weightSlice
+func (m *MessageMetadata) SetPreAcceptedBitmap(bitmap []byte) {
+	m.nodePreAcceptanceBitmap = bitmap
+}
+
+func (m *MessageMetadata) AcceptedBitmapByte(index int) byte {
+	return m.nodeAcceptanceBitmap[index]
+}
+
+func (m *MessageMetadata) SetAcceptedBitmapByte(index int, weight byte) {
+	m.nodeAcceptanceBitmap[index] = weight
+}
+
+func (m *MessageMetadata) SetAcceptedBitmap(bitmap []byte) {
+	m.nodeAcceptanceBitmap = bitmap
+}
+
+func (m *MessageMetadata) PreConfirmationBitmapByte(index int) byte {
+	return m.nodePreConfirmationBitmap[index]
+}
+
+func (m *MessageMetadata) SetPreConfirmationBitmapByte(index int, weight byte) {
+	m.nodePreConfirmationBitmap[index] = weight
+}
+
+func (m *MessageMetadata) SetPreConfirmationBitmap(bitmap []byte) {
+	m.nodePreConfirmationBitmap = bitmap
+}
+
+func (m *MessageMetadata) ConfirmationBitmapByte(index int) byte {
+	return m.nodeConfirmationBitmap[index]
+}
+
+func (m *MessageMetadata) SetConfirmationBitmapByte(index int, weight byte) {
+	m.nodeConfirmationBitmap[index] = weight
+}
+
+func (m *MessageMetadata) SetConfirmationBitmap(bitmap []byte) {
+	m.nodeConfirmationBitmap = bitmap
 }
 
 func (m *MessageMetadata) Weight() uint64 {
@@ -89,6 +124,30 @@ func (m *MessageMetadata) AddWeight(weight uint64) {
 
 func (m *MessageMetadata) SetWeight(weight uint64) {
 	m.weight = weight
+}
+
+func (m *MessageMetadata) PreAcceptanceTime() time.Time {
+	return m.preAcceptanceTime
+}
+
+func (m *MessageMetadata) SetPreAcceptanceTime(preAcceptanceTime time.Time) {
+	m.preAcceptanceTime = preAcceptanceTime
+}
+
+func (m *MessageMetadata) AcceptanceTime() time.Time {
+	return m.acceptanceTime
+}
+
+func (m *MessageMetadata) SetAcceptanceTime(acceptanceTime time.Time) {
+	m.acceptanceTime = acceptanceTime
+}
+
+func (m *MessageMetadata) PreConfirmationTime() time.Time {
+	return m.preConfirmationTime
+}
+
+func (m *MessageMetadata) SetPreConfirmationTime(preConfirmationTime time.Time) {
+	m.preConfirmationTime = preConfirmationTime
 }
 
 func (m *MessageMetadata) ConfirmationTime() time.Time {
@@ -131,9 +190,9 @@ func (m *MessageMetadata) Scheduled() bool {
 	return !m.scheduleTime.IsZero()
 }
 
-func (m *MessageMetadata) Confirmed() bool {
-	return !m.confirmationTime.IsZero()
-}
+// func (m *MessageMetadata) Confirmed() bool {
+// 	return !m.confirmationTime.IsZero()
+// }
 
 func (m *MessageMetadata) Orphaned() bool {
 	return !m.orphanTime.IsZero()
@@ -156,6 +215,58 @@ func (m *MessageMetadata) SetSolid(solid bool) (modified bool) {
 
 func (m *MessageMetadata) Solid() (solid bool) {
 	return m.solid
+}
+
+func (m *MessageMetadata) SetAccepted(accepted bool) bool {
+	if accepted == m.accepted {
+		return false
+	}
+
+	m.accepted = accepted
+	return true
+}
+
+func (m *MessageMetadata) Accepted() (accepted bool) {
+	return m.accepted
+}
+
+func (m *MessageMetadata) SetPreAccepted(preAccepted bool) bool {
+	if preAccepted == m.preAccepted {
+		return false
+	}
+
+	m.preAccepted = preAccepted
+	return true
+}
+
+func (m *MessageMetadata) PreAccepted() (preAccepted bool) {
+	return m.preAccepted
+}
+
+func (m *MessageMetadata) SetConfirmed(confirmed bool) bool {
+	if confirmed == m.confirmed {
+		return false
+	}
+
+	m.confirmed = confirmed
+	return true
+}
+
+func (m *MessageMetadata) Confirmed() (confirmed bool) {
+	return m.confirmed
+}
+
+func (m *MessageMetadata) SetPreConfirmed(preConfirmed bool) bool {
+	if preConfirmed == m.preConfirmed {
+		return false
+	}
+
+	m.preConfirmed = preConfirmed
+	return true
+}
+
+func (m *MessageMetadata) PreConfirmed() (preConfirmed bool) {
+	return m.preConfirmed
 }
 
 func (m *MessageMetadata) SetInheritedColor(color Color) (modified bool) {

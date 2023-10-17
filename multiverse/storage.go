@@ -112,13 +112,13 @@ func (s *Storage) storeChildReferences(messageID MessageID, childReferenceDB map
 	}
 }
 
-func (s *Storage) isAllParentsInTangle(messageID MessageID) bool {
+func (s *Storage) isAllParentsScheduled(messageID MessageID) bool {
 	message := s.Message(messageID)
 	for strongParentID := range message.StrongParents {
 		if strongParentID == Genesis {
 			continue
 		}
-		if _, exists := s.messageDB[strongParentID]; !exists {
+		if !s.MessageMetadata(strongParentID).Scheduled() {
 			return false
 		}
 	}
@@ -126,7 +126,7 @@ func (s *Storage) isAllParentsInTangle(messageID MessageID) bool {
 		if weakParentID == Genesis {
 			continue
 		}
-		if _, exists := s.messageDB[weakParentID]; !exists {
+		if !s.MessageMetadata(weakParentID).Scheduled() {
 			return false
 		}
 	}

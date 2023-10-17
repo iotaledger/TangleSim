@@ -128,7 +128,7 @@ func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
 
 	// if this message is a validation block, skip the scheduler.
 	if m.Validation {
-		if s.tangle.Storage.isAllParentsInTangle(messageID) {
+		if s.tangle.Storage.isAllParentsScheduled(messageID) {
 			s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
 			s.updateChildrenReady(m.ID)
 			s.events.MessageScheduled.Trigger(m.ID)

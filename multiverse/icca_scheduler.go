@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"container/ring"
 	"math"
+	"fmt"
 	"sync"
 	"time"
 
@@ -103,7 +104,7 @@ func (s *ICCAScheduler) IncrementAccessMana(schedulingRate float64) {
 	bandwidth := s.tangle.BandwidthDistribution.Bandwidths()
 	totalBandwidth := config.Params.SchedulingRate
 	// every time something is scheduled, we add this much mana in total\
-	mana := float64(10)
+	mana := float64(10) // Total mana generated per second
 	for id := range s.accessMana {
 		s.accessMana[id] += mana * float64(bandwidth[id]) / float64(totalBandwidth)
 	}
@@ -127,9 +128,17 @@ func (s *ICCAScheduler) EnqueueMessage(messageID MessageID) {
 
 	// if this message is a validation block, skip the scheduler.
 	if m.Validation {
-		s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
-		s.updateChildrenReady(m.ID)
-		s.events.MessageScheduled.Trigger(m.ID)
+		if s.tangle.Storage.isAllParentsInTangle(messageID) {
+			s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
+			s.updateChildrenReady(m.ID)
+			s.events.MessageScheduled.Trigger(m.ID)
+		} else {
+			fmt.Printf("Node %d received validation block %d and missing messages in past cone\n", s.tangle.Peer.ID, m.ID)
+
+			s.tangle.Storage.MessageMetadata(m.ID).SetScheduleTime(time.Now())
+			s.updateChildrenReady(m.ID)
+			s.events.MessageScheduled.Trigger(m.ID)
+		}
 	}
 
 	// if this node is a spammer, skip the scheduler.

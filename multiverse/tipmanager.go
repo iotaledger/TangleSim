@@ -142,7 +142,8 @@ func (t *TipManager) Tips(validation bool) (strongTips MessageIDs, weakTips Mess
 	if !validation {
 		strongTips = tipSet.StrongTips(config.Params.ParentsCount, t.tsa)
 	} else {
-		strongTips = tipSet.ValidationTips(config.Params.ParentCountVB, config.Params.ParentCountNVB, t.tsa)
+		// strongTips = tipSet.ValidationTips(config.Params.ParentCountVB, config.Params.ParentCountNVB, t.tsa)
+		strongTips = tipSet.StrongTips(config.Params.ParentCountVB + config.Params.ParentCountNVB, t.tsa)
 	}
 	// In the paper we consider all strong tips
 	// weakTips = tipSet.WeakTips(config.Params.ParentsCount-1, t.tsa)

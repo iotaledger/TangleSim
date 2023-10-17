@@ -43,7 +43,7 @@ var Params = &Config{
 		IssuingRate:        SchedulingRate,
 		CongestionPeriods:  []float64{1.0, 1.0, 1.0, 1.0},
 		ValidatorCount:     20,
-		ValidatorBPS:       1,
+		ValidatorBPS:       2,
 		ParentsCount:       8,
 		ParentCountVB:      2,
 		ParentCountNVB:     38,

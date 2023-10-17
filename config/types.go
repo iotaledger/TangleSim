@@ -48,7 +48,7 @@ type NetworkSettings struct {
 	// Scheduler rate in units of messages per second.
 	SchedulingRate int `default:"200"`
 	// Total rate of issuing messages in units of messages per second.
-	IssuingRate int `default:"100"`
+	IssuingRate int `default:"200"`
 	//, 0.5, 1.5, 1.5, 0.5} // congested/uncongested periods
 	CongestionPeriods []float64
 	// ParentsCount that a new message is selecting from the tip pool.

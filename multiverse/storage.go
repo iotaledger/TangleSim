@@ -112,6 +112,27 @@ func (s *Storage) storeChildReferences(messageID MessageID, childReferenceDB map
 	}
 }
 
+func (s *Storage) isAllParentsInTangle(messageID MessageID) bool {
+	message := s.Message(messageID)
+	for strongParentID := range message.StrongParents {
+		if strongParentID == Genesis {
+			continue
+		}
+		if _, exists := s.messageDB[strongParentID]; !exists {
+			return false
+		}
+	}
+	for weakParentID := range message.WeakParents {
+		if weakParentID == Genesis {
+			continue
+		}
+		if _, exists := s.messageDB[weakParentID]; !exists {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Storage) isReady(messageID MessageID) bool {
 	if !s.MessageMetadata(messageID).Solid() {
 		return false
